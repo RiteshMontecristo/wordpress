@@ -501,7 +501,7 @@ function add_layaway()
             'payments' => $payments
         ];
 
-        // $wpdb->query('COMMIT');
+        $wpdb->query('COMMIT');
         wp_send_json_success($response);
     } catch (Exception $e) {
         // Rollback on error
@@ -668,15 +668,16 @@ add_action('wp_ajax_searchProducts', 'searchProducts');
 function finalizeSale()
 {
     global $wpdb;
+    define('GST_RATE', 0.05);
+    define('PST_RATE', 0.08);
+    define('FLOAT_COMPARE_EPSILON', 0.01);
+
 
     $payment_table_name = $wpdb->prefix . 'mji_payments';
     $order_table_name = $wpdb->prefix . 'mji_orders';
     $order_items_table_name = $wpdb->prefix . 'mji_order_items';
-    $payment_table_name = $wpdb->prefix . 'mji_payments';
-    $payment_table_name = $wpdb->prefix . 'mji_payments';
+    $product_inventory_units = $wpdb->prefix . 'mji_product_inventory_units';
 
-    $gst_rate = 0.05;
-    $pst_rate = 0.08;
     $customer_id = isset($_POST['customer_id']) ? sanitize_text_field($_POST['customer_id']) : null;
     $reference = isset($_POST['reference']) ? sanitize_text_field($_POST['reference']) : null;
     $salesperson_id = isset($_POST['salesperson_id']) ? sanitize_text_field($_POST['salesperson_id']) : null;
@@ -702,6 +703,10 @@ function finalizeSale()
         wp_send_json_error([
             'message' => 'Missing required fields: ' . implode(', ', $missing_fields)
         ]);
+    }
+
+    if (!empty($date) && !DateTime::createFromFormat('Y-m-d', $date)) {
+        wp_send_json_error(['message' => 'Invalid date format. Expected YYYY-MM-DD.']);
     }
 
     $items_data = json_decode($items);
@@ -734,24 +739,24 @@ function finalizeSale()
     }
 
     $calculated_subtotal = round($calculated_subtotal, 2);
-    $calculated_gst = $exclude_gst ? 0 : round($calculated_subtotal * $gst_rate, 2);
-    $calculated_pst = $exclude_pst ? 0 : round($calculated_subtotal * $pst_rate, 2);
+    $calculated_gst = $exclude_gst ? 0 : round($calculated_subtotal * 'GST_RATE', 2);
+    $calculated_pst = $exclude_pst ? 0 : round($calculated_subtotal * 'PST_RATE', 2);
 
     $calculated_total = round($calculated_subtotal + $calculated_gst + $calculated_pst, 2);
 
-    if (abs($subtotal - $calculated_subtotal) > 0.01) {
+    if (abs($subtotal - $calculated_subtotal) > FLOAT_COMPARE_EPSILON) {
         wp_send_json_error(['message' => 'Subtotal mismatch between client sent data and calculated by server.']);
     }
 
-    if (abs($gst - $calculated_gst) > 0.01) {
+    if (abs($gst - $calculated_gst) > FLOAT_COMPARE_EPSILON) {
         wp_send_json_error(['message' => 'GST mismatch between client sent data and calculated by server.']);
     }
 
-    if (abs($pst - $calculated_pst) > 0.01) {
+    if (abs($pst - $calculated_pst) > FLOAT_COMPARE_EPSILON) {
         wp_send_json_error(['message' => 'PST mismatch between client sent data and calculated by server.']);
     }
 
-    if (abs($total - $calculated_total) > 0.01) {
+    if (abs($total - $calculated_total) > FLOAT_COMPARE_EPSILON) {
         wp_send_json_error(['message' => 'Total mismatch between client sent data and calculated by server.']);
     }
 
@@ -775,11 +780,19 @@ function finalizeSale()
         wp_die();
     }
 
-    if (abs($payment_total - $calculated_total) > 0.01) {
-        wp_send_json_error(['message' => 'Payment toal and calculated total doesn\'t match in server.']);
+    if (abs($payment_total - $calculated_total) > FLOAT_COMPARE_EPSILON) {
+        wp_send_json_error(['message' => 'Payment total and calculated total doesn\'t match in server.']);
     }
 
-    custom_log($payments);
+    // Start transaction
+    $wpdb->query('START TRANSACTION');
+    try {
+    } catch (Exception $e) {
+        // Rollback on error
+        $wpdb->query('ROLLBACK');
+        custom_log("Error: " . $e->getMessage());
+        wp_send_json_error(['message' => 'Something went wrong, please try again later.']);
+    }
 }
 
 add_action('wp_ajax_finalizeSale', 'finalizeSale');
