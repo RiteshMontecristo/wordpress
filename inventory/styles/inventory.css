@@ -1,0 +1,101 @@
+.inventory-sales .hidden {
+  display: none !important;
+}
+
+.customer-details {
+  display: flex;
+  justify-content: space-between;
+}
+
+.add-layaway form,
+form[name="finalize-sale"] {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 10px;
+
+    label,
+    span {
+      width: 100px;
+      display: inline-block;
+    }
+
+    button {
+      width: fit-content;
+    }
+  }
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 300px;
+}
+
+.modal-content p {
+  margin-top: 10px;
+}
+
+.modal-content label {
+  display: inline-block;
+  margin-top: 10px;
+}
+
+.modal-content input {
+  min-height: 25px;
+  height: 100%;
+}
+
+.modal-actions {
+  margin-top: 15px;
+  text-align: right;
+}
+.modal-actions button {
+  margin-left: 10px;
+}
+
+@media print {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #printReceipt {
+    display: none;
+  }
+
+  .layaway-receipt,
+  .layaway-receipt * {
+    visibility: visible;
+  }
+
+  .layaway-receipt {
+    border: 1px solid #000;
+    height: 100%;
+    overflow: hidden;
+    width: 100%;
+  }
+  .layaway-receipt * {
+    page-break-inside: avoid;
+  }
+}
