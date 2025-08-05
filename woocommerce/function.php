@@ -413,6 +413,7 @@ function contact_us()
                     wp_send_json_success(array('message' => 'Email sent successfully.'));
                 } else {
                     // Email failed to send
+                    error_log("The user {$email} tried to reach us in rolex but there was a server error.");
                     wp_send_json_error(array('message' => 'Server error while trying to send email, Please try again later.'));
                 }
             }
@@ -527,6 +528,7 @@ function appointment()
         wp_send_json_success(array('message' => 'Email sent successfully.'));
     } else {
         // Email failed to send
+        error_log("The user {$email} tried to reach us in rolex but there was a server error.");
         wp_send_json_error(array('message' => 'Server error while trying to send email, Please try again later.'));
     }
 }
@@ -621,6 +623,7 @@ function customize_contact_us()
             }
         } else {
             // Email failed to send
+            error_log("The user {$email} tried to reach us in rolex but there was a server error.");
             wp_send_json_error(array('message' => 'Server error while trying to send email, Please try again later.'));
         }
     } else {
@@ -954,52 +957,53 @@ function footer_register_menus()
 add_action('init', 'footer_register_menus');
 
 // Use the ACF description for meta description in categories instead of normal description
-add_filter( 'rank_math/frontend/description', function( $description ) {
-    if ( is_category() || is_tax() ) {
+add_filter('rank_math/frontend/description', function ($description) {
+    if (is_category() || is_tax()) {
         $term = get_queried_object();
-        
+
         // Get ACF field value
-        $acf_desc = get_field( 'description', $term->taxonomy . '_' . $term->term_id );
+        $acf_desc = get_field('description', $term->taxonomy . '_' . $term->term_id);
 
         // If ACF description exists, use it instead of default
-        if ( $acf_desc ) {
-            return esc_html( $acf_desc );
+        if ($acf_desc) {
+            return esc_html($acf_desc);
         }
     }
 
     return $description;
 });
 
-add_filter( 'rank_math/frontend/title', function( $title ) {
-    if ( is_category() || is_tax() ) {
+add_filter('rank_math/frontend/title', function ($title) {
+    if (is_category() || is_tax()) {
         $term = get_queried_object();
-        $acf_title = get_field( 'title', $term->taxonomy . '_' . $term->term_id );
+        $acf_title = get_field('title', $term->taxonomy . '_' . $term->term_id);
 
-        if ( $acf_title ) {
-            return esc_html( $acf_title );
+        if ($acf_title) {
+            return esc_html($acf_title);
         }
     }
 
     return $title;
 });
 
-function add_meta_keywords_tag() {
-    if ( ! function_exists( 'rank_math' ) ) {
+function add_meta_keywords_tag()
+{
+    if (! function_exists('rank_math')) {
         return;
     }
 
     $keyword = '';
 
     // For singular posts/pages
-    if ( is_singular() ) {
-        $keyword = get_post_meta( get_the_ID(), 'rank_math_focus_keyword', true );
+    if (is_singular()) {
+        $keyword = get_post_meta(get_the_ID(), 'rank_math_focus_keyword', true);
     }
-    
-    if ( ! empty( $keyword ) ) {
-        echo '<meta name="keywords" content="' . esc_attr( $keyword ) . '">' . "\n";
+
+    if (! empty($keyword)) {
+        echo '<meta name="keywords" content="' . esc_attr($keyword) . '">' . "\n";
     }
 }
-add_action( 'wp_head', 'add_meta_keywords_tag' );
+add_action('wp_head', 'add_meta_keywords_tag');
 // add_action('template_redirect', 'redirect_brands');
 
 // function redirect_brands() {

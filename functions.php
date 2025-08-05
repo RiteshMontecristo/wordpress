@@ -783,6 +783,7 @@ function handle_send_email()
                 'success' => false,
                 'message' => 'There was a problem sending the email. Please try again later.'
             );
+            error_log("The user {$email} tried to reach us in rolex but there was a server error.");
         }
 
         // Send JSON response
@@ -862,6 +863,7 @@ function handle_send_email_nojs()
             if ($sent) {
                 return wp_redirect(home_url('/rolex/contact-form'));;
             } else {
+                error_log("The user {$email} tried to reach us in rolex but there was a server error.");
                 return wp_redirect(home_url('/rolex/contact-form'));;
             }
         } else {
