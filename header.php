@@ -483,7 +483,7 @@
                 <nav>
                     <button id="mobileMenuCloseBtn" class="mobile-menu-close-btn" aria-label="close menu"></button>
                     <a class="mobile-rolex-clock" href="/rolex">
-                        <iframe id="rolex_retailer" title="Rolex Official Retailer" src="https://static.rolex.com/retailers/clock/?colour=gold&amp;apiKey=5321aee1ae68296fa0140a49a8d7de53&amp;lang=en" class="rolex-clock" scrolling="NO" frameborder="NO"></iframe>
+                        <iframe id="rolex_retailer" title="Rolex Official Retailer" src="https://static.rolex.com/retailers/clock/?colour=gold&amp;apiKey=5321aee1ae68296fa0140a49a8d7de53&amp;lang=en" class="rolex-clock" scrolling="NO" frameborder="NO" style="pointer-events: none;  width: 100%; height: 100%; border: none;"></iframe>
                     </a>
                     <?php
                     wp_nav_menu(array(
