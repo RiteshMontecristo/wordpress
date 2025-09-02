@@ -2,12 +2,12 @@
 
 $discoverArr = array(
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1754409121/rolex/discover-rolex-page-assets-landscape/sky-dweller-M336938-0008_2501stojan_002_RVB_2000x920.webp",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1754409189/rolex/discover-rolex-page-assets-portrait/sky-dweller-M336938-0008_2501stojan_002_RVB_780x1050.webp",
+        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1756830006/rolex/discover-rolex-page-assets-landscape/M226627-0001_2403jva_002_2000x920.webp",
+        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1756830124/rolex/discover-rolex-page-assets-portrait/M226627-0001_2403jva_002_780x1050.webp",
         "title" => "Rolex",
-        "subtitle" => "Sky-Dweller",
-        "url" => "/rolex/sky-dweller",
-        "text_color" => "white"
+        "subtitle" => "Yacht-Master",
+        "url" => "/rolex/yacht-master",
+        "text_color" => "black"
     ),
     array(
         "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1749570734/rolex/discover-rolex-page-assets-landscape/RBA_Endurance_Website_Banner_2000x920.jpg",
