@@ -11,7 +11,7 @@ function filter_jewellery_a_to_default_brand($query)
 
     $is_parent_jewellery = false;
 
-    if ( !empty($current_term->parent) && $current_term->parent > 0) {
+    if (!empty($current_term->parent) && $current_term->parent > 0) {
         $parent_term = get_term($current_term->parent, 'product_cat');
 
         if ($parent_term && $parent_term->slug === 'jewellery') {
@@ -29,8 +29,8 @@ function filter_jewellery_a_to_default_brand($query)
             'relation' => 'AND',
             array(
                 'taxonomy' => 'product_cat',
-                'field'    => 'slug',
-                'terms'    => $default_brand_slug,
+                'field' => 'slug',
+                'terms' => $default_brand_slug,
             )
         );
         $query->set('tax_query', $tax_query);
@@ -85,8 +85,7 @@ function add_body_class($classes)
 // adding this as when the product is only one and there is no sidebar the items is small
 add_filter('body_class', "add_body_class");
 
-add_filter('woocommerce_default_catalog_orderby', 'custom_default_catalog_orderby');
-
+// add_filter('woocommerce_default_catalog_orderby', 'custom_default_catalog_orderby');
 function custom_default_catalog_orderby()
 {
     return 'price'; // Set default to sort by price
@@ -130,7 +129,8 @@ function add_banner()
                             height="' . esc_attr($mobile_image_height) . '" 
                         />';
                 } ?>
-                <img loading="eager" width="<?php echo $image_width ?>" height="<?php echo $image_height ?>" fetchpriority="high" src="<?php echo esc_url($thumbnail_url); ?>" alt="<?php esc_attr($current_category->name); ?>" />
+                <img loading="eager" width="<?php echo $image_width ?>" height="<?php echo $image_height ?>" fetchpriority="high"
+                    src="<?php echo esc_url($thumbnail_url); ?>" alt="<?php esc_attr($current_category->name); ?>" />
             </picture>
 
     <?php
@@ -292,6 +292,7 @@ add_filter('rank_math/frontend/prev_rel_link', '__return_false');
 function add_load_more()
 {
     global $wp_query; // Access the global wp_query variable
+
     if ($wp_query->max_num_pages > 1) {
     ?>
         <div id="load-more-container">
@@ -312,15 +313,9 @@ function get_products_info()
         $brand = $_GET['brand'];
     }
 
-    if (in_array($brand, $brand_collection)) {
-        $brands = "montecristo";
-    } else {
-        if (isset($_GET['brands']) && !empty($_GET['brands'])) {
-            $brands = explode(',', $_GET['brands']);
-        }
+    if (isset($_GET['brands']) && !empty($_GET['brands'])) {
+        $brands = explode(',', $_GET['brands']);
     }
-
-    custom_log($brands);
 
     if (isset($_GET['type']) && !empty($_GET['type'])) {
         $type = explode(',', $_GET['type']);
@@ -347,7 +342,7 @@ function get_products_info()
 
     $minPrice = isset($_GET['min_price']) ? $_GET['min_price'] : 0;
     $maxPrice = isset($_GET['max_price']) ? $_GET['max_price'] : PHP_INT_MAX;
-    $orderby = isset($_GET['orderby']) ? $_GET['orderby'] : 'price';
+    $orderby = isset($_GET['orderby']) ? $_GET['orderby'] : 'menu_order';
     $page = isset($_GET['page']) ? $_GET['page'] : 0;
     $posts_per_page = 12;
     $offset = $page * $posts_per_page;
@@ -365,6 +360,7 @@ function get_products_info()
             )
         ),
         'orderby' => $orderby,
+        'order' => 'ASC',
         'post_status' => 'publish'
     );
 
@@ -386,10 +382,17 @@ function get_products_info()
             'meta_value_num' => 'DESC',
             'ID' => 'ASC',
         );
+    } elseif ($orderby === 'menu_order') {
+        // Manual drag-and-drop order
+        $args['orderby'] = array(
+            'menu_order' => 'ASC',
+            'ID' => 'ASC'
+        );
     } else {
+        // Fallback to date if nothing matches
         $args['orderby'] = array(
             'date' => 'DESC',
-            'ID' => 'ASC',
+            'ID' => 'ASC'
         );
     }
 
@@ -405,6 +408,16 @@ function get_products_info()
             'terms' => $brand,
             'operator' => 'IN'
         );
+
+        // For the Jewellery type page
+        if (in_array($brand, $brand_collection)) {
+            $tax_query[] = array(
+                'taxonomy' => 'product_cat',
+                'field' => 'slug',
+                'terms' => 'montecristo',
+                'operator' => 'IN'
+            );
+        }
     }
 
     // Handle brand filtering (taxonomy query)
