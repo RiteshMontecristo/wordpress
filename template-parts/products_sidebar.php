@@ -1,8 +1,8 @@
 <?php
 
 $children = get_terms(array(
-    'taxonomy'   => 'product_cat',
-    'parent'     => 0,
+    'taxonomy' => 'product_cat',
+    'parent' => 0,
     'hide_empty' => false,
 ));
 
@@ -24,8 +24,10 @@ if (is_search()) {
                             foreach ($brandsCatgory as $brandCategory) {
                     ?>
                                 <li>
-                                    <input type="checkbox" name="category[]" id="<?php echo esc_attr($brandCategory->slug); ?>" value="<?php echo esc_attr($brandCategory->slug); ?>">
-                                    <label for="<?php echo esc_attr($brandCategory->slug); ?>"><?php echo esc_html($brandCategory->name); ?></label>
+                                    <input type="checkbox" name="category[]" id="<?php echo esc_attr($brandCategory->slug); ?>"
+                                        value="<?php echo esc_attr($brandCategory->slug); ?>">
+                                    <label
+                                        for="<?php echo esc_attr($brandCategory->slug); ?>"><?php echo esc_html($brandCategory->name); ?></label>
                                 </li>
                     <?php
                             }
@@ -55,15 +57,15 @@ if ($current_category->parent === 0) {
 
 // grabbing the child categories of the current category
 $children = get_terms(array(
-    'taxonomy'   => 'product_cat',
-    'parent'     => $current_category->term_id,
+    'taxonomy' => 'product_cat',
+    'parent' => $current_category->term_id,
     'hide_empty' => false,
 ));
 
 $current_slug = $current_category->slug;
 
 
-if (!empty($children)  || $parent_category_name == "Jewellery") {
+if (!empty($children) || $parent_category_name == "Jewellery") {
 ?>
     <sidebar id="products-sidebar" class="">
         <div class="filter-container" id="filter-container">
@@ -89,8 +91,11 @@ if (!empty($children)  || $parent_category_name == "Jewellery") {
                     <ul class="hidden">
                         <?php foreach ($children as $child_term) { ?>
                             <li>
-                                <input <?php echo ($child_term->slug == $active_brand) ? "checked" : ""; ?> type="checkbox" name="category[]" id="<?php echo esc_attr($child_term->slug); ?>" value="<?php echo esc_attr($child_term->slug); ?>">
-                                <label for="<?php echo esc_attr($child_term->slug); ?>"><?php echo esc_html($child_term->name); ?></label>
+                                <input <?php echo ($child_term->slug == $active_brand) ? "checked" : ""; ?> type="checkbox"
+                                    name="category[]" id="<?php echo esc_attr($child_term->slug); ?>"
+                                    value="<?php echo esc_attr($child_term->slug); ?>">
+                                <label
+                                    for="<?php echo esc_attr($child_term->slug); ?>"><?php echo esc_html($child_term->name); ?></label>
                             </li>
                         <?php } ?>
                     </ul>
@@ -149,21 +154,24 @@ if (!empty($children)  || $parent_category_name == "Jewellery") {
             <?php } else {
             ?>
                 <?php
-                if ($parent_category_name != "Jewellery"  && $current_slug != "jewellery") {
+                if ($parent_category_name != "Jewellery" && $current_slug != "jewellery") {
                     $jewellery = get_term_by("slug", "jewellery", "product_cat");
 
                     $jewellery_children = get_terms(array(
-                        'taxonomy'   => 'product_cat',
-                        'parent'     => $jewellery->term_id,
+                        'taxonomy' => 'product_cat',
+                        'parent' => $jewellery->term_id,
                         'hide_empty' => false,
                     ));
-                ?><div class="filter filter-hide tags">
+                ?>
+                    <div class="filter filter-hide tags">
                         <h3>Type</h3>
                         <ul class="hidden">
                             <?php foreach ($jewellery_children as $child_term) { ?>
                                 <li>
-                                    <input type="checkbox" name="type[]" id="<?php echo esc_attr($child_term->slug); ?>" value="<?php echo esc_attr($child_term->slug); ?>">
-                                    <label for="<?php echo esc_attr($child_term->slug); ?>"><?php echo esc_html($child_term->name); ?></label>
+                                    <input type="checkbox" name="type[]" id="<?php echo esc_attr($child_term->slug); ?>"
+                                        value="<?php echo esc_attr($child_term->slug); ?>">
+                                    <label
+                                        for="<?php echo esc_attr($child_term->slug); ?>"><?php echo esc_html($child_term->name); ?></label>
                                 </li>
                             <?php } ?>
                         </ul>
@@ -187,6 +195,24 @@ if (!empty($children)  || $parent_category_name == "Jewellery") {
                         <li>
                             <input type="checkbox" name="gemstone[]" id="no-stone" value="no-stone">
                             <label for="no-stone">No stone</label>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="filter filter-hide tags">
+                    <h3>Material</h3>
+                    <ul class="hidden">
+                        <li>
+                            <input type="checkbox" name="materials[]" id="18k-yellow-gold" value="18k-yellow-gold">
+                            <label for="18k-yellow-gold">Yellow Gold</label>
+                        </li>
+                        <li>
+                            <input type="checkbox" name="materials[]" id="18k-white-gold" value="18k-white-gold">
+                            <label for="18k-white-gold">White Gold</label>
+                        </li>
+                        <li>
+                            <input type="checkbox" name="materials[]" id="18k-rose-gold" value="18k-rose-gold">
+                            <label for="18k-rose-gold">Rose Gold</label>
                         </li>
                     </ul>
                 </div>
