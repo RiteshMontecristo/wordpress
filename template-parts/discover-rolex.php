@@ -10,12 +10,12 @@ $discoverArr = array(
         "text_color" => "black"
     ),
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1749570734/rolex/discover-rolex-page-assets-landscape/RBA_Endurance_Website_Banner_2000x920.jpg",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1749570637/rolex/discover-rolex-page-assets-portrait/RBA_Endurance_Website_Banner_780x1050.jpg",
-        "title" => "Rolex and motor sport",
-        "subtitle" => "Endurance",
-        "url" => "/rolex/endurance",
-        "text_color" => "white"
+        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1756914319/rolex/discover-rolex-page-assets-landscape/RBA_SailGP_Website_Banner_FD1_3997-r_2000x920.webp",
+        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1756914659/rolex/discover-rolex-page-assets-portrait/RBA_SailGP_Website_Banner_FD1_3997-r_780x1050.webp",
+        "title" => "Rolex and yachting",
+        "subtitle" => "Rolex SailGP Championship",
+        "url" => "/rolex/sailgp",
+        "text_color" => "black"
     ),
     array(
         "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1724196662/rolex/2000x920_NO-TEXT_N-A_FF_DESKTOP_GN_STATIC_JPEG_Watchmaking.jpg",
