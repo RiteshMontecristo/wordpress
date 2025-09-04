@@ -14,7 +14,7 @@ $discoverArr = array(
         "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1756914659/rolex/discover-rolex-page-assets-portrait/RBA_SailGP_Website_Banner_FD1_3997-r_780x1050.webp",
         "title" => "Rolex and yachting",
         "subtitle" => "Rolex SailGP Championship",
-        "url" => "/rolex/sailgp",
+        "url" => "/rolex/sailgp-championship",
         "text_color" => "black"
     ),
     array(

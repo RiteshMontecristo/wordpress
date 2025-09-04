@@ -1304,11 +1304,6 @@ footer.rolex-footer {
   grid-column: 1/-1;
 }
 
-.blog-container .blog-push:not(:first-child) img {
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-}
-
 .blog-container p,
 .blog-container h2 {
   margin: 0;
@@ -1351,6 +1346,11 @@ footer.rolex-footer {
 
   .blog-container .blog-push {
     grid-column: span 6;
+  }
+
+  .blog-container .blog-push:not(:first-child) img {
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
   }
 
   .blog-container .blog-push:first-child {
