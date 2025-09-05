@@ -708,41 +708,76 @@ function get_payments($post_data, $expected_total)
     return $payments;
 }
 
-function insert_order_and_items($order_data, $items_data, $payments, $date)
+function insert_order_and_items($order_data, $items_data, $payments, $date, $customer_id, $salesperson_id)
 {
     global $wpdb;
     $wpdb->query('START TRANSACTION');
     try {
         // Insert order
         $success = $wpdb->insert($wpdb->prefix . 'mji_orders', $order_data);
-        if (!$success) throw new Exception($wpdb->last_error);
+        if (!$success) {
+            if (strpos($wpdb->last_error, 'Duplicate entry') !== false) {
+                throw new RuntimeException("Order reference number already exists: " . $order_data['reference_num']);
+            } else {
+                throw new RuntimeException("Database error: " . $wpdb->last_error);
+            }
+        }
+
         $order_id = $wpdb->insert_id;
 
         // Insert payments
         foreach ($payments as $payment) {
-            $wpdb->insert($wpdb->prefix . 'mji_payments', [
+            $success = $wpdb->insert($wpdb->prefix . 'mji_payments', [
                 'order_id' => $order_id,
                 'amount' => $payment['amount'],
                 'method' => $payment['method'],
                 'payment_date' => $date,
+                'customer_id' => $customer_id,
+                'salesperson_id' => $salesperson_id,
+                'transaction_type' => $payment['method'] === 'layaway' ? 'layaway_redemption' : 'purchase',
+                'reference_num' => $order_data['reference_num'],
             ]);
+            if (!$success) {
+                throw new RuntimeException("Failed to insert payment: " . $wpdb->last_error);
+            }
         }
 
         // Insert order items and update inventory
         foreach ($items_data as $item) {
-            $wpdb->insert($wpdb->prefix . 'mji_order_items', [
-                'order_id' => $order_id,
-                'product_inventory_unit_id' => $item->unit_id,
-                'sale_price' => $item->price_after_discount,
-                'discount_amount' => $item->discount_amount,
-                'created_at' => $date
-            ]);
 
-            $wpdb->update(
-                $wpdb->prefix . 'mji_product_inventory_units',
-                ['status' => 'sold', 'sold_date' => $date],
-                ['id' => $item->unit_id]
+            // Check if this inventory unit is already sold
+            $status = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT status FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
+                    $item->unit_id
+                )
             );
+            if ($status == 'in_stock') {
+
+                $success = $wpdb->insert($wpdb->prefix . 'mji_order_items', [
+                    'order_id' => $order_id,
+                    'product_inventory_unit_id' => $item->unit_id,
+                    'sale_price' => $item->price_after_discount,
+                    'discount_amount' => $item->discount_amount,
+                    'created_at' => $date
+                ]);
+
+                if (!$success) {
+                    throw new RuntimeException("Failed to insert order item for {$item->title}: " . $wpdb->last_error);
+                }
+
+                $success = $wpdb->update(
+                    $wpdb->prefix . 'mji_product_inventory_units',
+                    ['status' => 'sold', 'sold_date' => $date],
+                    ['id' => $item->unit_id]
+                );
+
+                if ($success === false) { // note: update returns 0 if nothing changed, false on error
+                    throw new RuntimeException("Failed to update inventory for {$item->title}: " . $wpdb->last_error);
+                }
+            } else {
+                throw new Exception("Item {$item->title} is already sold or is reserved.");
+            }
         }
 
         $wpdb->query('COMMIT');
@@ -759,16 +794,22 @@ function finalizeSale()
     $totals = calculate_sale_totals($items_data, !empty($_POST['exclude_gst']), !empty($_POST['exclude_pst']));
     $payments = get_payments($_POST, $totals['total']);
 
+    // clean and prepare data
+    $customer_id = intval($_POST['customer_id']);
+    $salesperson_id = intval($_POST['salesperson']);
+    $reference_num = sanitize_text_field($_POST['reference']);
+    $created_at = sanitize_text_field($_POST['date']);
+
     $order_data = [
-        'customer_id' => intval($_POST['customer_id']),
-        'salesperson_id' => intval($_POST['salesperson']),
-        'reference_num' => sanitize_text_field($_POST['reference']),
+        'customer_id' => $customer_id,
+        'salesperson_id' => $salesperson_id,
+        'reference_num' => $reference_num,
         'subtotal' => $totals['subtotal'],
         'gst_total' => $totals['gst'],
         'pst_total' => $totals['pst'],
         'total' => $totals['total'],
-        'created_at' => sanitize_text_field($_POST['date']),
+        'created_at' => $created_at,
     ];
 
-    insert_order_and_items($order_data, $items_data, $payments, $_POST['date']);
+    insert_order_and_items($order_data, $items_data, $payments, $created_at, $customer_id, $salesperson_id);
 }
