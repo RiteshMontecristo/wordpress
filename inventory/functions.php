@@ -4,16 +4,23 @@ require_once get_stylesheet_directory() . '/inventory/inventory.php';
 require_once get_stylesheet_directory() . '/inventory/customer.php';
 require_once get_stylesheet_directory() . '/inventory/salespeople.php';
 require_once get_stylesheet_directory() . '/inventory/product_units.php';
+require_once get_stylesheet_directory() . '/inventory/reports.php';
 
 // Create the table when theme activated
+add_action('after_switch_theme', 'create_customers_table');
+add_action('after_switch_theme', 'create_salespeople_table');
+add_action('after_switch_theme', 'create_orders_table');
+add_action('after_switch_theme', 'create_payments_table');
+add_action('after_switch_theme', 'create_locations_table');
 add_action('after_switch_theme', 'create_product_inventory_units_table');
+add_action('after_switch_theme', 'create_order_items_table');
 
 function create_customers_table()
 {
     global $wpdb;
 
     // Define table name with WordPress prefix
-    $table_name =  $wpdb->prefix . 'mji_customers';
+    $table_name = $wpdb->prefix . 'mji_customers';
 
     // Define character set and collation
     $charset_collate = $wpdb->get_charset_collate();
@@ -120,14 +127,13 @@ function create_orders_table()
         status ENUM('pending', 'processing', 'completed', 'cancelled') NOT NULL DEFAULT 'completed',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        reference_num VARCHAR(50) UNIQUE NOT NULL,
+        reference_num VARCHAR(50) NOT NULL,
         subtotal DECIMAL(10,2) NOT NULL,
         gst_total DECIMAL(10,2) NOT NULL,
         pst_total DECIMAL(10,2) NOT NULL,
-        discount_total DECIMAL(10,2) NOT NULL,
         total DECIMAL(10,2) NOT NULL,
        
-
+        UNIQUE KEY unique_reference_num (reference_num),
         FOREIGN KEY (customer_id) REFERENCES $customers_table(id),
         FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id)
         ) $charset_collate;";
@@ -247,6 +253,83 @@ function create_product_inventory_units_table()
     dbDelta($sql);
 }
 
+function create_order_items_table()
+{
+    global $wpdb;
+
+    // Define table name with WordPress prefix
+    $table_name = $wpdb->prefix . 'mji_order_items';
+    $orders_table = $wpdb->prefix . 'mji_orders';
+    $product_inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
+
+    // Define character set and collation
+    $charset_collate = $wpdb->get_charset_collate();
+
+    // Define the SQL query to create the table
+    $sql = "CREATE TABLE $table_name (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        order_id BIGINT NOT NULL,
+        product_inventory_unit_id BIGINT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sale_price DECIMAL(10,2) NOT NULL,
+        discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        total DECIMAL(10,2) NOT NULL,
+
+        FOREIGN KEY (order_id) REFERENCES $orders_table(id),
+        FOREIGN KEY (product_inventory_unit_id) REFERENCES $product_inventory_table(id)
+        ) $charset_collate;";
+
+    // Include the dbDelta function (required for table creation)
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+
+    // Create the table using dbDelta
+    dbDelta($sql);
+}
+
+// Add menu page in WordPress admin
+function create_inventory_menu()
+{
+    add_menu_page(
+        'Inventory Management', // Page Title
+        'Manage Sales', // Menu Title
+        'manage_options', // Capability
+        'inventory-management', // Menu Slug
+        'inventory_page', // Callback Function
+        'dashicons-id', // Icon
+        25 // Position
+    );
+    // Submenu: Add Customer
+    add_submenu_page(
+        'inventory-management', // Parent slug
+        'Customer',        // Page title
+        'Customer',        // Menu title
+        'manage_options',      // Capability
+        'customer-management',        // Menu slug
+        'customer_page' // Callback function
+    );
+
+    // Submenu: Add Salespeople
+    add_submenu_page(
+        'inventory-management', // Parent slug
+        'Salespeople',        // Page title
+        'Salespeople',        // Menu title
+        'manage_options',      // Capability
+        'salespeople-management',        // Menu slug
+        'salespeople_page' // Callback function
+    );
+
+    // Submenu: Reports
+    add_submenu_page(
+        'inventory-management',
+        'Reports',
+        'Reports',
+        'manage_options',
+        'reports-management',
+        'reports_page'
+    );
+}
+add_action('admin_menu', 'create_inventory_menu');
+
 // Searching on the backend of WordPress for products
 function custom_woocommerce_admin_search($where, $wp_query)
 {
@@ -276,7 +359,6 @@ function custom_woocommerce_admin_search($where, $wp_query)
 }
 
 add_filter('posts_where', 'custom_woocommerce_admin_search', 10, 2);
-
 
 // ORDER ITEM REDUCTION
 add_action('woocommerce_checkout_order_processed', 'adjust_stock_after_order', 10, 3);
@@ -383,40 +465,6 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
     }
 }
 
-// Add menu page in WordPress admin
-function create_inventory_menu()
-{
-    add_menu_page(
-        'Inventory Management', // Page Title
-        'Inventory', // Menu Title
-        'manage_options', // Capability
-        'inventory-management', // Menu Slug
-        'inventory_page', // Callback Function
-        'dashicons-id', // Icon
-        25 // Position
-    );
-    // Submenu: Add Customer
-    add_submenu_page(
-        'inventory-management', // Parent slug
-        'Customer',        // Page title
-        'Customer',        // Menu title
-        'manage_options',      // Capability
-        'customer-management',        // Menu slug
-        'customer_page' // Callback function
-    );
-
-    // Submenu: Add Salespeople
-    add_submenu_page(
-        'inventory-management', // Parent slug
-        'Salespeople',        // Page title
-        'Salespeople',        // Menu title
-        'manage_options',      // Capability
-        'salespeople-management',        // Menu slug
-        'salespeople_page' // Callback function
-    );
-}
-add_action('admin_menu', 'create_inventory_menu');
-
 // Add Cost Price field to simple products
 add_action('woocommerce_product_options_general_product_data', 'add_cost_price_field');
 function add_cost_price_field()
@@ -453,12 +501,8 @@ function add_cost_price_to_variations_styled($loop, $variation_data, $variation)
 ?>
     <div class="form-row form-row-first">
         <label><?php esc_html_e('Cost Price ($)', 'woocommerce'); ?></label>
-        <input type="number"
-            class="wc_input_price short"
-            name="_cost_price[<?php echo esc_attr($loop); ?>]"
-            value="<?php echo esc_attr(get_post_meta($variation->ID, '_cost_price', true)); ?>"
-            placeholder=""
-            step="any"
+        <input type="number" class="wc_input_price short" name="_cost_price[<?php echo esc_attr($loop); ?>]"
+            value="<?php echo esc_attr(get_post_meta($variation->ID, '_cost_price', true)); ?>" placeholder="" step="any"
             min="0" />
     </div>
 <?php
@@ -470,4 +514,85 @@ function save_cost_price_variation($variation_id, $i)
     if (isset($_POST['_cost_price'][$i])) {
         update_post_meta($variation_id, '_cost_price', sanitize_text_field($_POST['_cost_price'][$i]));
     }
+}
+
+function mji_get_salespeople()
+{
+    static $salespeople = null;
+
+    if ($salespeople !== null) {
+        return $salespeople;
+    }
+
+    // Try transient first
+    $salespeople = get_transient('mji_salespeople');
+    if ($salespeople !== false) {
+        return $salespeople;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mji_salespeople';
+    $results = $wpdb->get_results("SELECT id, first_name, last_name FROM $table_name");
+
+    $salespeople = $results ?: [];
+    set_transient('mji_salespeople', $salespeople, DAY_IN_SECONDS);
+
+    return $salespeople;
+}
+
+function mji_salesperson_dropdown($required = true, $selected_id = '')
+{
+    $salespeople = mji_get_salespeople();
+    $required_attr = $required ? 'required' : '';
+
+    $html = "<select name='salesperson' id='salesperson' {$required_attr}>";
+    $html .= '<option value="">Select Salesperson</option>';
+
+    foreach ($salespeople as $s) {
+        $selected = ($s->id == $selected_id) ? 'selected' : '';
+        $html .= "<option value='{$s->id}' {$selected}>{$s->first_name} {$s->last_name}</option>";
+    }
+
+    $html .= '</select>';
+    return $html;
+}
+
+function mji_get_locations()
+{
+    static $locations = null;
+
+    if ($locations !== null) {
+        return $locations;
+    }
+
+    $locations = get_transient('mji_locations');
+    if ($locations !== false) {
+        return $locations;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mji_locations';
+    $results = $wpdb->get_results("SELECT id, name FROM $table_name");
+
+    $locations = $results ?: [];
+    set_transient('mji_locations', $locations, DAY_IN_SECONDS);
+
+    return $locations;
+}
+
+function mji_store_dropdown($required = true, $selected_id = '')
+{
+    $locations = mji_get_locations();
+    $required_attr = $required ? 'required' : '';
+
+    $html = "<select name='location' id='location' {$required_attr}>";
+    $html .= '<option value="">Select Location</option>';
+
+    foreach ($locations as $l) {
+        $selected = ($l->id == $selected_id) ? 'selected' : '';
+        $html .= "<option value='{$l->id}' {$selected}>{$l->name}</option>";
+    }
+
+    $html .= '</select>';
+    return $html;
 }

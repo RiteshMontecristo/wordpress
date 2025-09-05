@@ -1,7 +1,5 @@
 <?php
 
-use PhpOffice\PhpSpreadsheet\Calculation\MathTrig\Subtotal;
-
 function inventory_page()
 { ?>
     <div class="wrap inventory-sales">
@@ -122,19 +120,8 @@ function inventory_page()
                         <input type="text" id="layaway-reference" name="layaway_reference" required>
                     </div>
                     <div>
-                        <label for="salesperson">Salesperson:</label>
-                        <select name="salesperson" id="salesperson">
-                            <option value="" required>Select Salesperson</option>
-                            <?php
-                            global $wpdb;
-                            $table_name = $wpdb->prefix . 'mji_salespeople';
-                            $salespeople = $wpdb->get_results("SELECT * FROM $table_name");
-
-                            foreach ($salespeople as $salesperson) {
-                                echo "<option value='{$salesperson->id}'>{$salesperson->first_name} {$salesperson->last_name}</option>";
-                            }
-                            ?>
-                        </select>
+                        <label for="salesperson">Salesperson</label>
+                        <?= mji_salesperson_dropdown() ?>
                     </div>
                     <div>
                         <label for="layaway-notes">Notes:</label>
@@ -198,7 +185,9 @@ function inventory_page()
         <div class="cart hidden" id="cart">
 
             <h3>Items in the Cart:</h3>
-            <div class="cart-items"> </div>
+            <div class="cart-items">
+                <p>No items in the cart!!. Please add by searching the prooducts.</p>
+            </div>
 
             <h3>Finalize Sale</h3>
 
@@ -268,19 +257,8 @@ function inventory_page()
                         <input type="text" id="reference" name="reference" required>
                     </div>
                     <div>
-                        <label for="salesperson">Salesperson:</label>
-                        <select name="salesperson_id" id="salesperson">
-                            <option value="" required>Select Salesperson</option>
-                            <?php
-                            global $wpdb;
-                            $table_name = $wpdb->prefix . 'mji_salespeople';
-                            $salespeople = $wpdb->get_results("SELECT * FROM $table_name");
-
-                            foreach ($salespeople as $salesperson) {
-                                echo "<option value='{$salesperson->id}'>{$salesperson->first_name} {$salesperson->last_name}</option>";
-                            }
-                            ?>
-                        </select>
+                        <label for="salesperson">Salesperson</label>
+                        <?= mji_salesperson_dropdown() ?>
                     </div>
                     <div>
                         <label for="date">Date:</label>
@@ -346,7 +324,8 @@ function inventory_page()
         </div>
 
     </div>
-<?php }
+<?php
+}
 
 function search_customer()
 {
@@ -393,7 +372,7 @@ function get_layaway_sum()
 
     $result = $wpdb->get_row($query);
 
-    $balance = !is_null($result->net_layaway_balance) ? (float)$result->net_layaway_balance : 0.0;
+    $balance = !is_null($result->net_layaway_balance) ? (float) $result->net_layaway_balance : 0.0;
     return wp_send_json_success($balance);
 
     wp_die();
@@ -421,9 +400,7 @@ function get_layaway()
         AND customer_id = %d
     ", $customer_id);
 
-    custom_log($query);
     $layaway_items = $wpdb->get_results($query);
-    custom_log($layaway_items);
 
     if (empty($layaway_items)) {
         return wp_send_json_error('No layaway items found for this customer.');
@@ -456,10 +433,10 @@ function add_layaway()
         wp_die();
     }
 
-    $reference_num   = sanitize_text_field($_POST['layaway_reference']);
+    $reference_num = sanitize_text_field($_POST['layaway_reference']);
     $salesperson_id = sanitize_text_field($_POST['salesperson']);
-    $payment_date        = sanitize_text_field($_POST['layaway_date']);
-    $notes       = sanitize_textarea_field($_POST['layaway_notes']);
+    $payment_date = sanitize_text_field($_POST['layaway_date']);
+    $notes = sanitize_textarea_field($_POST['layaway_notes']);
     $customer_id = intval($_POST['customer_id']);
 
     if (empty($reference_num) || empty($salesperson_id) || empty($payment_date) || empty($customer_id)) {
@@ -474,13 +451,13 @@ function add_layaway()
         foreach ($payments as $payment) {
 
             $layaway_data = [
-                'reference_num'   => $reference_num,
+                'reference_num' => $reference_num,
                 'salesperson_id' => $salesperson_id,
-                'method'      => $payment['method'],
-                'amount'      => $payment['amount'],
+                'method' => $payment['method'],
+                'amount' => $payment['amount'],
                 'transaction_type' => 'layaway_deposit',
-                'payment_date'        => $payment_date,
-                'notes'       => $notes,
+                'payment_date' => $payment_date,
+                'notes' => $notes,
                 'customer_id' => $customer_id,
             ];
 
@@ -506,8 +483,7 @@ function add_layaway()
     } catch (Exception $e) {
         // Rollback on error
         $wpdb->query('ROLLBACK');
-        custom_log("Error: " . $e->getMessage());
-        wp_send_json_error(['message' => 'Something went wrong, please try again later.']);
+        wp_send_json_error(['message' => $e->getMessage()]);
     }
 }
 
@@ -665,134 +641,134 @@ function searchProducts()
 
 add_action('wp_ajax_searchProducts', 'searchProducts');
 
-function finalizeSale()
+add_action('wp_ajax_finalizeSale', 'finalizeSale');
+
+function validate_sale_input($post_data)
 {
-    global $wpdb;
+    $required_fields = ['customer_id', 'reference', 'salesperson', 'subtotal', 'total', 'date'];
+    $missing_fields = [];
+
+    foreach ($required_fields as $field) {
+        if (empty($post_data[$field])) $missing_fields[] = $field;
+    }
+
+    if (!empty($missing_fields)) {
+        wp_send_json_error(['message' => 'Missing required fields: ' . implode(', ', $missing_fields)]);
+    }
+
+    if (!DateTime::createFromFormat('Y-m-d', $post_data['date'])) {
+        wp_send_json_error(['message' => 'Invalid date format. Expected YYYY-MM-DD.']);
+    }
+
+    $items_data = json_decode(stripslashes($post_data['items']));
+    if (json_last_error() !== JSON_ERROR_NONE || empty($items_data)) {
+        wp_send_json_error(['message' => 'Invalid or empty items JSON']);
+    }
+
+    return $items_data;
+}
+
+function calculate_sale_totals($items_data, $exclude_gst = false, $exclude_pst = false)
+{
     define('GST_RATE', 0.05);
     define('PST_RATE', 0.08);
     define('FLOAT_COMPARE_EPSILON', 0.01);
 
-
-    $payment_table_name = $wpdb->prefix . 'mji_payments';
-    $order_table_name = $wpdb->prefix . 'mji_orders';
-    $order_items_table_name = $wpdb->prefix . 'mji_order_items';
-    $product_inventory_units = $wpdb->prefix . 'mji_product_inventory_units';
-
-    $customer_id = isset($_POST['customer_id']) ? sanitize_text_field($_POST['customer_id']) : null;
-    $reference = isset($_POST['reference']) ? sanitize_text_field($_POST['reference']) : null;
-    $salesperson_id = isset($_POST['salesperson_id']) ? sanitize_text_field($_POST['salesperson_id']) : null;
-    $subtotal = isset($_POST['subtotal']) ? floatval($_POST['subtotal']) : 0;
-    $date = isset($_POST['date']) ? sanitize_text_field($_POST['date']) : null;
-    $total = isset($_POST['total']) ? floatval($_POST['total']) : 0;
-    $items = isset($_POST['items']) ? stripslashes($_POST['items']) : "";
-    $gst = isset($_POST['gst']) ? floatval($_POST['gst']) : 0;
-    $pst = isset($_POST['pst']) ? floatval($_POST['pst']) : 0;
-    $exclude_gst = isset($_POST['exclude_gst']) ? true : false;
-    $exclude_pst = isset($_POST['exclude_pst']) ? true : false;
-
-    $missing_fields = [];
-
-    if (!$customer_id)    $missing_fields[] = 'customer_id';
-    if (!$reference)      $missing_fields[] = 'reference';
-    if (!$salesperson_id) $missing_fields[] = 'salesperson_id';
-    if (!$date)           $missing_fields[] = 'date';
-    if (!$subtotal)       $missing_fields[] = 'subtotal';
-    if (!$total)          $missing_fields[] = 'total';
-
-    if (!empty($missing_fields)) {
-        wp_send_json_error([
-            'message' => 'Missing required fields: ' . implode(', ', $missing_fields)
-        ]);
+    $subtotal = 0;
+    foreach ($items_data as $item) {
+        $subtotal += floatval($item->price_after_discount);
     }
+    $subtotal = round($subtotal, 2);
+    $gst = $exclude_gst ? 0 : round($subtotal * GST_RATE, 2);
+    $pst = $exclude_pst ? 0 : round($subtotal * PST_RATE, 2);
+    $total = round($subtotal + $gst + $pst, 2);
 
-    if (!empty($date) && !DateTime::createFromFormat('Y-m-d', $date)) {
-        wp_send_json_error(['message' => 'Invalid date format. Expected YYYY-MM-DD.']);
-    }
+    return compact('subtotal', 'gst', 'pst', 'total');
+}
 
-    $items_data = json_decode($items);
-
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        wp_send_json_error(['message' => 'Invalid JSON', 'error' => json_last_error_msg()]);
-    }
-
-    if (empty($items_data)) {
-        wp_send_json_error(['message' => 'No items were sent.']);
-    }
-
-    if ($exclude_gst && $gst !== floatval(0)) {
-        wp_send_json_error(['message' => 'GST was excluded but the gst amount was not 0']);
-    }
-
-    if ($exclude_pst && $pst !== floatval(0)) {
-        wp_send_json_error(['message' => 'PST was excluded but the pst amount was not 0']);
-    }
-
-    $calculated_subtotal = 0;
-
-    foreach ($items_data as $i => $item) {
-        $i += 1;
-        if (!isset($item->unit_id, $item->price_after_discount, $item->title, $item->sku, $item->image_url, $item->discount_amount, $item->discount_percent)) {
-            wp_send_json_error(['message' => "Item at index {$i} is missing required data."]);
-        }
-        $price = floatval($item->price_after_discount);
-        $calculated_subtotal += $price;
-    }
-
-    $calculated_subtotal = round($calculated_subtotal, 2);
-    $calculated_gst = $exclude_gst ? 0 : round($calculated_subtotal * 'GST_RATE', 2);
-    $calculated_pst = $exclude_pst ? 0 : round($calculated_subtotal * 'PST_RATE', 2);
-
-    $calculated_total = round($calculated_subtotal + $calculated_gst + $calculated_pst, 2);
-
-    if (abs($subtotal - $calculated_subtotal) > FLOAT_COMPARE_EPSILON) {
-        wp_send_json_error(['message' => 'Subtotal mismatch between client sent data and calculated by server.']);
-    }
-
-    if (abs($gst - $calculated_gst) > FLOAT_COMPARE_EPSILON) {
-        wp_send_json_error(['message' => 'GST mismatch between client sent data and calculated by server.']);
-    }
-
-    if (abs($pst - $calculated_pst) > FLOAT_COMPARE_EPSILON) {
-        wp_send_json_error(['message' => 'PST mismatch between client sent data and calculated by server.']);
-    }
-
-    if (abs($total - $calculated_total) > FLOAT_COMPARE_EPSILON) {
-        wp_send_json_error(['message' => 'Total mismatch between client sent data and calculated by server.']);
-    }
-
+function get_payments($post_data, $expected_total)
+{
     $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay', 'layaway'];
     $payments = [];
     $payment_total = 0;
 
     foreach ($payment_methods as $method) {
-        $amount = isset($_POST[$method]) ? floatval($_POST[$method]) : 0;
+        $amount = floatval($post_data[$method] ?? 0);
         if ($amount > 0) {
-            $payments[] = [
-                'method' => $method,
-                'amount' => $amount
-            ];
+            $payments[] = ['method' => $method, 'amount' => $amount];
             $payment_total += $amount;
         }
     }
 
-    if (empty($payments)) {
-        wp_send_json_error(['message' => 'No valid payments entered.']);
-        wp_die();
+    if (empty($payments)) wp_send_json_error(['message' => 'No valid payments entered']);
+    if (abs($payment_total - $expected_total) > FLOAT_COMPARE_EPSILON) {
+        wp_send_json_error(['message' => 'Payment total mismatch']);
     }
 
-    if (abs($payment_total - $calculated_total) > FLOAT_COMPARE_EPSILON) {
-        wp_send_json_error(['message' => 'Payment total and calculated total doesn\'t match in server.']);
-    }
+    return $payments;
+}
 
-    // Start transaction
+function insert_order_and_items($order_data, $items_data, $payments, $date)
+{
+    global $wpdb;
     $wpdb->query('START TRANSACTION');
     try {
+        // Insert order
+        $success = $wpdb->insert($wpdb->prefix . 'mji_orders', $order_data);
+        if (!$success) throw new Exception($wpdb->last_error);
+        $order_id = $wpdb->insert_id;
+
+        // Insert payments
+        foreach ($payments as $payment) {
+            $wpdb->insert($wpdb->prefix . 'mji_payments', [
+                'order_id' => $order_id,
+                'amount' => $payment['amount'],
+                'method' => $payment['method'],
+                'payment_date' => $date,
+            ]);
+        }
+
+        // Insert order items and update inventory
+        foreach ($items_data as $item) {
+            $wpdb->insert($wpdb->prefix . 'mji_order_items', [
+                'order_id' => $order_id,
+                'product_inventory_unit_id' => $item->unit_id,
+                'sale_price' => $item->price_after_discount,
+                'discount_amount' => $item->discount_amount,
+                'created_at' => $date
+            ]);
+
+            $wpdb->update(
+                $wpdb->prefix . 'mji_product_inventory_units',
+                ['status' => 'sold', 'sold_date' => $date],
+                ['id' => $item->unit_id]
+            );
+        }
+
+        $wpdb->query('COMMIT');
+        wp_send_json_success('Sale finalized');
     } catch (Exception $e) {
-        // Rollback on error
         $wpdb->query('ROLLBACK');
-        custom_log("Error: " . $e->getMessage());
-        wp_send_json_error(['message' => 'Something went wrong, please try again later.']);
+        wp_send_json_error(['message' => $e->getMessage()]);
     }
 }
 
-add_action('wp_ajax_finalizeSale', 'finalizeSale');
+function finalizeSale()
+{
+    $items_data = validate_sale_input($_POST);
+    $totals = calculate_sale_totals($items_data, !empty($_POST['exclude_gst']), !empty($_POST['exclude_pst']));
+    $payments = get_payments($_POST, $totals['total']);
+
+    $order_data = [
+        'customer_id' => intval($_POST['customer_id']),
+        'salesperson_id' => intval($_POST['salesperson']),
+        'reference_num' => sanitize_text_field($_POST['reference']),
+        'subtotal' => $totals['subtotal'],
+        'gst_total' => $totals['gst'],
+        'pst_total' => $totals['pst'],
+        'total' => $totals['total'],
+        'created_at' => sanitize_text_field($_POST['date']),
+    ];
+
+    insert_order_and_items($order_data, $items_data, $payments, $_POST['date']);
+}

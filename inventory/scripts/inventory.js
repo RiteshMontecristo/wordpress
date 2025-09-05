@@ -34,6 +34,7 @@ const layawaySumDiv = document.querySelector("#layawaySum");
 
 // Layaway Selection
 const layawayItems = document.querySelector("#layawayItems");
+const layawayTotalEl = document.querySelector("#layaway-total");
 const addLayawayBtn = layawayDetails?.querySelector("#addLayaway");
 const addLayawayform = addLayawayDiv?.querySelector("form[name='add-layaway']");
 const layawayRecieptPrint = layawayReceipt?.querySelector("#printReceipt");
@@ -130,7 +131,6 @@ function setupSelectCustomerButtons() {
       )
         .then((response) => response.json())
         .then((res) => {
-          console.log(res);
           if (res.data > 0) {
             layawayTotal = parseFloat(res.data).toFixed(2);
             layawaySumDiv.innerHTML = `Layaway Total: <span>${parseFloat(
@@ -182,6 +182,7 @@ viewLayaway?.addEventListener("click", function (e) {
           `;
           layawayItems.appendChild(layawayItem);
         });
+        layawayTotalEl.innerHTML = Number(layawayTotal).toFixed(2);
       } else {
         layawayItems.innerHTML = "No layaway items found for this customer.";
       }
@@ -260,17 +261,17 @@ addLayawayform?.addEventListener("submit", function (e) {
   })
     .then((response) => response.json())
     .then((result) => {
-      console.log("Success:", result);
       if (result.success) {
         layawayReceipt.classList.remove("hidden");
         addLayawayDiv.classList.add("hidden");
 
         receiptCustomerName.innerHTML = `${firstNameValue} ${lastNameValue}`;
         receiptCustomerAddress.innerHTML = addressValue;
-        // NEED TO FETCH THE LAYAWAY TOTAL FROM THE SERVER
-        // layawayTotalDiv.innerHTML = parseFloat(result.data.layaway_total).toFixed(
-        //   2
-        // );
+
+        result.data.payments.forEach((el) => {
+          layawayTotal = parseFloat(layawayTotal) + parseFloat(el.amount);
+        });
+
         paymentAmount.innerHTML = result.data.payments
           .map((payment) => `${parseFloat(payment.amount).toFixed(2)} CAD`)
           .join("<br>");
@@ -281,6 +282,7 @@ addLayawayform?.addEventListener("submit", function (e) {
 
         receiptDate.innerHTML = result.data.payment_date;
         salesmanName.innerHTML = result.data.salesperson;
+        addLayawayform.reset();
       } else {
         alert("Failed to process payment: " + result.data.message);
       }
@@ -477,7 +479,7 @@ function getTotals() {
   };
 }
 
-function calculateTotal() {
+function calculateTotal(checkbox = true) {
   const { subtotal, gst, pst, total } = getTotals();
 
   finalizeSubTotal.value = subtotal.toFixed(2);
@@ -485,20 +487,22 @@ function calculateTotal() {
   finalizePst.value = pst.toFixed(2);
   finalizeTotal.value = total.toFixed(2);
 
-  if (layawayTotal > 0) {
+  if (layawayTotal > 0 && !checkbox) {
     const layawayInput = finalizeSale.querySelector("#layaway");
     if (layawayInput) layawayInput.value = layawayTotal;
   }
 }
 
 function displayCart() {
-  calculateTotal();
-  const cartHTML = cart
-    .map((item) => {
-      return `
+  calculateTotal(false);
+  let cartHTML;
+  if (cart.length > 0) {
+    cartHTML = cart
+      .map((item) => {
+        return `
                 <div class="product-item">
                   <img src="${item.image_url}" alt="${item.title}" />
-                  <div data-unitId="${item.id}">
+                  <div data-unitId="${item.unit_id}">
                     <strong>${item.title}</strong><br />
                     ${
                       item.variation_detail &&
@@ -513,8 +517,13 @@ function displayCart() {
                   </div>
                 </div>
               `;
-    })
-    .join("");
+      })
+      .join("");
+  } else {
+    cartHTML =
+      "<p>No items in the cart!!. Please add by searching the prooducts.</p>";
+  }
+
   cartItemsDiv.innerHTML = cartHTML;
   layawayEl.max = layawayTotal;
   cartDiv.classList.remove("hidden");
@@ -535,7 +544,7 @@ function handleCartClick(e) {
 }
 
 function removeFromCart(unitId) {
-  const index = cart.findIndex((item) => item.id == unitId);
+  const index = cart.findIndex((item) => item.unit_id == unitId);
   if (index > -1) {
     subTotalCost -= parseFloat(
       cart[index].price_after_discount || cart[index].price
@@ -547,7 +556,8 @@ function removeFromCart(unitId) {
 
 function openEditModal(unitId) {
   // find the item
-  const item = cart.find((i) => i.id == unitId);
+  const item = cart.find((i) => i.unit_id == unitId);
+
   if (!item) return;
 
   editItemsModalDiv.classList.remove("hidden");
@@ -704,6 +714,13 @@ excludePst.addEventListener("change", calculateTotal);
 
 finalizeSale.addEventListener("submit", function (e) {
   e.preventDefault();
+
+  if (cart.length === 0) {
+    alert(
+      "Cart is empty. Please add items to the cart before finalizing the sale."
+    );
+    return;
+  }
   const validatedForm = validateAndSubmitSale();
 
   if (!validatedForm) return;

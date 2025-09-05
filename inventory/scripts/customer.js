@@ -47,18 +47,17 @@ customerForm?.addEventListener("submit", (e) => {
   }
 });
 
-// editCustomerForm?.addEventListener("submit", (e) => {
-//   e.preventDefault();
-
-//   if (!checkFormValidity()) {
-//     alert("Please fill in all required fields");
-//   } else if (!checkPostalCodeValidity()) {
-//     alert(
-//       "Postal code is not valid. Please enter a valid Canadian postal code."
-//     );
-//   } else {
-//     editCustomerBtn.disabled = true;
-//     editCustomerBtn.textContent = "Submitting...";
-//     editCustomerForm.submit();
-//   }
-// });
+// View Profile Switcher
+document.querySelectorAll(".nav-tab").forEach((tab) => {
+  tab.addEventListener("click", (e) => {
+    e.preventDefault();
+    document
+      .querySelectorAll(".nav-tab")
+      .forEach((t) => t.classList.remove("nav-tab-active"));
+    document
+      .querySelectorAll(".tab-content")
+      .forEach((c) => (c.style.display = "none"));
+    tab.classList.add("nav-tab-active");
+    document.querySelector(tab.getAttribute("href")).style.display = "block";
+  });
+});

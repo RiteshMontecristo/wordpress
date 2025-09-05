@@ -1,9 +1,19 @@
 import "./print.js";
-import "./customer.js";
 import "./inventory_unit.js";
 
 if (window.location.href.includes("/admin.php?page=inventory-management")) {
   import("./inventory.js").catch((error) =>
+    console.error("Error loading inventory module:", error)
+  );
+}
+
+if (window.location.href.includes("/admin.php?page=customer-management")) {
+  import("./customer.js").catch((error) =>
+    console.error("Error loading inventory module:", error)
+  );
+}
+if (window.location.href.includes("/admin.php?page=reports-management")) {
+  import("./report.js").catch((error) =>
     console.error("Error loading inventory module:", error)
   );
 }

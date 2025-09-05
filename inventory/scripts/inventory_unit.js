@@ -6,6 +6,7 @@ const saveUnitButton = inventoryTable?.querySelectorAll(".save-unit");
 
 addUnitButton?.addEventListener("click", function (event) {
   event.preventDefault();
+  addUnitButton.setAttribute("disabled", true);
   const productID = addInventoryUnit.dataset.productId;
   const sku = addInventoryUnit.querySelector("#sku").value;
   const status = addInventoryUnit.querySelector("#status").value;
@@ -32,7 +33,7 @@ addUnitButton?.addEventListener("click", function (event) {
     .then((response) => response.json())
     .then((res) => {
       if (res.success) {
-        alert("Unit updated successfully!");
+        alert("Unit added successfully!");
         location.reload();
       } else {
         alert(res.data);
@@ -100,6 +101,7 @@ editUnitButton?.forEach((button) => {
 saveUnitButton?.forEach((button) => {
   button.addEventListener("click", function (e) {
     e.preventDefault();
+    this.setAttribute("disabled", true);
     const tr = this.closest("tr");
 
     const unitId = tr.dataset.unitId;

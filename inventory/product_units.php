@@ -51,7 +51,7 @@ function render_inventory_units_meta_box($post)
 
     wp_nonce_field('save_inventory_units', 'inventory_units_nonce');
 
-?>
+    ?>
     <style>
         #inventory-units-table {
 
@@ -85,17 +85,20 @@ function render_inventory_units_meta_box($post)
         <tbody>
             <?php foreach ($units as $unit): ?>
                 <tr class="unit-row" data-product-id="<?= $product_id ?>" data-unit-id="<?= esc_attr($unit->id) ?>">
-                    <td data-field="sku" data-value="<?= esc_html($unit->sku) ?>" class="editable-cell"><?= esc_html($unit->sku) ?></td>
-                    <td data-field="status" data-value="<?= esc_html($unit->status) ?>" class="editable-cell"><?= esc_html($status[$unit->status]) ?></td>
+                    <td data-field="sku" data-value="<?= esc_html($unit->sku) ?>" class="editable-cell">
+                        <?= esc_html($unit->sku) ?></td>
+                    <td data-field="status" data-value="<?= esc_html($unit->status) ?>" class="editable-cell">
+                        <?= esc_html($status[$unit->status]) ?></td>
                     <?php if ($is_variation): ?>
                         <td data-field="variant" data-value=" <?= esc_html($unit->wc_product_variant_id) ?>" class="editable-cell">
                             <?= esc_html($variation_name_by_id[$unit->wc_product_variant_id]) ?>
                         </td>
                     <?php endif; ?>
-                    <td data-field="location" data-value="<?= esc_html($unit->location_id) ?>" class="editable-cell"><?= esc_html($location_name_by_id[$unit->location_id]) ?></td>
+                    <td data-field="location" data-value="<?= esc_html($unit->location_id) ?>" class="editable-cell">
+                        <?= esc_html($location_name_by_id[$unit->location_id]) ?></td>
                     <td>
-                        <a href="#" class="edit-unit button">Edit</a>
-                        <a href="#" class="save-unit button button-primary" style="display:none;">Save</a>
+                        <button class="edit-unit button">Edit</button>
+                        <button class="save-unit button button-primary" style="display:none;">Save</button>
                         <!-- <a href="#" class="delete-unit" data-id="<?= $unit->id ?>" data-product="<?= $product_id ?>">Delete</a> -->
                     </td>
                 </tr>
@@ -124,7 +127,7 @@ function render_inventory_units_meta_box($post)
             </tr>
         </tbody>
     </table>
-<?php
+    <?php
 }
 
 function get_all_location($return_type = "array")
@@ -200,7 +203,7 @@ function create_inventory_units()
         $cost_price = get_post_meta($variation_id, '_cost_price', true);
     } else {
         $retail_price = $product->get_price();
-        $cost_price = get_post_meta($variation_id, '_cost_price', true);
+        $cost_price = get_post_meta($product_id, '_cost_price', true);
     }
 
     try {
