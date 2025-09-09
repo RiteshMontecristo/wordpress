@@ -3,7 +3,7 @@
 
 function customer_page()
 {
-    ?>
+?>
     <div class="wrap">
         <h1>Customer Management</h1>
 
@@ -37,7 +37,7 @@ function customer_page()
         }
         ?>
     </div>
-    <?php
+<?php
 }
 
 // Display the custmer table
@@ -162,7 +162,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
 
 function add_customer_form()
 {
-    ?>
+?>
     <h2>Add Customer</h2>
     <form name="customer" method="post">
 
@@ -439,7 +439,7 @@ function edit_customer_form()
 
         <button id="customer_cta" class="button button-primary">Update Customer</button>
     </form>
-    <?php
+<?php
 }
 
 function view_customer_page()
@@ -480,6 +480,8 @@ function view_customer_page()
     o.customer_id,
     p.wc_product_id,
     p.wc_product_variant_id,
+    p.retail_price,
+    p.sku,
     c.first_name,
     c.last_name,
     s.first_name AS salesperson_first_name,
@@ -519,7 +521,6 @@ function view_customer_page()
             // Image: prefer variation image, fall back to parent
             $image_id = $variation->get_image_id() ?: $parent->get_image_id();
             $image = $image_id ? wp_get_attachment_image_src($image_id, 'thumbnail')[0] : '';
-
         } else {
             // Simple product
             $product = wc_get_product($row->wc_product_id);
@@ -559,23 +560,34 @@ function view_customer_page()
                 <thead>
                     <tr>
                         <th>Image</th>
-                        <th>Date</th>
+                        <th>Date/Inv/Salesman</th>
                         <th>Name</th>
-                        <th>Reference</th>
-                        <th>Price</th>
-                        <th>Salesperson</th>
+                        <th>SKU</th>
+                        <th>Retail Price</th>
+                        <th>Sold Price</th>
+                        <th>Discount</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if ($orders): ?>
-                        <?php foreach ($orders as $order): ?>
+                        <?php foreach ($orders as $order):
+                            $discount_pct = $order->retail_price > 0 ? number_format(($order->discount / $order->retail_price) * 100, 2)  : 0;
+                        ?>
                             <tr>
                                 <td><img src="<?= $order->image ?>" alt="<?= $order->name ?>" /></td>
-                                <td><?= date('M j, Y', strtotime($order->order_date)); ?></td>
+                                <td>
+                                    <?= date('M j, Y', strtotime($order->order_date)); ?> <br />
+                                    Inv# <?= $order->reference_num ?> </br>
+                                    <?= $order->salesperson_first_name ?> <?= $order->salesperson_last_name ?>
+                                </td>
                                 <td><?= $order->name ?></td>
-                                <td><?= $order->reference_num ?></td>
+                                <td><?= $order->sku ?></td>
+                                <td>$<?php echo number_format($order->retail_price, 2); ?></td>
                                 <td>$<?php echo number_format($order->sale, 2); ?></td>
-                                <td><?= $order->salesperson_first_name ?>             <?= $order->salesperson_last_name ?></td>
+                                <td>$
+                                    <?php echo number_format($order->discount, 2); ?> <br />
+                                    <?= $discount_pct; ?> %
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
@@ -593,5 +605,5 @@ function view_customer_page()
         </div>
     </div>
 
-    <?php
+<?php
 }
