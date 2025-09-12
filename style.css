@@ -1246,6 +1246,11 @@ button.menu-toggle span::before {
   margin: 0;
 }
 
+.page-id-6034 #primary,
+.page-id-6034 .post-6034 {
+  margin: 0;
+}
+
 @media (min-width: 768px) {
   .page-id-6034 .site-content .col-full {
     max-width: 100%;
