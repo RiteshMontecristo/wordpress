@@ -7,25 +7,52 @@ require_once get_stylesheet_directory() . '/inventory/product_units.php';
 require_once get_stylesheet_directory() . '/inventory/reports.php';
 
 // Create the table when theme activated
-add_action('after_switch_theme', 'create_customers_table');
-add_action('after_switch_theme', 'create_salespeople_table');
-add_action('after_switch_theme', 'create_orders_table');
-add_action('after_switch_theme', 'create_payments_table');
-add_action('after_switch_theme', 'create_locations_table');
-add_action('after_switch_theme', 'create_product_inventory_units_table');
-add_action('after_switch_theme', 'create_order_items_table');
+function mji_create_all_tables()
+{
+    // Define table creation order — PARENTS FIRST, CHILDREN LAST
+    $tables = [
+        'customers' => 'create_customers_table',
+        'salespeople' => 'create_salespeople_table',
+        'locations' => 'create_locations_table',
+        'brands' => 'create_brands_table',
+        'models' => 'create_models_table',
+        'product_inventory_units' => 'create_product_inventory_units_table',
+        'orders' => 'create_orders_table',
+        'order_items' => 'create_order_items_table',
+        'payments' => 'create_payments_table',
+        'services' => 'create_services_table',
+    ];
+
+    foreach ($tables as $slug => $func_name) {
+        if (!function_exists($func_name)) {
+            custom_log("Function missing: {$func_name}");
+            continue;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mji_' . $slug;
+
+        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+
+        if ($exists === $table_name) {
+            custom_log("✅ Table already exists: {$table_name} — skipping creation");
+        } else {
+            custom_log("🆕 Creating table: {$table_name}");
+            $func_name();
+        }
+    }
+}
+
+add_action('after_switch_theme', 'mji_create_all_tables');
 
 function create_customers_table()
 {
     global $wpdb;
-
-    // Define table name with WordPress prefix
     $table_name = $wpdb->prefix . 'mji_customers';
 
     // Define character set and collation
     $charset_collate = $wpdb->get_charset_collate();
 
-    // Define the SQL query to create the table
     $sql = "CREATE TABLE $table_name (
         id BIGINT AUTO_INCREMENT PRIMARY KEY,
         first_name VARCHAR(255) NOT NULL,
@@ -44,11 +71,13 @@ function create_customers_table()
         )
     ) $charset_collate;";
 
-    // Include the dbDelta function (required for table creation)
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    $result = $wpdb->query($sql);
 
-    // Create the table using dbDelta
-    dbDelta($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
 }
 
 function create_salespeople_table()
@@ -68,43 +97,13 @@ function create_salespeople_table()
         last_name VARCHAR(255) NOT NULL
         ) $charset_collate;";
 
-    // Include the dbDelta function (required for table creation)
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    $result = $wpdb->query($sql);
 
-    // Create the table using dbDelta
-    dbDelta($sql);
-}
-
-function create_layaways_table()
-{
-    global $wpdb;
-
-    // Define table name with WordPress prefix
-    $table_name = $wpdb->prefix . 'mji_layaways';
-    $customers_table = $wpdb->prefix . 'mji_customers';
-    $salespeople_table = $wpdb->prefix . 'mji_salespeople';
-
-    // Define character set and collation
-    $charset_collate = $wpdb->get_charset_collate();
-
-    // Define the SQL query to create the table
-    $sql = "CREATE TABLE $table_name (
-        id BIGINT PRIMARY KEY AUTO_INCREMENT,
-        customer_id BIGINT NOT NULL,
-        salesperson_id BIGINT,
-        reference_num VARCHAR(50) UNIQUE NOT NULL,
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    
-        FOREIGN KEY (customer_id) REFERENCES $customers_table(id),
-        FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id)
-    ) $charset_collate;";
-
-    // Include the dbDelta function (required for table creation)
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-
-    // Create the table using dbDelta
-    dbDelta($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
 }
 
 function create_orders_table()
@@ -138,11 +137,13 @@ function create_orders_table()
         FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id)
         ) $charset_collate;";
 
-    // Include the dbDelta function (required for table creation)
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    $result = $wpdb->query($sql);
 
-    // Create the table using dbDelta
-    dbDelta($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
 }
 
 function create_payments_table()
@@ -153,9 +154,7 @@ function create_payments_table()
     $table_name = $wpdb->prefix . 'mji_payments';
     $customers_table = $wpdb->prefix . 'mji_customers';
     $orders_table = $wpdb->prefix . 'mji_orders';
-    $layaways_table = $wpdb->prefix . 'mji_layaways';
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
-
 
     // Define character set and collation
     $charset_collate = $wpdb->get_charset_collate();
@@ -176,15 +175,16 @@ function create_payments_table()
 
         FOREIGN KEY (customer_id) REFERENCES $customers_table(id),
         FOREIGN KEY (order_id) REFERENCES $orders_table(id),
-        FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id),
-        FOREIGN KEY (layaway_id) REFERENCES $layaways_table(id)
+        FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id)
         ) $charset_collate;";
 
-    // Include the dbDelta function (required for table creation)
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    $result = $wpdb->query($sql);
 
-    // Create the table using dbDelta
-    dbDelta($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
 }
 
 function create_locations_table()
@@ -203,17 +203,66 @@ function create_locations_table()
         name VARCHAR(50)
         ) $charset_collate;";
 
-    // Include the dbDelta function (required for table creation)
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    $result = $wpdb->query($sql);
 
-    // Create the table using dbDelta
-    dbDelta($sql);
-    // Only insert sample data if table is empty
-    $count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
-    if ($count == 0) {
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+
         $wpdb->insert($table_name, ['name' => 'Downtown']);
         $wpdb->insert($table_name, ['name' => 'Richmond']);
         $wpdb->insert($table_name, ['name' => 'Metrotown']);
+    }
+}
+
+function create_models_table()
+{
+    global $wpdb;
+
+    // Define table name with WordPress prefix
+    $table_name = $wpdb->prefix . 'mji_models';
+
+    // Define character set and collation
+    $charset_collate = $wpdb->get_charset_collate();
+
+    // Define the SQL query to create the table
+    $sql = "CREATE TABLE $table_name (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(50)
+        ) $charset_collate;";
+
+    $result = $wpdb->query($sql);
+
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
+
+function create_brands_table()
+{
+    global $wpdb;
+
+    // Define table name with WordPress prefix
+    $table_name = $wpdb->prefix . 'mji_brands';
+
+    // Define character set and collation
+    $charset_collate = $wpdb->get_charset_collate();
+
+    // Define the SQL query to create the table
+    $sql = "CREATE TABLE $table_name (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(50)
+        ) $charset_collate;";
+
+    $result = $wpdb->query($sql);
+
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
     }
 }
 
@@ -224,33 +273,43 @@ function create_product_inventory_units_table()
     // Define table name with WordPress prefix
     $table_name = $wpdb->prefix . 'mji_product_inventory_units';
     $locations_table = $wpdb->prefix . 'mji_locations';
-
+    $brands_table = $wpdb->prefix . 'mji_brands';
+    $models_table = $wpdb->prefix . 'mji_models';
 
     // Define character set and collation
     $charset_collate = $wpdb->get_charset_collate();
 
-    // Define the SQL query to create the table
-    $sql = "CREATE TABLE $table_name (
-        id BIGINT PRIMARY KEY AUTO_INCREMENT,
-        wc_product_id BIGINT NOT NULL,
-        wc_product_variant_id BIGINT,
-        location_id BIGINT NOT NULL,
-        sku VARCHAR(50) NOT NULL,
-        status ENUM('in_stock', 'reserved', 'sold', 'damaged') NOT NULL,
-        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-        sold_date DATETIME,
-        cost_price DECIMAL(10,2) NOT NULL,
-        retail_price DECIMAL(10,2) NOT NULL,
-        notes TEXT,
+    $sql = "CREATE TABLE `{$table_name}` (
+        `id` BIGINT NOT NULL AUTO_INCREMENT,
+        `wc_product_id` BIGINT NOT NULL,
+        `wc_product_variant_id` BIGINT NULL,
+        `location_id` BIGINT NOT NULL,
+        `model_id` BIGINT NOT NULL,
+        `brand_id` BIGINT NOT NULL,
+        `sku` VARCHAR(50) NOT NULL,
+        `serial` VARCHAR(50),
+        `status` ENUM('in_stock', 'reserved', 'sold', 'damaged') NOT NULL,
+        `created_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
+        `sold_date` DATETIME DEFAULT NULL,
+        `cost_price` DECIMAL(10,2) NOT NULL,
+        `retail_price` DECIMAL(10,2) NOT NULL,
+        `notes` TEXT,
 
-        FOREIGN KEY (location_id) REFERENCES $locations_table(id)
-        ) $charset_collate;";
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `sku` (`sku`),
+        UNIQUE KEY `serial` (`serial`),
+        CONSTRAINT `fk_location` FOREIGN KEY (`location_id`) REFERENCES `{$locations_table}`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT `fk_brand` FOREIGN KEY (`brand_id`) REFERENCES `{$brands_table}`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT `fk_model` FOREIGN KEY (`model_id`) REFERENCES `{$models_table}`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+    ) {$charset_collate};";
 
-    // Include the dbDelta function (required for table creation)
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    $result = $wpdb->query($sql);
 
-    // Create the table using dbDelta
-    dbDelta($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
 }
 
 function create_order_items_table()
@@ -279,11 +338,45 @@ function create_order_items_table()
         FOREIGN KEY (product_inventory_unit_id) REFERENCES $product_inventory_table(id)
         ) $charset_collate;";
 
-    // Include the dbDelta function (required for table creation)
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    $result = $wpdb->query($sql);
 
-    // Create the table using dbDelta
-    dbDelta($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
+
+function create_services_table()
+{
+    global $wpdb;
+
+    // Define table name with WordPress prefix
+    $table_name = $wpdb->prefix . 'mji_services';
+    $orders_table = $wpdb->prefix . 'mji_orders';
+
+    // Define character set and collation
+    $charset_collate = $wpdb->get_charset_collate();
+
+    // Define the SQL query to create the table
+    $sql = "CREATE TABLE $table_name (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        order_id BIGINT NOT NULL,
+        category ENUM('watch_service', 'jewellery_service', 'shipping')  NOT NULL,
+        description TEXT,
+        cost_price DECIMAL(10,2) NOT NULL,
+        sold_price DECIMAL(10,2) NOT NULL,
+
+        FOREIGN KEY (order_id) REFERENCES $orders_table(id)
+        ) $charset_collate;";
+
+    $result = $wpdb->query($sql);
+
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
 }
 
 // Add menu page in WordPress admin
