@@ -689,3 +689,123 @@ function mji_store_dropdown($required = true, $selected_id = '')
     $html .= '</select>';
     return $html;
 }
+
+// To look at our categories and then make the primary category based on parent category
+add_action( 'admin_menu', function() {
+    add_submenu_page(
+        'woocommerce',
+        'Assign Primary Categories by Parent (Rank Math)',
+        'Assign Primary Categories (Parent Rule)',
+        'manage_options',
+        'assign-primary-by-parent',
+        'render_assign_primary_by_parent_page'
+    );
+} );
+
+function render_assign_primary_by_parent_page() {
+    echo '<div class="wrap">';
+    echo '<h1>Assign Primary Category Based on Parent (Rank Math)</h1>';
+
+    if ( isset( $_POST['assign_categories'] ) ) {
+        check_admin_referer( 'assign_primary_by_parent_nonce', 'assign_primary_by_parent_nonce' );
+
+        $count = assign_primary_category_by_parent();
+        echo '<div class="notice notice-success"><p>✅ Successfully updated ' . esc_html( $count ) . ' products.</p></div>';
+    }
+
+    ?>
+    <form method="post">
+        <?php wp_nonce_field( 'assign_primary_by_parent_nonce', 'assign_primary_by_parent_nonce' ); ?>
+        <?php submit_button( 'Start Assigning Primary Categories', 'primary', 'assign_categories' ); ?>
+        <p><em>This will set the primary category to the deepest direct child of "Watches" or "Designers".</em></p>
+        <p><strong>Example:</strong> If product is in <code>Submariner → Rolex → Watches</code>, then <code>Rolex</code> becomes primary.</p>
+    </form>
+
+    <hr />
+    <h3>How it works:</h3>
+    <ul>
+        <li>Only considers categories directly under "Watches" or "Designers"</li>
+        <li>Skips deeper children like "Submariner" or "Diamond Ring"</li>
+        <li>Does not overwrite existing primary category if already set</li>
+        <li>Uses term ID — compatible with Rank Math</li>
+    </ul>
+    </div>
+    <?php
+}
+
+function assign_primary_category_by_parent() {
+    custom_log( '🔍 Starting primary category assignment by parent...' );
+
+    // Define your target parent slugs (change these to match yours!)
+    $target_parent_slugs = [ 'watches', 'designer' ]; // ← CHANGE TO YOUR SLUGS!
+
+    // Get all published products
+    $args = [
+        'post_type'      => 'product',
+        'posts_per_page' => -1,
+        'post_status'    => 'any',
+        'fields'         => 'ids',
+    ];
+
+    $products = get_posts( $args );
+    $count = 0;
+
+    foreach ( $products as $product_id ) {
+        // Skip if already has a primary category set
+        $existing = get_post_meta( $product_id, '_rank_math_primary_category', true );
+        if ( ! empty( $existing ) ) {
+            continue; // Already set — skip
+        }
+
+        // Get all assigned product categories (term IDs)
+        $term_ids = wp_get_post_terms( $product_id, 'product_cat', array( 'fields' => 'ids' ) );
+
+        if ( empty( $term_ids ) ) {
+            continue; // No categories assigned
+        }
+
+        $primary_term_id = null;
+
+        // Loop through all assigned categories
+        foreach ( $term_ids as $term_id ) {
+            // Walk up the hierarchy until we find a direct child of target parent
+            $ancestors = get_ancestors( $term_id, 'product_cat', 'taxonomy' );
+
+            // Check if any ancestor is a direct child of target parent
+            $found = false;
+            $current_parent_id = null;
+
+            // Get direct parent of current term
+            $term = get_term( $term_id, 'product_cat' );
+            if ( ! $term || is_wp_error( $term ) ) continue;
+
+            $parent_id = $term->parent;
+
+            // If parent is one of our target parents (Watches/Designers), this is our candidate!
+            if ( $parent_id > 0 ) {
+                $parent_term = get_term( $parent_id, 'product_cat' );
+                if ( $parent_term && ! is_wp_error( $parent_term ) && in_array( $parent_term->slug, $target_parent_slugs ) ) {
+                    $found = true;
+                    $current_parent_id = $term_id; // This is the "brand" level
+                }
+            }
+
+            // If found, pick it as primary (we'll use first valid one)
+            if ( $found ) {
+                $primary_term_id = $current_parent_id;
+                break; // Stop at first valid match — we want the first matching brand
+            }
+        }
+
+        // If we found a valid brand-level category, assign it
+        if ( $primary_term_id ) {
+            update_post_meta( $product_id, '_yoast_wpseo_primary_category', $primary_term_id );
+            custom_log( "✅ Product ID: $product_id → Assigned primary category: $primary_term_id" );
+            $count++;
+        } else {
+            custom_log( "ℹ️ Product ID: $product_id → No suitable parent category found (under Watches/Designers)" );
+        }
+    }
+
+    return $count;
+}
