@@ -30,7 +30,7 @@ function render_inventory_units_meta_box($post)
         "damaged" => "Damaged",
     ];
     $variation_select = '';
-
+    $add_serial = false;
     $units = $wpdb->get_results(
         $wpdb->prepare(
             "SELECT * FROM $table_name WHERE wc_product_id = %d ",
@@ -38,6 +38,19 @@ function render_inventory_units_meta_box($post)
         )
     );
     $product = wc_get_product($product_id);
+
+    $product_cats = wp_get_post_terms($product_id, 'product_cat');
+    if (!empty($product_cats) && !is_wp_error($product_cats)) {
+        foreach ($product_cats as $cat) {
+            if ($cat->slug === 'designer') {
+                $$add_serial = false;
+                break;
+            } else if ($cat->slug === 'watches') {
+                $add_serial = true;
+                break;
+            }
+        }
+    }
 
     if ($product && $product->is_type('variable')) {
         $is_variation = true;
@@ -51,7 +64,7 @@ function render_inventory_units_meta_box($post)
 
     wp_nonce_field('save_inventory_units', 'inventory_units_nonce');
 
-    ?>
+?>
     <style>
         #inventory-units-table {
 
@@ -78,6 +91,9 @@ function render_inventory_units_meta_box($post)
                 <?php if ($is_variation): ?>
                     <th>Variation</th>
                 <?php endif; ?>
+                <?php if ($add_serial): ?>
+                    <th>Serial</th>
+                <?php endif; ?>
                 <th>Location</th>
                 <th>Actions</th>
             </tr>
@@ -92,6 +108,11 @@ function render_inventory_units_meta_box($post)
                     <?php if ($is_variation): ?>
                         <td data-field="variant" data-value=" <?= esc_html($unit->wc_product_variant_id) ?>" class="editable-cell">
                             <?= esc_html($variation_name_by_id[$unit->wc_product_variant_id]) ?>
+                        </td>
+                    <?php endif; ?>
+                    <?php if ($add_serial): ?>
+                        <td data-field="serial" data-value=" <?= esc_html($unit->serial) ?>" class="editable-cell">
+                            <?= esc_html($unit->serial) ?>
                         </td>
                     <?php endif; ?>
                     <td data-field="location" data-value="<?= esc_html($unit->location_id) ?>" class="editable-cell">
@@ -120,6 +141,9 @@ function render_inventory_units_meta_box($post)
                         <?= $variation_select ?>
                     </td>
                 <?php endif; ?>
+                <?php if ($add_serial): ?>
+                    <td><input type="text" id="serialNum" name="new_serial" placeholder="Enter serial" /></td>
+                <?php endif; ?>
                 <td>
                     <?= get_all_location("select") ?>
                 </td>
@@ -127,7 +151,7 @@ function render_inventory_units_meta_box($post)
             </tr>
         </tbody>
     </table>
-    <?php
+<?php
 }
 
 function get_all_location($return_type = "array")
@@ -183,28 +207,44 @@ function create_inventory_units()
 
     $product_id = intval($_POST['product_id']);
     $sku = sanitize_text_field($_POST['sku']);
+    $serial_number = isset($_POST['serialNum']) ? $_POST['serialNum'] : null;
+
     $status = sanitize_text_field($_POST['status']);
     $location_id = intval($_POST['locationID']);
     $variation_id = isset($_POST['variationID']) ? intval($_POST['variationID']) : null;
     $product = wc_get_product($product_id);
+    $category_id = get_post_meta($product_id, 'rank_math_primary_product_cat', true);
+    if ($category_id == 0) {
+        wp_send_json_error('No primary category set for this product.');
+    }
+    $brand = get_term($category_id, 'product_cat')->name;
+    $model = "";
+
     $cost_price = 0;
     $retail_price = 0;
+
     $table_name = $wpdb->prefix . 'mji_product_inventory_units';
+    $models_table = $wpdb->prefix . 'mji_models';
+    $brands_table = $wpdb->prefix . 'mji_brands';
 
     if ($product_id <= 0 || empty($sku) || $location_id <= 0) {
         wp_send_json_error('Invalid product ID, SKU or location ID.');
         return;
     }
 
-
     if ($variation_id) {
         $variation = wc_get_product($variation_id);
         $retail_price = $variation->get_price();
         $cost_price = get_post_meta($variation_id, '_cost_price', true);
+        $model = $variation->get_sku();
     } else {
         $retail_price = $product->get_price();
         $cost_price = get_post_meta($product_id, '_cost_price', true);
+        $model = $product->get_sku();
     }
+
+    $model_id = get_brand_model_id($models_table, $model);
+    $brand_id = get_brand_model_id($brands_table, $brand);
 
     try {
         $result = $wpdb->insert(
@@ -213,10 +253,13 @@ function create_inventory_units()
                 'wc_product_id' => $product_id,
                 'wc_product_variant_id' => $variation_id,
                 'sku' => $sku,
+                'serial' => $serial_number,
                 'status' => $status,
                 'location_id' => $location_id,
                 'cost_price' => $cost_price,
-                'retail_price' => $retail_price
+                'retail_price' => $retail_price,
+                'model_id' => $model_id,
+                'brand_id' => $brand_id
             ]
         );
 
@@ -244,6 +287,7 @@ function update_inventory_units()
     $status = sanitize_text_field($_POST['status']);
     $location_id = intval($_POST['locationID']);
     $variation_id = isset($_POST['variationID']) ? intval($_POST['variationID']) : null;
+    $serial = isset($_POST['serialNum']) ? sanitize_text_field($_POST['serialNum']) : null;
 
 
     if ($unit_id <= 0 || $product_id <= 0 || empty($sku)) {
@@ -261,7 +305,8 @@ function update_inventory_units()
                 'wc_product_variant_id' => $variation_id,
                 'sku' => $sku,
                 'status' => $status,
-                'location_id' => $location_id
+                'location_id' => $location_id,
+                'serial' => $serial
             ],
             ['id' => $unit_id],
             [
@@ -269,7 +314,8 @@ function update_inventory_units()
                 '%d', // wc_product_variant_id
                 '%s', // sku
                 '%s', // status
-                '%d'  // location_id
+                '%d',  // location_id
+                '%s'  // serial
             ]
         );
 
@@ -286,3 +332,44 @@ function update_inventory_units()
 }
 
 add_action('wp_ajax_update_inventory_units', 'update_inventory_units');
+
+function get_brand_model_id($table_name, $value)
+{
+    global $wpdb;
+
+    // Create a unique transient key for this table and value
+    $transient_key = 'brand_model_' . md5($table_name . '|' . $value);
+
+    $cached_id = get_transient($transient_key);
+    if ($cached_id !== false) {
+        return $cached_id;
+    }
+
+    $sql = $wpdb->prepare(
+        "SELECT id FROM $table_name WHERE name = %s LIMIT 1",
+        $value
+    );
+    $existing_id = $wpdb->get_var($sql);
+
+    if ($existing_id) {
+        $id = $existing_id;
+    } else {
+        $inserted = $wpdb->insert(
+            $table_name,
+            [
+                'name' => $value
+            ]
+        );
+        if ($inserted === false) {
+            custom_log('Database error: ' . $wpdb->last_error);
+            wp_send_json_error($table_name . ' could\'nt be inserted: ' . $wpdb->last_error);
+        } else {
+            $id = $wpdb->insert_id;
+        }
+    }
+
+    // Storing it in transietn for 30 days
+    set_transient($transient_key, $id, DAY_IN_SECONDS * 30);
+
+    return $id;
+}

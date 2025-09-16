@@ -12,9 +12,11 @@ addUnitButton?.addEventListener("click", function (event) {
   const status = addInventoryUnit.querySelector("#status").value;
   const variationID = addInventoryUnit.querySelector("#variationID")?.value;
   const locationID = addInventoryUnit.querySelector("#locationID").value;
+  const serialInput = addInventoryUnit.querySelector("#serialNum");
 
   if (!sku) {
     alert("Please enter SKU as it is a required fields.");
+    addUnitButton.removeAttribute("disabled");
     return;
   }
 
@@ -24,6 +26,9 @@ addUnitButton?.addEventListener("click", function (event) {
   formData.append("sku", sku);
   formData.append("status", status);
   formData.append("locationID", locationID);
+  if (serialInput) {
+    formData.append("serialNum", serialInput.value);
+  }
   variationID && formData.append("variationID", variationID);
 
   fetch(`${ajax_inventory.ajax_url}`, {
@@ -81,6 +86,13 @@ editUnitButton?.forEach((button) => {
           cloneNode = addVariationtionHTML.cloneNode(true);
           break;
 
+        case "serial":
+          newElement = document.createElement("input");
+          newElement.type = "text";
+          newElement.id = "serialNum";
+          newElement.value = currentValue;
+          break;
+
         default:
           newElement = null;
       }
@@ -110,6 +122,7 @@ saveUnitButton?.forEach((button) => {
     const status = tr.querySelector("#status").value;
     const variationID = tr.querySelector("#variationID")?.value;
     const locationID = tr.querySelector("#locationID").value;
+    const serial = tr.querySelector("#serialNum");
 
     const formData = new FormData();
     formData.append("action", "update_inventory_units");
@@ -119,6 +132,10 @@ saveUnitButton?.forEach((button) => {
     formData.append("status", status);
     formData.append("variationID", variationID);
     formData.append("locationID", locationID);
+
+    if (serial) {
+      formData.append("serialNum", serial.value);
+    }
 
     fetch(`${ajax_inventory.ajax_url}`, {
       method: "POST",
