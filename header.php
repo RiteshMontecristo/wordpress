@@ -344,7 +344,7 @@
                     </div> -->
 
                     <a href="<?php echo esc_url(home_url('/')); ?>" class="custom-logo-link" rel="home" aria-current="page">
-                        <img width="250px" height="40px" fetchpriority="high" src="<?php echo get_stylesheet_directory_uri() . "/assets/MJI1978-dal-min.svg"  ?> " class="custom-logo exclude-litespeed-lazyload" alt="Montecristo Jewellers Homepage" decoding="async"></a>
+                        <img width="250px" height="40px" fetchpriority="high" src="<?php echo get_stylesheet_directory_uri() . "/assets/MJI1978-dal-min.svg"  ?> " class="custom-logo exclude-litespeed-lazyload" title="Montecristo Jewellers" alt="Montecristo Jewellers" decoding="async"></a>
 
                     <a href="/rolex">
                         <iframe id="rolex_retailer" title="Rolex Official Retailer" src="https://static.rolex.com/retailers/clock/?colour=gold&amp;apiKey=5321aee1ae68296fa0140a49a8d7de53&amp;lang=en" class="rolex-clock exclude-litespeed-lazyload" scrolling="NO" frameborder="NO"></iframe>
@@ -457,23 +457,6 @@
                                 <img height="25" width="25" src="<?php echo get_stylesheet_directory_uri() . "/assets/icons/account.svg" ?>" alt="Account Icon" />
                             </a> -->
 
-                        <!-- <div class="search-container">
-                                <button id="headerSearchBtn" aria-label="Open Search" class="search-toggle">
-                                    <img height="25" width="25" src="<?php echo get_stylesheet_directory_uri() . "/assets/icons/search.svg" ?>" alt="Search Icon" />
-                                </button>
-                                <div class="search-form hidden" id="searchForm">
-                                    <div class="widget woocommerce widget_product_search">
-                                        <form role="search" method="get" class="woocommerce-product-search" action="<?php echo esc_url(home_url('/')); ?>">
-                                            <label class="screen-reader-text" for="woocommerce-product-search-field-0">Search for:</label>
-                                            <input type="search" id="woocommerce-product-search-field-0" class="search-field" placeholder="Search..." value="" name="s" aria-required="true" />
-                                            <button type="submit" value="Search" class="">Search</button>
-                                            <input type="hidden" name="post_type" value="product" />
-                                        </form>
-                                    </div>
-                                </div>
-                            </div> -->
-                        <!-- </div> -->
-
                     </nav><!-- #site-navigation -->
                 </div>
             </div>
@@ -491,17 +474,7 @@
                         'container_class' => 'mobile-primary-navigation',
                     )); ?>
 
-                    <!-- <div class="mobile-search-form" id="mobileSearchForm">
-                        <div class="widget woocommerce widget_product_search">
-                            <form role="search" method="get" class="woocommerce-product-search" action="<?php echo esc_url(home_url('/')); ?>">
-                                <label class="screen-reader-text" for="woocommerce-product-search-field-0">Search for:</label>
-                                <input type="search" id="woocommerce-product-search-field-0-mobile" class="search-field" placeholder="Search..." value="" name="s" aria-required="true" />
-                                <button type="submit" value="Search" class="">Search</button>
-                                <input type="hidden" name="post_type" value="product" />
-                            </form>
-                        </div>
-                    </div> -->
-                    <a class="mobile-logo" href="<?php echo esc_url(home_url('/')); ?>" class="custom-logo-link" rel="home" aria-current="page"><img src="<?php echo get_stylesheet_directory_uri() . "/assets/logo.webp" ?> " class="custom-logo" alt="Montecristo Jewellers Homepage" decoding="async"></a>
+                    <a class="mobile-logo" href="<?php echo esc_url(home_url('/')); ?>" class="custom-logo-link" rel="home" aria-current="page"><img src="<?php echo get_stylesheet_directory_uri() . "/assets/logo.webp" ?> " class="custom-logo" title="Montecristo Jewellers" alt="Montecristo Jewellers" decoding="async"></a>
                 </nav>
 
             </div>

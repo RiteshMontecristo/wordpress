@@ -25,7 +25,7 @@ wp_footer();
 
         <div class="footer-one">
             <a href="<?php echo esc_url(home_url('/')); ?>">
-                <img loading="lazy" height="47" width="250" src="<?php echo esc_url(wp_get_attachment_url(get_theme_mod('custom_logo'))); ?>" alt="Company Logo" />
+                <img loading="lazy" height="47" width="250" src="<?php echo esc_url(wp_get_attachment_url(get_theme_mod('custom_logo'))); ?>" title="Montecristo Jeweller Logo" alt="Montecristo Jeweller Logo" />
             </a>
 
         </div>
