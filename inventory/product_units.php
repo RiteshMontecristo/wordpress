@@ -289,6 +289,39 @@ function update_inventory_units()
     $variation_id = isset($_POST['variationID']) ? intval($_POST['variationID']) : null;
     $serial = isset($_POST['serialNum']) ? sanitize_text_field($_POST['serialNum']) : null;
 
+    $data =   [
+        'wc_product_id' => $product_id,
+        'wc_product_variant_id' => $variation_id,
+        'sku' => $sku,
+        'status' => $status,
+        'location_id' => $location_id,
+        'serial' => $serial
+    ];
+    $format = [
+        '%d', // wc_product_id
+        '%d', // wc_product_variant_id
+        '%s', // sku
+        '%s', // status
+        '%d',  // location_id
+        '%s'  // serial
+    ];
+
+    if ($variation_id) {
+        $variation = wc_get_product($variation_id);
+        $retail_price = $variation->get_price();
+        $cost_price = get_post_meta($variation_id, '_cost_price', true);
+        $model = $variation->get_sku();
+        $models_table = $wpdb->prefix . 'mji_models';
+
+        $model_id = get_brand_model_id($models_table, $model);
+
+        $data['cost_price'] = $cost_price;
+        $data['retail_price'] = $retail_price;
+        $data['model_id'] = $model_id;
+        $format[] = '%f'; // cost_price
+        $format[] = '%f'; // retail_price
+        $format[] = '%d'; // model_id
+    }
 
     if ($unit_id <= 0 || $product_id <= 0 || empty($sku)) {
         wp_send_json_error('Invalid unit or product ID or no SKU provided.');
@@ -300,23 +333,9 @@ function update_inventory_units()
     try {
         $result = $wpdb->update(
             $table_name,
-            [
-                'wc_product_id' => $product_id,
-                'wc_product_variant_id' => $variation_id,
-                'sku' => $sku,
-                'status' => $status,
-                'location_id' => $location_id,
-                'serial' => $serial
-            ],
+            $data,
             ['id' => $unit_id],
-            [
-                '%d', // wc_product_id
-                '%d', // wc_product_variant_id
-                '%s', // sku
-                '%s', // status
-                '%d',  // location_id
-                '%s'  // serial
-            ]
+            $format
         );
 
         if ($result === false) {
@@ -336,6 +355,8 @@ add_action('wp_ajax_update_inventory_units', 'update_inventory_units');
 function get_brand_model_id($table_name, $value)
 {
     global $wpdb;
+
+    $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
     // Create a unique transient key for this table and value
     $transient_key = 'brand_model_' . md5($table_name . '|' . $value);
@@ -372,4 +393,155 @@ function get_brand_model_id($table_name, $value)
     set_transient($transient_key, $id, DAY_IN_SECONDS * 30);
 
     return $id;
+}
+
+add_action('save_post_product', 'watch_simple_product_changes', 20, 3);
+function watch_simple_product_changes($post_id, $post, $update)
+{
+    if (!$update || wp_is_post_autosave($post_id) || wp_is_post_revision($post_id)) return;
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mji_product_inventory_units';
+
+    // Update brands for simple and variable products
+    $old_primary_cat = get_post_meta($post_id, 'rank_math_primary_product_cat', true);
+    $new_primary_cat = isset($_POST['rank_math_primary_product_cat']) ? intval($_POST['rank_math_primary_product_cat']) : $old_primary_cat;
+
+    if ($old_primary_cat != $new_primary_cat) {
+        $category = get_term($new_primary_cat, 'product_cat');
+
+        if ($category && !is_wp_error($category)) {
+            $brand = $category->name;
+            $brands_table = $wpdb->prefix . 'mji_brands';
+            $brand_id = get_brand_model_id($brands_table, $brand);
+            try {
+                $wpdb->update(
+                    $table_name,
+                    [
+                        'brand_id' => $brand_id,
+                    ],
+                    ['wc_product_id' => $post_id],
+                    ['%d'],
+                    ['%d']
+                );
+            } catch (Exception $e) {
+                custom_log("Error " . $e->getMessage());
+            }
+        }
+    }
+
+    // Update prices for simple products only
+    $product = wc_get_product($post_id);
+
+    if ($product->is_type('variable') || $product->is_type('variation')) {
+        return;
+    }
+
+    $old_price = get_post_meta($post_id, '_price', true);
+    $new_price = isset($_POST['_regular_price']) ? sanitize_text_field($_POST['_regular_price']) : $old_price;
+
+    $old_model = get_post_meta($post_id, '_sku', true);
+    $new_model = isset($_POST['_sku']) ?
+        sanitize_text_field($_POST['_sku']) : $old_model;
+
+    if ($old_price != $new_price) {
+        $result = $wpdb->update(
+            $table_name,
+            [
+                'retail_price' => $new_price,
+            ],
+            [
+                'wc_product_id' => $post_id,
+                'status' => 'in_stock'
+            ],
+            ['%f'],
+            ['%d', '%s']
+        );
+        if ($result === false) {
+            mji_log_admin_error('Error updating price' . $wpdb->last_error);
+        }
+    }
+    if ($old_model != $new_model) {
+        $model_id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT model_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE wc_product_id = %d LIMIT 1",
+                $post_id
+            )
+        );
+
+        if (!$model_id) {
+            mji_log_admin_error("No model found for ID $post_id");
+            return;
+        }
+
+        $result = $wpdb->update(
+            $wpdb->prefix . 'mji_models',
+            ['name' => $new_model],
+            ['id' => $model_id],
+            ['%s'],
+            ['%d']
+        );
+
+        if ($result === false) {
+            mji_log_admin_error("Failed to update model name for model ID $model_id: " . $wpdb->last_error);
+        }
+    }
+}
+
+add_action('woocommerce_save_product_variation', 'watch_variation_retail_price', 5, 2);
+function watch_variation_retail_price($variation_id, $i)
+{
+    $old_price = get_post_meta($variation_id, '_price', true);
+
+    $new_price = isset($_POST['variable_regular_price'][$i])
+        ? sanitize_text_field($_POST['variable_regular_price'][$i])
+        : $old_price;
+
+    $old_model = get_post_meta($variation_id, '_sku', true);
+    $new_model = isset($_POST['variable_sku'][$i]) ?
+        sanitize_text_field($_POST['variable_sku'][$i]) : $old_model;
+
+    global $wpdb;
+
+    $result = $wpdb->update(
+        $wpdb->prefix . 'mji_product_inventory_units',
+        [
+            'retail_price' => $new_price,
+        ],
+        [
+            'wc_product_variant_id' => $variation_id,
+            'status' => 'in_stock'
+        ],
+        ['%f'],
+        ['%d', '%s']
+    );
+
+    if ($result === false) {
+        // Save the error so we can show it later as an admin notice
+        mji_log_admin_error('Error updating price' . $wpdb->last_error);
+    }
+
+    $model_id = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT model_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE wc_product_variant_id = %d LIMIT 1",
+            $variation_id
+        )
+    );
+
+    if (!$model_id) {
+        mji_log_admin_error("No model found for variation ID $variation_id");
+        return;
+    }
+
+    $result = $wpdb->update(
+        $wpdb->prefix . 'mji_models',
+        ['name' => $new_model],
+        ['id' => $model_id],
+        ['%s'],
+        ['%d']
+    );
+
+    if ($result === false) {
+        mji_log_admin_error("Failed to update model name for model ID $model_id: " . $wpdb->last_error);
+    }
 }
