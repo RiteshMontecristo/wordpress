@@ -3,78 +3,115 @@ let customerId, firstNameValue, lastNameValue, addressValue;
 const cart = [];
 let layawayTotal = 0;
 
-// Main divs
-const searchCustomerDiv = document.querySelector("#search-customer");
-const customerDetails = document.querySelector("#customerDetails");
-const layawayDetails = document.querySelector("#layawayDetails");
-const addLayawayDiv = document.querySelector("#addLayawayForm");
-const layawayReceipt = document.querySelector("#layawayReceipt");
-const searchProductsDiv = document.querySelector("#search-products");
-const cartDiv = document.querySelector("#cart");
-const cartItemsDiv = cartDiv?.querySelector(".cart-items");
-const editItemsModalDiv = document.querySelector("#edit-item-modal");
-const saleResult = document.getElementById("saleResult");
+const DOM = {
+  // Main divs
+  divs: {
+    searchCustomer: document.querySelector("#search-customer"),
+    customerDetails: document.querySelector("#customerDetails"),
+    layawayDetails: document.querySelector("#layawayDetails"),
+    addLayaway: document.querySelector("#addLayawayForm"),
+    layawayReceipt: document.querySelector("#layawayReceipt"),
+    searchProducts: document.querySelector("#search-products"),
+    cart: document.querySelector("#cart"),
+    cartItems: document.querySelector("#cart .cart-items"),
+    editItemsModal: document.querySelector("#edit-item-modal"),
+    saleResult: document.querySelector("#saleResult"),
+  },
 
-const viewProducts = document.querySelector("#viewProducts");
-const viewCart = document.querySelector("#viewCart");
-const viewLayaway = document.querySelector("#viewLayaway");
+  buttons: {
+    searchCustomer: document.querySelector("#search-btn"),
+    searchProducts: document.querySelector("#search-product-btn"),
+    viewProducts: document.querySelector("#viewProducts"),
+    viewCart: document.querySelector("#viewCart"),
+    viewLayaway: document.querySelector("#viewLayaway"),
+    addLayaway: document.querySelector("#addLayaway"),
+    layawayReceiptPrint: document.querySelector("#layawayPrintReceipt"),
+    salesPrintReceipt: document.getElementById("salesPrintReceipt"),
+  },
 
-// STEP 1: Search the customer by name or email
-const searchCustomerForm = document.querySelector(
-  "form[name='search-customer']"
-);
-const searchCustomerInput = searchCustomerForm.querySelector("#search");
-const searchCustomerButton = searchCustomerForm.querySelector("#search-btn");
-const searchCustomerResult = document.querySelector("#search-customer-results");
+  forms: {
+    searchCustomer: document.querySelector("form[name='search-customer']"),
+    addLayaway: document.querySelector("form[name='add-layaway']"),
+    searchProducts: document.querySelector("form[name='search-products']"),
+    finalizeSale: document.querySelector("#cart form[name='finalize-sale']"),
+  },
 
-// Customer Info
-const customerName = document.querySelector("#customer-name");
-const customerAddres = document.querySelector("#customer-address");
-const layawaySumDiv = document.querySelector("#layawaySum");
+  inputs: {
+    searchCustomer: document.querySelector("#search-customer #search"),
+    searchProducts: document.querySelector("#search-products #search-products"),
+    layawayTotal: document.querySelector("#layaway-total"),
 
-// Layaway Selection
-const layawayItems = document.querySelector("#layawayItems");
-const layawayTotalEl = document.querySelector("#layaway-total");
-const addLayawayBtn = layawayDetails?.querySelector("#addLayaway");
-const addLayawayform = addLayawayDiv?.querySelector("form[name='add-layaway']");
-const layawayRecieptPrint = layawayReceipt?.querySelector(
-  "#layawayPrintReceipt"
-);
+    paymentMethods: {
+      cash: document.querySelector("#cart #cash"),
+      cheque: document.querySelector("#cart #cheque"),
+      debit: document.querySelector("#cart #debit"),
+      visa: document.querySelector("#cart #visa"),
+      mastercard: document.querySelector("#cart #master_card"),
+      amex: document.querySelector("#cart #amex"),
+      discover: document.querySelector("#cart #discover"),
+      travelCheque: document.querySelector("#cart #travel_cheque"),
+      cup: document.querySelector("#cart #cup"),
+      alipay: document.querySelector("#cart #alipay"),
+      layaway: document.querySelector("#cart #layaway"),
+    },
+    subtotal: document.querySelector("#cart #subtotal"),
+    excludeGst: document.querySelector("#cart #exclude-gst"),
+    excludePst: document.querySelector("#cart #exclude-pst"),
+    gst: document.querySelector("#cart #gst"),
+    pst: document.querySelector("#cart #pst"),
+    total: document.querySelector("#cart #total"),
+  },
 
-// Sales Receipt
-const salesPrintReceipt = document.getElementById("salesPrintReceipt");
-const receiptContent = document.getElementById("receiptContent");
+  customer: {
+    name: document.querySelector("#customer-name"),
+    address: document.querySelector("#customer-address"),
+    layawaySum: document.querySelector("#layawaySum"),
+  },
 
-viewCart.addEventListener("click", function (e) {
+  layaway: {
+    items: document.querySelector("#layawayItems"),
+  },
+
+  receipts: {
+    content: document.getElementById("receiptContent"),
+  },
+
+  results: {
+    searchCustomer: document.querySelector("#search-customer-results"),
+    searchProducts: document.querySelector("#search-product-results"),
+  },
+};
+
+DOM.buttons.viewCart.addEventListener("click", function (e) {
   e.preventDefault();
 
-  cartDiv.classList.remove("hidden");
-  searchCustomerDiv.classList.add("hidden");
-  searchProductsDiv.classList.add("hidden");
-  layawayDetails.classList.add("hidden");
-  layawayReceipt.classList.add("hidden");
-  addLayawayDiv.classList.add("hidden");
+  DOM.divs.cart.classList.remove("hidden");
+  DOM.divs.searchCustomer.classList.add("hidden");
+  DOM.divs.searchProducts.classList.add("hidden");
+  DOM.divs.layawayDetails.classList.add("hidden");
+  DOM.divs.layawayReceipt.classList.add("hidden");
+  DOM.divs.addLayaway.classList.add("hidden");
 
   displayCart();
 });
 
-viewProducts.addEventListener("click", function (e) {
+DOM.buttons.viewProducts.addEventListener("click", function (e) {
   e.preventDefault();
 
-  searchProductsDiv.classList.remove("hidden");
-  cartDiv.classList.add("hidden");
-  searchCustomerDiv.classList.add("hidden");
-  layawayDetails.classList.add("hidden");
-  layawayReceipt.classList.add("hidden");
-  addLayawayDiv.classList.add("hidden");
+  DOM.divs.searchProducts.classList.remove("hidden");
+  DOM.divs.cart.classList.add("hidden");
+  DOM.divs.searchCustomer.classList.add("hidden");
+  DOM.divs.layawayDetails.classList.add("hidden");
+  DOM.divs.layawayReceipt.classList.add("hidden");
+  DOM.divs.addLayaway.classList.add("hidden");
 });
 
 // STEP 1: Search the customer
-searchCustomerForm.addEventListener("submit", function (event) {
+DOM.forms.searchCustomer.addEventListener("submit", function (event) {
   event.preventDefault();
-  const searchValue = searchCustomerInput.value.trim();
-  searchCustomerButton.setAttribute("disabled", true);
-  searchCustomerButton.innerHTML = "Searching...";
+  const searchValue = DOM.inputs.searchCustomer.value.trim();
+  DOM.buttons.searchCustomer.setAttribute("disabled", true);
+  DOM.buttons.searchCustomer.innerHTML = "Searching...";
 
   if (searchValue) {
     fetch(
@@ -88,22 +125,22 @@ searchCustomerForm.addEventListener("submit", function (event) {
       .then((response) => response.json())
       .then((res) => {
         if (res.success) {
-          searchCustomerResult.innerHTML = "";
-          searchCustomerResult.innerHTML = res.data;
+          DOM.results.searchCustomer.innerHTML = "";
+          DOM.results.searchCustomer.innerHTML = res.data;
         }
-        searchCustomerButton.removeAttribute("disabled");
-        searchCustomerButton.innerHTML = "Search";
+        DOM.buttons.searchCustomer.removeAttribute("disabled");
+        DOM.buttons.searchCustomer.innerHTML = "Search";
         setupSelectCustomerButtons();
       })
       .catch((error) => {
         console.error("Error:", error);
       });
   } else {
-    searchCustomerButton.removeAttribute("disabled");
-    searchCustomerButton.innerHTML = "Search";
+    DOM.buttons.searchCustomer.removeAttribute("disabled");
+    DOM.buttons.searchCustomer.innerHTML = "Search";
 
-    searchCustomerResult.innerHTML = "";
-    searchCustomerResult.innerHTML = "Please enter a search term.";
+    DOM.results.searchCustomer.innerHTML = "";
+    DOM.results.searchCustomer.innerHTML = "Please enter a search term.";
   }
 });
 
@@ -121,12 +158,12 @@ function setupSelectCustomerButtons() {
       addressValue = buttonParent.querySelector("#address").innerText;
 
       customerId = button.dataset.customerid;
-      searchCustomerDiv.classList.add("hidden");
-      searchProductsDiv.classList.remove("hidden");
-      customerDetails.classList.remove("hidden");
+      DOM.divs.searchCustomer.classList.add("hidden");
+      DOM.divs.searchProducts.classList.remove("hidden");
+      DOM.divs.customerDetails.classList.remove("hidden");
 
-      customerName.textContent = `${firstNameValue} ${lastNameValue}`;
-      customerAddres.textContent = addressValue;
+      DOM.customer.name.textContent = `${firstNameValue} ${lastNameValue}`;
+      DOM.customer.address.textContent = addressValue;
 
       // Fetching the layaway sum for the selected customer
       fetch(
@@ -139,7 +176,7 @@ function setupSelectCustomerButtons() {
         .then((res) => {
           if (res.data > 0) {
             layawayTotal = parseFloat(res.data).toFixed(2);
-            layawaySumDiv.innerHTML = `Layaway Total: <span>${parseFloat(
+            DOM.customer.layawaySum.innerHTML = `Layaway Total: <span>${parseFloat(
               res.data
             ).toFixed(2)} CAD</span>`;
           }
@@ -152,17 +189,17 @@ function setupSelectCustomerButtons() {
 }
 
 // STEP 3: Layaway of the selected customer
-viewLayaway?.addEventListener("click", function (e) {
+DOM.buttons.viewLayaway?.addEventListener("click", function (e) {
   e.preventDefault();
-  layawayDetails.classList.remove("hidden");
-  searchProductsDiv.classList.add("hidden");
-  cartDiv.classList.add("hidden");
-  searchCustomerDiv.classList.add("hidden");
-  layawayReceipt.classList.add("hidden");
-  addLayawayDiv.classList.add("hidden");
+  DOM.divs.layawayDetails.classList.remove("hidden");
+  DOM.divs.searchProducts.classList.add("hidden");
+  DOM.divs.cart.classList.add("hidden");
+  DOM.divs.searchCustomer.classList.add("hidden");
+  DOM.divs.layawayReceipt.classList.add("hidden");
+  DOM.divs.addLayaway.classList.add("hidden");
 
   if (!customerId) {
-    layawayItems.innerHTML = "Please select a customer first.";
+    DOM.layaway.items.innerHTML = "Please select a customer first.";
     return;
   }
 
@@ -175,7 +212,7 @@ viewLayaway?.addEventListener("click", function (e) {
     .then((response) => response.json())
     .then((res) => {
       if (res.success) {
-        layawayItems.innerHTML = "";
+        DOM.layaway.items.innerHTML = "";
         res.data.forEach((item) => {
           const layawayItem = document.createElement("tr");
           layawayItem.classList.add("layaway-item");
@@ -186,11 +223,12 @@ viewLayaway?.addEventListener("click", function (e) {
             <td>${item.method}</p>
             <td>${item.amount}</p>
           `;
-          layawayItems.appendChild(layawayItem);
+          DOM.layaway.items.appendChild(layawayItem);
         });
-        layawayTotalEl.innerHTML = Number(layawayTotal).toFixed(2);
+        DOM.inputs.layawayTotal.innerHTML = Number(layawayTotal).toFixed(2);
       } else {
-        layawayItems.innerHTML = "No layaway items found for this customer.";
+        DOM.layaway.items.innerHTML =
+          "No layaway items found for this customer.";
       }
     })
     .catch((error) => {
@@ -199,42 +237,43 @@ viewLayaway?.addEventListener("click", function (e) {
 });
 
 // STEP 3.1: Add Layaway
-addLayawayBtn?.addEventListener("click", function (e) {
+DOM.buttons.addLayaway?.addEventListener("click", function (e) {
   e.preventDefault();
-  addLayawayDiv.classList.remove("hidden");
-  layawayDetails.classList.add("hidden");
+  DOM.divs.addLayaway.classList.remove("hidden");
+  DOM.divs.layawayDetails.classList.add("hidden");
 });
 
+const { addLayaway } = DOM.forms;
 // STEP 3.2: Submit Layaway Form
-addLayawayform?.addEventListener("submit", function (e) {
+addLayaway?.addEventListener("submit", function (e) {
   e.preventDefault();
 
-  const cash = addLayawayform.querySelector("#cash").value;
-  const cheque = addLayawayform.querySelector("#cheque").value;
-  const debit = addLayawayform.querySelector("#debit").value;
-  const visa = addLayawayform.querySelector("#visa").value;
-  const master_card = addLayawayform.querySelector("#master_card").value;
-  const amex = addLayawayform.querySelector("#amex").value;
-  const discover = addLayawayform.querySelector("#discover").value;
-  const travel_cheque = addLayawayform.querySelector("#travel_cheque").value;
-  const cup = addLayawayform.querySelector("#cup").value;
-  const alipay = addLayawayform.querySelector("#alipay").value;
-  const layawayReference =
-    addLayawayform.querySelector("#layaway-reference").value;
-  const salesperson = addLayawayform.querySelector("#salesperson").value;
-  const layawayDate = addLayawayform.querySelector("#layaway-date").value;
+  const cash = addLayaway.querySelector("#cash").value;
+  const cheque = addLayaway.querySelector("#cheque").value;
+  const debit = addLayaway.querySelector("#debit").value;
+  const visa = addLayaway.querySelector("#visa").value;
+  const master_card = addLayaway.querySelector("#master_card").value;
+  const amex = addLayaway.querySelector("#amex").value;
+  const discover = addLayaway.querySelector("#discover").value;
+  const travel_cheque = addLayaway.querySelector("#travel_cheque").value;
+  const cup = addLayaway.querySelector("#cup").value;
+  const alipay = addLayaway.querySelector("#alipay").value;
+  const layawayReference = addLayaway.querySelector("#layaway-reference").value;
+  const salesperson = addLayaway.querySelector("#salesperson").value;
+  const layawayDate = addLayaway.querySelector("#layaway-date").value;
 
-  const receiptCustomerName = layawayReceipt.querySelector(
+  const receiptCustomerName = DOM.divs.layawayReceipt.querySelector(
     "#receiptCustomerName"
   );
-  const receiptCustomerAddress = layawayReceipt.querySelector(
+  const receiptCustomerAddress = DOM.divs.layawayReceipt.querySelector(
     "#receiptCustomerAddress"
   );
-  const layawayTotalDiv = layawayReceipt.querySelector("#layawayTotal");
-  const paymentAmount = layawayReceipt.querySelector("#paymentAmount");
-  const paymentMethod = layawayReceipt.querySelector("#paymentMode");
-  const receiptDate = layawayReceipt.querySelector("#receiptDate");
-  const salesmanName = layawayReceipt.querySelector("#salesmanName");
+  const layawayTotalDiv =
+    DOM.divs.layawayReceipt.querySelector("#layawayTotal");
+  const paymentAmount = DOM.divs.layawayReceipt.querySelector("#paymentAmount");
+  const paymentMethod = DOM.divs.layawayReceipt.querySelector("#paymentMode");
+  const receiptDate = DOM.divs.layawayReceipt.querySelector("#receiptDate");
+  const salesmanName = DOM.divs.layawayReceipt.querySelector("#salesmanName");
 
   if (
     cash === "" &&
@@ -257,7 +296,7 @@ addLayawayform?.addEventListener("submit", function (e) {
     return;
   }
 
-  const formData = new FormData(addLayawayform);
+  const formData = new FormData(addLayaway);
   formData.append("action", "addLayaway");
   formData.append("customer_id", customerId);
 
@@ -268,8 +307,8 @@ addLayawayform?.addEventListener("submit", function (e) {
     .then((response) => response.json())
     .then((result) => {
       if (result.success) {
-        layawayReceipt.classList.remove("hidden");
-        addLayawayDiv.classList.add("hidden");
+        DOM.divs.layawayReceipt.classList.remove("hidden");
+        DOM.divs.addLayaway.classList.add("hidden");
 
         receiptCustomerName.innerHTML = `${firstNameValue} ${lastNameValue}`;
         receiptCustomerAddress.innerHTML = addressValue;
@@ -288,7 +327,7 @@ addLayawayform?.addEventListener("submit", function (e) {
 
         receiptDate.innerHTML = result.data.payment_date;
         salesmanName.innerHTML = result.data.salesperson;
-        addLayawayform.reset();
+        addLayaway.reset();
       } else {
         alert("Failed to process payment: " + result.data.message);
       }
@@ -300,7 +339,7 @@ addLayawayform?.addEventListener("submit", function (e) {
 });
 
 // STEP 3.3: Print Layaway Receipt
-layawayRecieptPrint?.addEventListener("click", function (e) {
+DOM.buttons.layawayReceiptPrint?.addEventListener("click", function (e) {
   e.preventDefault();
   // Create a new window for printing
   const printWindow = window.open("", "_blank");
@@ -333,7 +372,7 @@ layawayRecieptPrint?.addEventListener("click", function (e) {
                 </style>
             </head>
             <body>
-              ${layawayReceipt.outerHTML}
+              ${DOM.divs.layawayReceipt.outerHTML}
             </body>
         </html>
     `);
@@ -343,23 +382,14 @@ layawayRecieptPrint?.addEventListener("click", function (e) {
 });
 
 // STEP 3: Search the products
-
-// grbbing the elements
-const searchProductsForm = document.querySelector(
-  "form[name='search-products']"
-);
-const searchproductInput = searchProductsForm.querySelector("#search-products");
-const searchProductsButton = searchProductsForm.querySelector(
-  "#search-product-btn"
-);
-const searchProductsResult = document.querySelector("#search-product-results");
+const { searchProducts } = DOM.forms;
 
 // Searching the products
-searchProductsForm.addEventListener("submit", function (event) {
+searchProducts.addEventListener("submit", function (event) {
   event.preventDefault();
-  const searchValue = searchproductInput.value.trim();
-  searchProductsButton.setAttribute("disabled", true);
-  searchProductsButton.innerHTML = "Searching...";
+  const searchValue = DOM.inputs.searchProducts.value.trim();
+  DOM.buttons.searchProducts.setAttribute("disabled", true);
+  DOM.buttons.searchProducts.innerHTML = "Searching...";
   if (searchValue) {
     fetch(
       `${
@@ -373,7 +403,7 @@ searchProductsForm.addEventListener("submit", function (event) {
     )
       .then((response) => response.json())
       .then((res) => {
-        searchProductsResult.innerHTML = "";
+        DOM.results.searchProducts.innerHTML = "";
         if (res.success) {
           const {
             image_url,
@@ -385,7 +415,7 @@ searchProductsForm.addEventListener("submit", function (event) {
             product_id,
             product_variant_id,
           } = res.data;
-          searchProductsResult.innerHTML = `
+          DOM.results.searchProducts.innerHTML = `
             <div class="product-item">
               <img src="${image_url}" alt="${title}" />
               <div>
@@ -402,7 +432,7 @@ searchProductsForm.addEventListener("submit", function (event) {
           `;
 
           const addToCartButton =
-            searchProductsResult.querySelector(".add-to-cart");
+            DOM.results.searchProducts.querySelector(".add-to-cart");
           addToCartButton.addEventListener("click", function () {
             const product = {
               unit_id,
@@ -425,57 +455,37 @@ searchProductsForm.addEventListener("submit", function (event) {
 
             cart.push(product);
             displayCart();
-            searchProductsResult.innerHTML = "";
-            searchproductInput.value = "";
-            searchProductsDiv.classList.add("hidden");
+            DOM.results.searchProducts.innerHTML = "";
+            DOM.inputs.searchProducts.value = "";
+            DOM.divs.searchProducts.classList.add("hidden");
           });
         } else {
-          searchProductsResult.innerHTML = `No products found for "${searchValue}".`;
+          DOM.results.searchProducts.innerHTML = `No products found for "${searchValue}".`;
         }
-        searchProductsButton.removeAttribute("disabled");
-        searchProductsButton.innerHTML = "Search";
+        DOM.buttons.searchProducts.removeAttribute("disabled");
+        DOM.buttons.searchProducts.innerHTML = "Search";
       })
       .catch((error) => {
         console.error("Error:", error);
       });
   } else {
-    searchProductsResult.innerHTML = "";
-    searchProductsResult.innerHTML = "Please enter a search term.";
-    searchProductsButton.removeAttribute("disabled");
-    searchProductsButton.innerHTML = "Search";
+    DOM.results.searchProducts.innerHTML = "";
+    DOM.results.searchProducts.innerHTML = "Please enter a search term.";
+    DOM.buttons.searchProducts.removeAttribute("disabled");
+    DOM.buttons.searchProducts.innerHTML = "Search";
   }
 });
 
 // FINAL SALES/CART SECTION
-const finalizeSale = cartDiv.querySelector("form[name='finalize-sale']");
-const finalizeSubTotal = finalizeSale.querySelector("#subtotal");
-const excludeGst = finalizeSale.querySelector("#exclude-gst");
-const excludePst = finalizeSale.querySelector("#exclude-pst");
-const finalizeGst = finalizeSale.querySelector("#gst");
-const finalizePst = finalizeSale.querySelector("#pst");
-const finalizeTotal = finalizeSale.querySelector("#total");
-cartItemsDiv.addEventListener("click", handleCartClick);
-
-// grabbing payments methods elemenets
-const cashEl = finalizeSale.querySelector("#cash");
-const chequeEl = finalizeSale.querySelector("#cheque");
-const debitEl = finalizeSale.querySelector("#debit");
-const visaEl = finalizeSale.querySelector("#visa");
-const mastercardEl = finalizeSale.querySelector("#master_card");
-const amexEl = finalizeSale.querySelector("#amex");
-const discoverEl = finalizeSale.querySelector("#discover");
-const travelChequeEl = finalizeSale.querySelector("#travel_cheque");
-const cupEl = finalizeSale.querySelector("#cup");
-const alipayEl = finalizeSale.querySelector("#alipay");
-const layawayEl = finalizeSale.querySelector("#layaway");
+DOM.divs.cartItems.addEventListener("click", handleCartClick);
 
 function getTotals() {
   const subtotal = cart.reduce((sum, item) => {
     return sum + (parseFloat(item.price_after_discount || item.price) || 0);
   }, 0);
 
-  const gstRate = excludeGst?.checked ? 0 : 0.05;
-  const pstRate = excludePst?.checked ? 0 : 0.08;
+  const gstRate = DOM.inputs.excludeGst?.checked ? 0 : 0.05;
+  const pstRate = DOM.inputs.excludePst?.checked ? 0 : 0.08;
 
   const gst = subtotal * gstRate;
   const pst = subtotal * pstRate;
@@ -492,13 +502,13 @@ function getTotals() {
 function calculateTotal(checkbox = true) {
   const { subtotal, gst, pst, total } = getTotals();
 
-  finalizeSubTotal.value = subtotal.toFixed(2);
-  finalizeGst.value = gst.toFixed(2);
-  finalizePst.value = pst.toFixed(2);
-  finalizeTotal.value = total.toFixed(2);
+  DOM.inputs.subtotal.value = subtotal.toFixed(2);
+  DOM.inputs.gst.value = gst.toFixed(2);
+  DOM.inputs.pst.value = pst.toFixed(2);
+  DOM.inputs.total.value = total.toFixed(2);
 
   if (layawayTotal > 0 && !checkbox) {
-    const layawayInput = finalizeSale.querySelector("#layaway");
+    const layawayInput = DOM.inputs.paymentMethods.layaway;
     if (layawayInput) layawayInput.value = layawayTotal;
   }
 }
@@ -534,9 +544,9 @@ function displayCart() {
       "<p>No items in the cart!!. Please add by searching the prooducts.</p>";
   }
 
-  cartItemsDiv.innerHTML = cartHTML;
-  layawayEl.max = layawayTotal;
-  cartDiv.classList.remove("hidden");
+  DOM.divs.cartItems.innerHTML = cartHTML;
+  DOM.inputs.paymentMethods.layaway.max = layawayTotal;
+  DOM.divs.cart.classList.remove("hidden");
 }
 
 function handleCartClick(e) {
@@ -567,19 +577,20 @@ function openEditModal(unitId) {
 
   if (!item) return;
 
-  editItemsModalDiv.classList.remove("hidden");
+  const { editItemsModal } = DOM.divs;
+  editItemsModal.classList.remove("hidden");
 
   // grab the modal elements
-  const titleEl = editItemsModalDiv.querySelector("#edit-item-title");
-  const skuEl = editItemsModalDiv.querySelector("#edit-item-sku");
-  const priceEl = editItemsModalDiv.querySelector("#edit-item-price");
-  const discountAmtEl = editItemsModalDiv.querySelector("#edit-discount-amt");
-  const discountPctEl = editItemsModalDiv.querySelector("#edit-discount-pct");
-  const priceAfterDiscountEl = editItemsModalDiv.querySelector(
+  const titleEl = editItemsModal.querySelector("#edit-item-title");
+  const skuEl = editItemsModal.querySelector("#edit-item-sku");
+  const priceEl = editItemsModal.querySelector("#edit-item-price");
+  const discountAmtEl = editItemsModal.querySelector("#edit-discount-amt");
+  const discountPctEl = editItemsModal.querySelector("#edit-discount-pct");
+  const priceAfterDiscountEl = editItemsModal.querySelector(
     "#edit-price-after-discount"
   );
-  const saveBtn = editItemsModalDiv.querySelector("#save-edit");
-  const cancelBtn = editItemsModalDiv.querySelector("#cancel-edit");
+  const saveBtn = editItemsModal.querySelector("#save-edit");
+  const cancelBtn = editItemsModal.querySelector("#cancel-edit");
   const basePrice = parseFloat(item.price);
 
   // Populate modal fields
@@ -632,7 +643,7 @@ function openEditModal(unitId) {
   }
 
   function onCancelClick() {
-    editItemsModalDiv.classList.add("hidden");
+    editItemsModal.classList.add("hidden");
     removeModalListeners();
   }
 
@@ -645,7 +656,7 @@ function openEditModal(unitId) {
     item.price_after_discount = updatedPrice.toFixed(2);
 
     displayCart();
-    editItemsModalDiv.classList.add("hidden");
+    editItemsModal.classList.add("hidden");
     removeModalListeners();
   }
   // Attach modal listeners
@@ -658,34 +669,21 @@ function openEditModal(unitId) {
 
 function validateAndSubmitSale() {
   const { subtotal, gst, pst, total } = getTotals();
-  // grabbing the values
-  const cash = parseFloat(cashEl.value) || 0;
-  const cheque = parseFloat(chequeEl.value) || 0;
-  const debit = parseFloat(debitEl.value) || 0;
-  const visa = parseFloat(visaEl.value) || 0;
-  const mastercard = parseFloat(mastercardEl.value) || 0;
-  const amex = parseFloat(amexEl.value) || 0;
-  const discover = parseFloat(discoverEl.value) || 0;
-  const travelCheque = parseFloat(travelChequeEl.value) || 0;
-  const cup = parseFloat(cupEl.value) || 0;
-  const alipay = parseFloat(alipayEl.value) || 0;
-  const layaway = parseFloat(layawayEl.value) || 0;
 
-  const totalPaid = parseFloat(
-    (
-      cash +
-      cheque +
-      debit +
-      visa +
-      mastercard +
-      amex +
-      discover +
-      travelCheque +
-      cup +
-      alipay +
-      layaway
-    ).toFixed(2)
-  );
+  const payments = DOM.inputs.paymentMethods;
+  let totalPaid = 0;
+
+  for (const method in payments) {
+    if (
+      method === "subtotal" ||
+      method === "gst" ||
+      method === "pst" ||
+      method === "total"
+    )
+      continue;
+    totalPaid += parseFloat(payments[method].value) || 0;
+  }
+  totalPaid = parseFloat(totalPaid.toFixed(2));
 
   if (totalPaid !== total) {
     alert(
@@ -695,8 +693,12 @@ function validateAndSubmitSale() {
     );
     return false;
   }
-  const reference = finalizeSale.querySelector("#reference").value.trim();
-  const salesperson = finalizeSale.querySelector("#salesperson").value.trim();
+  const reference = DOM.forms.finalizeSale
+    .querySelector("#reference")
+    .value.trim();
+  const salesperson = DOM.forms.finalizeSale
+    .querySelector("#salesperson")
+    .value.trim();
 
   if (!reference) {
     alert("Reference number is required.");
@@ -710,10 +712,10 @@ function validateAndSubmitSale() {
   return true;
 }
 
-excludeGst.addEventListener("change", calculateTotal);
-excludePst.addEventListener("change", calculateTotal);
+DOM.inputs.excludeGst.addEventListener("change", calculateTotal);
+DOM.inputs.excludePst.addEventListener("change", calculateTotal);
 
-finalizeSale.addEventListener("submit", function (e) {
+DOM.forms.finalizeSale.addEventListener("submit", function (e) {
   e.preventDefault();
 
   if (cart.length === 0) {
@@ -726,7 +728,7 @@ finalizeSale.addEventListener("submit", function (e) {
 
   if (!validatedForm) return;
 
-  const formData = new FormData(finalizeSale);
+  const formData = new FormData(DOM.forms.finalizeSale);
 
   formData.append("action", "finalizeSale");
   formData.append("customer_id", customerId);
@@ -741,9 +743,9 @@ finalizeSale.addEventListener("submit", function (e) {
       if (result.success) {
         console.log(result.data);
 
-        saleResult.classList.remove("hidden");
-        cartDiv.classList.add("hidden");
-        customerDetails.classList.add("hidden");
+        DOM.divs.saleResult.classList.remove("hidden");
+        DOM.divs.cart.classList.add("hidden");
+        DOM.divs.customerDetails.classList.add("hidden");
 
         const { data } = result;
 
@@ -778,7 +780,7 @@ finalizeSale.addEventListener("submit", function (e) {
           })
           .join(", ");
 
-        receiptContent.innerHTML = `
+        DOM.receipts.content.innerHTML = `
             <header>
               <div>
                 <h2>Montecristo Jewellers</h2>
@@ -842,7 +844,7 @@ finalizeSale.addEventListener("submit", function (e) {
     });
 });
 
-salesPrintReceipt?.addEventListener("click", function (e) {
+DOM.buttons.salesPrintReceipt?.addEventListener("click", function (e) {
   e.preventDefault();
   const printWindow = window.open("", "_blank");
   printWindow.document.write(`
@@ -897,7 +899,7 @@ salesPrintReceipt?.addEventListener("click", function (e) {
               </style>
             </head>
             <body>
-              ${receiptContent.outerHTML}
+              ${DOM.receipts.content.outerHTML}
             </body>
         </html>
     `);
