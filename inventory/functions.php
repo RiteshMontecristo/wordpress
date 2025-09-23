@@ -1,6 +1,6 @@
 <?php
 require_once get_stylesheet_directory() . '/inventory/print.php';
-require_once get_stylesheet_directory() . '/inventory/inventory.php';
+require_once get_stylesheet_directory() . '/inventory/sales.php';
 require_once get_stylesheet_directory() . '/inventory/customer.php';
 require_once get_stylesheet_directory() . '/inventory/salespeople.php';
 require_once get_stylesheet_directory() . '/inventory/product_units.php';

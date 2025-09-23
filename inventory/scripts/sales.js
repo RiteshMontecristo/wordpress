@@ -2,7 +2,6 @@
 let customerId, firstNameValue, lastNameValue, addressValue;
 const cart = [];
 let layawayTotal = 0;
-let subTotalCost = 0;
 
 // Main divs
 const searchCustomerDiv = document.querySelector("#search-customer");
@@ -14,6 +13,7 @@ const searchProductsDiv = document.querySelector("#search-products");
 const cartDiv = document.querySelector("#cart");
 const cartItemsDiv = cartDiv?.querySelector(".cart-items");
 const editItemsModalDiv = document.querySelector("#edit-item-modal");
+const saleResult = document.getElementById("saleResult");
 
 const viewProducts = document.querySelector("#viewProducts");
 const viewCart = document.querySelector("#viewCart");
@@ -37,7 +37,13 @@ const layawayItems = document.querySelector("#layawayItems");
 const layawayTotalEl = document.querySelector("#layaway-total");
 const addLayawayBtn = layawayDetails?.querySelector("#addLayaway");
 const addLayawayform = addLayawayDiv?.querySelector("form[name='add-layaway']");
-const layawayRecieptPrint = layawayReceipt?.querySelector("#printReceipt");
+const layawayRecieptPrint = layawayReceipt?.querySelector(
+  "#layawayPrintReceipt"
+);
+
+// Sales Receipt
+const salesPrintReceipt = document.getElementById("salesPrintReceipt");
+const receiptContent = document.getElementById("receiptContent");
 
 viewCart.addEventListener("click", function (e) {
   e.preventDefault();
@@ -369,12 +375,16 @@ searchProductsForm.addEventListener("submit", function (event) {
       .then((res) => {
         searchProductsResult.innerHTML = "";
         if (res.success) {
-          const image_url = res.data.image_url;
-          const sku = res.data.sku;
-          const price = res.data.price;
-          const title = res.data.title;
-          const unit_id = res.data.unit_id;
-          const variation_detail = res.data.variation_detail;
+          const {
+            image_url,
+            sku,
+            price,
+            title,
+            unit_id,
+            variation_detail,
+            product_id,
+            product_variant_id,
+          } = res.data;
           searchProductsResult.innerHTML = `
             <div class="product-item">
               <img src="${image_url}" alt="${title}" />
@@ -395,12 +405,14 @@ searchProductsForm.addEventListener("submit", function (event) {
             searchProductsResult.querySelector(".add-to-cart");
           addToCartButton.addEventListener("click", function () {
             const product = {
-              unit_id: unit_id,
-              title: title,
-              price: price,
-              image_url: image_url,
-              sku: sku,
-              variation_detail: variation_detail,
+              unit_id,
+              product_id,
+              product_variant_id,
+              title,
+              price,
+              image_url,
+              sku,
+              variation_detail,
               discount_amount: 0,
               discount_percent: 0,
               price_after_discount: price,
@@ -410,8 +422,6 @@ searchProductsForm.addEventListener("submit", function (event) {
               alert("This product is already in the cart.");
               return;
             }
-
-            subTotalCost += parseFloat(price);
 
             cart.push(product);
             displayCart();
@@ -546,9 +556,6 @@ function handleCartClick(e) {
 function removeFromCart(unitId) {
   const index = cart.findIndex((item) => item.unit_id == unitId);
   if (index > -1) {
-    subTotalCost -= parseFloat(
-      cart[index].price_after_discount || cart[index].price
-    );
     cart.splice(index, 1);
     displayCart();
   }
@@ -636,12 +643,6 @@ function openEditModal(unitId) {
     item.discount_amount = updatedAmt.toFixed(2);
     item.discount_percent = updatedPct.toFixed(2);
     item.price_after_discount = updatedPrice.toFixed(2);
-    // Recalculate subtotal
-    subTotalCost = cart.reduce((total, cartItem) => {
-      return (
-        total + parseFloat(cartItem.price_after_discount || cartItem.price)
-      );
-    }, 0);
 
     displayCart();
     editItemsModalDiv.classList.add("hidden");
@@ -738,7 +739,99 @@ finalizeSale.addEventListener("submit", function (e) {
     .then((response) => response.json())
     .then((result) => {
       if (result.success) {
-        alert("Sale completed successfully!");
+        console.log(result.data);
+
+        saleResult.classList.remove("hidden");
+        cartDiv.classList.add("hidden");
+        customerDetails.classList.add("hidden");
+
+        const { data } = result;
+
+        const itemRows = data.items
+          .map((item) => {
+            const attributePairs =
+              item.attributes?.map((attr) => {
+                // Get the first (and only) key-value pair in each object
+                const key = Object.keys(attr)[0];
+                const value = attr[key];
+                return `${key}: ${value}`;
+              }) || [];
+
+            const attributesString =
+              attributePairs.length > 0 ? `${attributePairs.join("<br>")}` : "";
+            return `
+                <tr>
+                  <td>${item.title}${
+              item.variation_detail ? ` (${item.variation_detail})` : ""
+            } <br>${attributesString}</td>
+                  <td>$${item.price_after_discount}</td>
+                </tr>
+              `;
+          })
+          .join("");
+
+        const paymentLines = data.payments
+          .map((payment) => {
+            return `${payment.method}: $${parseFloat(payment.amount).toFixed(
+              2
+            )}`;
+          })
+          .join(", ");
+
+        receiptContent.innerHTML = `
+            <header>
+              <div>
+                <h2>Montecristo Jewellers</h2>
+                <p><strong>Receipt</strong></p>
+              </div>
+              <div>
+                <address>
+                  <p>${firstNameValue} ${lastNameValue}</p>
+                  <p>${addressValue.split(",").join("<br/>")}</p>
+                  <p>${data.customer?.phone ?? ""}</p>
+                  <p>${data.customer?.email ?? ""}</p>
+                </address>
+              </div>
+              <div>
+                  <p>Reference # ${data.reference_num}</p>
+                  <p>Sold on <time datetime="${data.date}">${
+          data.date
+        }</time></p>
+                  <p>Served by ${data.salesperson_name}</p>
+              </div>
+            </header>
+
+            <main>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemRows}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Paid by ${paymentLines} <br /> Thank you for shopping at Montecristo Jewellers</td>
+                    <td>
+                      <strong>Subtotal: $${data.totals.subtotal.toFixed(
+                        2
+                      )}</strong><br />
+                      <strong>GST (5%): $${data.totals.gst.toFixed(
+                        2
+                      )} </strong><br />
+                      <strong>PST (8%): $${data.totals.pst.toFixed(
+                        2
+                      )} </strong><br />
+                      <strong>Total: $${data.totals.total.toFixed(2)}
+                    </strong></td>
+                  </tr>
+                  </tfoot>
+              </table>
+            </main>
+          `;
       } else {
         alert("Failed to complete sale: " + result.data.message);
       }
@@ -747,4 +840,68 @@ finalizeSale.addEventListener("submit", function (e) {
       console.error("Error:", error);
       alert("An error occurred while processing the sale.");
     });
+});
+
+salesPrintReceipt?.addEventListener("click", function (e) {
+  e.preventDefault();
+  const printWindow = window.open("", "_blank");
+  printWindow.document.write(`
+        <html>
+            <head>
+              <title>Sales Receipt</title>
+              <style>
+                  .receipt-content {
+                    max-width: 700px;
+
+                    p {
+                      margin: 0;
+                    }
+
+                    header {
+                      display: grid;
+                      grid-template-columns: 1fr 1fr;
+
+                      div:first-child {
+                        text-align: center;
+                        grid-column: 1/-1;
+                      }
+
+                      div:last-child {
+                        text-align: end;
+                      }
+                    }
+
+                    main {
+                      table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-top: 20px;
+                      }
+
+                      th,
+                      td {
+                        border: 1px solid #000;
+                      }
+
+                      tr {
+                        td:first-child {
+                          border-right: none;
+                        }
+
+                        td:last-child {
+                          border-left: none;
+                        }
+                      }
+                    }
+                  }
+              </style>
+            </head>
+            <body>
+              ${receiptContent.outerHTML}
+            </body>
+        </html>
+    `);
+  printWindow.focus();
+  printWindow.print();
+  printWindow.close();
 });

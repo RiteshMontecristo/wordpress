@@ -99,3 +99,48 @@ form[name="finalize-sale"] {
     page-break-inside: avoid;
   }
 }
+
+.receipt-content {
+  max-width: 700px;
+
+  p {
+    margin: 0;
+  }
+
+  header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+
+    div:first-child {
+      text-align: center;
+      grid-column: 1/-1;
+    }
+
+    div:last-child {
+      text-align: end;
+    }
+  }
+
+  main {
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th,
+    td {
+      border: 1px solid #000;
+    }
+
+    tr {
+      td:first-child {
+        border-right: none;
+      }
+
+      td:last-child {
+        border-left: none;
+      }
+    }
+  }
+}

@@ -165,7 +165,7 @@ function inventory_page()
                 <p>Thank you for shopping at Montecristo Jewellers!!</p>
             </footer>
 
-            <button id="printReceipt">Print Receipt</button>
+            <button id="layawayPrintReceipt">Print Receipt</button>
 
         </div>
 
@@ -323,8 +323,15 @@ function inventory_page()
             </div>
         </div>
 
-    </div>
-<?php
+        <div class="sales-reuslt hidden" id="saleResult">
+            <h2>Sale Receipt</h2>
+            <div id="receiptContent" class="receipt-content">
+                <!-- Receipt content will be populated here -->
+            </div>
+            <button id="salesPrintReceipt">Print Receipt</button>
+            <a href="admin.php?page=inventory-management" class="">Enter new sales</a>
+        </div>
+    <?php
 }
 
 function search_customer()
@@ -533,6 +540,8 @@ function searchProducts()
 
         $response_data = array(
             'unit_id' => $unit_id,
+            'product_id' => $product_id,
+            'product_variant_id' => $product_variant_id,
             'title' => get_the_title($product_id),
             'image_url' => esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($product_id), 'thumbnail')),
             'sku' => $sku,
@@ -544,99 +553,6 @@ function searchProducts()
     } else {
         wp_send_json_error(array("message" => "No products found"));
     }
-
-
-    // Add filter to modify the query
-    // add_filter('posts_where', function ($where) use ($search_query) {
-    //     global $wpdb;
-    //     $where .= " OR {$wpdb->posts}.post_title LIKE '%$search_query%'"; // Search by product name
-    //     return $where;
-    // });
-
-    // // Get products by the custom meta key 'mc_repeatable_sku' (or product name)
-    // $args = array(
-    //     'post_type' => 'product',
-    //     'posts_per_page' => -1, // Fetch all products
-    //     'post_status' => 'publish',
-    //     'meta_query' => array(
-    //         array(
-    //             'key' => 'new_repeatable_sku_field', // Search by the custom meta key 'mc_repeatable_sku'
-    //             'value' => $search_query, // Compare with search query
-    //             'compare' => 'LIKE' // Use LIKE to match the value partially
-    //         ),
-    //     ),
-    // );
-
-    // $query = new WP_Query($args);
-
-    // $number_of_post = 0;
-
-    // if ($query->have_posts()) {
-    //     $html = '';
-    //     $html .= '<h2>Matching Products</h2>';
-    //     $html .= '<div class="pos-search-container">';
-
-    //     while ($query->have_posts()) {
-    //         $query->the_post();
-
-    //         // Get the product object
-    //         $post_type = get_post_type(get_the_ID());
-
-    //         if ($post_type !== "product")
-    //             continue;
-
-    //         $number_of_post++;
-    //         $product_id = get_the_ID();
-    //         $product = wc_get_product($product_id);
-
-    //         $html .= "<div data-sku='" . $product_id . "' class='pos-item'>";
-    //         $html .= '<strong id="title">' . get_the_title() . '</strong>';
-    //         $html .= '<br />';
-    //         $group_values = get_post_meta($product_id, 'new_repeatable_sku_field', true);
-
-    //         $image_url = wp_get_attachment_image_url(get_post_thumbnail_id($product_id));
-
-    //         $html .= "<img src='" . $image_url . "' />";
-
-    //         if (is_array($group_values)) {
-
-    //             $html .= "<select id='pos-product'>";
-    //             // Check if the group values exist
-    //             if ($product->is_type('variable')) {
-    //                 foreach ($group_values as $item) {
-    //                     $html .= "<option value='" . $product_id . " " . $item["sku_text"] . " " . $item["sku_variation"] . "'>SKU: " . $item["sku_text"];
-    //                     if (isset($item["sku_variation"])) {
-    //                         $variation_id = $item["sku_variation"];
-    //                         $variation = wc_get_product($variation_id);
-    //                         $attributes = $variation->get_attributes();
-    //                         $html .= " Product: " . implode(", ", $attributes);
-    //                     }
-    //                     $html .= "</option>";
-    //                 }
-    //             } else {
-    //                 foreach ($group_values as $item) {
-    //                     $html .= "<option value='" . $product_id . " " . $item["sku_text"] . "'>SKU: " . $item["sku_text"];
-    //                     $html .= "</option>";
-    //                 }
-    //             }
-    //             $html .= "</select>";
-    //         }
-
-    //         $html .= "<button id='pos-buy-btn'>Add Product</button>";
-    //         $html .= "</div>";
-    //     }
-
-    //     if ($number_of_post == 0) {
-    //         $html .= "<div>No products found</div>";
-    //     }
-    //     $html .= '</div>';
-
-    //     wp_reset_postdata(); // Reset the query
-
-    //     wp_send_json_success($html);
-    // } else {
-    //     wp_send_json_success("<div>No products found</div>");
-    // }
 }
 
 add_action('wp_ajax_searchProducts', 'searchProducts');
@@ -781,7 +697,6 @@ function insert_order_and_items($order_data, $items_data, $payments, $date, $cus
         }
 
         $wpdb->query('COMMIT');
-        wp_send_json_success('Sale finalized');
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
         wp_send_json_error(['message' => $e->getMessage()]);
@@ -811,5 +726,47 @@ function finalizeSale()
         'created_at' => $created_at,
     ];
 
-    insert_order_and_items($order_data, $items_data, $payments, $created_at, $customer_id, $salesperson_id);
+    // insert_order_and_items($order_data, $items_data, $payments, $created_at, $customer_id, $salesperson_id);
+
+    foreach ($items_data as $item) {
+
+        $wc_id = $item->product_id;
+        $product = wc_get_product($wc_id);
+
+        $attributes = $product->get_attributes();
+        $regular_attributes = array();
+
+        foreach ($attributes as $attribute) {
+            if (!$attribute->get_variation()) {
+                $regular_attributes[] = [
+                    $attribute['name'] => implode(", ", $attribute['options'])
+                ];
+            }
+        }
+
+        if ($item->product_variant_id) {
+            $variation = wc_get_product($item->product_variant_id);
+            $variation_attributes = $variation->get_attributes();
+
+            foreach ($variation_attributes as $attr_name => $attr_value) {
+                $regular_attributes[] = [
+                    $attr_name => $attr_value
+                ];
+            }
+        }
+        $item->attributes = $regular_attributes;
+    }
+
+    $salespeople = mji_get_salespeople();
+    $salesperson = $salespeople[$salesperson_id];
+    $salesperson_name = $salesperson->first_name . ' ' . $salesperson->last_name;
+
+    wp_send_json_success([
+        'items' => $items_data,
+        'totals' => $totals,
+        'payments' => $payments,
+        'reference_num' => $reference_num,
+        'salesperson_name' => $salesperson_name,
+        'date' => $created_at
+    ]);
 }

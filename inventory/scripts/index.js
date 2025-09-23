@@ -2,7 +2,7 @@ import "./print.js";
 import "./inventory_unit.js";
 
 if (window.location.href.includes("/admin.php?page=inventory-management")) {
-  import("./inventory.js").catch((error) =>
+  import("./sales.js").catch((error) =>
     console.error("Error loading inventory module:", error)
   );
 }
