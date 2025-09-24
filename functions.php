@@ -108,7 +108,8 @@ function enqueue_admin_scripts()
     );
 
     wp_localize_script('admin-script', 'ajax_inventory', array(
-        'ajax_url' => admin_url('admin-ajax.php')
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'sales_css_url' => get_stylesheet_directory_uri() . '/inventory/styles/sales.css',
     ));
 
     wp_enqueue_style(
