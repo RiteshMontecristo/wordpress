@@ -728,7 +728,7 @@ function finalizeSale()
         'created_at' => $created_at,
     ];
 
-    // insert_order_and_items($order_data, $items_data, $payments, $created_at, $customer_id, $salesperson_id);
+    insert_order_and_items($order_data, $items_data, $payments, $created_at, $customer_id, $salesperson_id);
 
     foreach ($items_data as $item) {
 

@@ -28,7 +28,7 @@ const DOM = {
     viewLayaway: document.querySelector("#viewLayaway"),
     addLayaway: document.querySelector("#addLayaway"),
     layawayReceiptPrint: document.querySelector("#layawayPrintReceipt"),
-    salesPrintReceipt: document.getElementById("salesPrintReceipt"),
+    salesPrintReceipt: document.querySelector("#salesPrintReceipt"),
   },
 
   forms: {
@@ -80,7 +80,7 @@ const DOM = {
   },
 
   receipts: {
-    content: document.getElementById("receiptContent"),
+    content: document.querySelector("#receiptContent"),
   },
 
   results: {
@@ -292,7 +292,7 @@ addLayaway?.addEventListener("submit", function (e) {
   }
 
   if (!layawayReference || !salesperson || !layawayDate) {
-    alert("Please fill in reference and salesperosn.");
+    alert("Please fill in reference and salesperson.");
     return;
   }
 
@@ -428,33 +428,34 @@ DOM.forms.searchProducts.addEventListener("submit", function (event) {
             </div>
           `;
 
-          DOM.divs.searchProducts.addEventListener("click", function (e) {
-            if (e.target.classList.contains("add-to-cart")) {
-              const product = {
-                unit_id,
-                product_id,
-                product_variant_id,
-                title,
-                price,
-                image_url,
-                sku,
-                variation_detail,
-                discount_amount: 0,
-                discount_percent: 0,
-                price_after_discount: price,
-              };
+          const addToCartButton =
+            DOM.results.searchProducts.querySelector(".add-to-cart");
+          if (!addToCartButton) return;
+          addToCartButton.addEventListener("click", function (e) {
+            const product = {
+              unit_id,
+              product_id,
+              product_variant_id,
+              title,
+              price,
+              image_url,
+              sku,
+              variation_detail,
+              discount_amount: 0,
+              discount_percent: 0,
+              price_after_discount: price,
+            };
 
-              if (state.cart.find((item) => item.unit_id === unit_id)) {
-                alert("This product is already in the cart.");
-                return;
-              }
-
-              state.cart.push(product);
-              displayCart();
-              DOM.results.searchProducts.innerHTML = "";
-              DOM.inputs.searchProducts.value = "";
-              DOM.divs.searchProducts.classList.add("hidden");
+            if (state.cart.find((item) => item.unit_id === unit_id)) {
+              alert("This product is already in the cart.");
+              return;
             }
+
+            state.cart.push(product);
+            displayCart();
+            DOM.results.searchProducts.innerHTML = "";
+            DOM.inputs.searchProducts.value = "";
+            DOM.divs.searchProducts.classList.add("hidden");
           });
         } else {
           DOM.results.searchProducts.textContent = `No products found for "${searchValue}".`;
@@ -588,7 +589,7 @@ function openEditModal(unitId) {
   );
   const saveBtn = editItems.querySelector("#save-edit");
   const cancelBtn = editItems.querySelector("#cancel-edit");
-  const basePrice = parseFloat(item.price);
+  const basePrice = Number(item.price);
 
   // Populate modal fields
   titleEl.textContent = item.title;
@@ -601,7 +602,7 @@ function openEditModal(unitId) {
 
   // Define event handlers
   function onDiscountAmtInput() {
-    let amt = parseFloat(discountAmtEl.value) || 0;
+    let amt = Number(discountAmtEl.value) || 0;
 
     if (amt > basePrice) amt = basePrice;
 
@@ -609,7 +610,7 @@ function openEditModal(unitId) {
     priceAfterDiscountEl.value = (basePrice - amt).toFixed(2);
   }
   function onDiscountPctInput() {
-    let pct = parseFloat(discountPctEl.value) || 0;
+    let pct = Number(discountPctEl.value) || 0;
 
     if (pct > 100) pct = 100;
 
@@ -619,7 +620,7 @@ function openEditModal(unitId) {
   }
 
   function onPriceAfterDiscountInput() {
-    let discounted = parseFloat(priceAfterDiscountEl.value) || 0;
+    let discounted = Number(priceAfterDiscountEl.value) || 0;
 
     if (discounted > basePrice) discounted = basePrice;
 
@@ -645,9 +646,9 @@ function openEditModal(unitId) {
   }
 
   function onSaveClick() {
-    const updatedAmt = parseFloat(discountAmtEl.value) || 0;
-    const updatedPct = parseFloat(discountPctEl.value) || 0;
-    const updatedPrice = parseFloat(priceAfterDiscountEl.value) || basePrice;
+    const updatedAmt = Number(discountAmtEl.value) || 0;
+    const updatedPct = Number(discountPctEl.value) || 0;
+    const updatedPrice = Number(priceAfterDiscountEl.value) || basePrice;
     item.discount_amount = updatedAmt.toFixed(2);
     item.discount_percent = updatedPct.toFixed(2);
     item.price_after_discount = updatedPrice.toFixed(2);
