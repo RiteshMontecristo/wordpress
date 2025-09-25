@@ -348,13 +348,13 @@ function search_customer()
 
 add_action('wp_ajax_search_customer', 'search_customer');
 
-function get_layaway_sum()
+function get_layaway_sum($id = null)
 {
-    if (!isset($_GET['customer_id'])) {
+    $customer_id = isset($_GET['customer_id']) ? intval($_GET['customer_id']) :  $id;
+
+    if (!$customer_id) {
         return wp_send_json_error('Customer ID is required');
     }
-
-    $customer_id = intval($_GET['customer_id']);
 
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_payments';
@@ -378,8 +378,8 @@ function get_layaway_sum()
     ", $customer_id);
 
     $result = $wpdb->get_row($query);
-
     $balance = !is_null($result->net_layaway_balance) ? (float) $result->net_layaway_balance : 0.0;
+    if ($id) return $balance;
     return wp_send_json_success($balance);
 
     wp_die();
@@ -478,11 +478,13 @@ function add_layaway()
 
         $salesperson = $wpdb->get_row($wpdb->prepare("SELECT first_name, last_name FROM {$wpdb->prefix}mji_salespeople WHERE id = %d", $salesperson_id));
 
+        $layaway_sum = get_layaway_sum($customer_id);
         $response = [
             'salesperson' => $salesperson->first_name . ' ' . $salesperson->last_name,
             'reference_num' => $reference_num,
             'payment_date' => $payment_date,
-            'payments' => $payments
+            'payments' => $payments,
+            'layaway_sum' => $layaway_sum
         ];
 
         $wpdb->query('COMMIT');
