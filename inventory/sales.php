@@ -68,47 +68,47 @@ function inventory_page()
                     </div>
 
                     <div>
-                        <label for="cheque">cheque:</label>
+                        <label for="cheque">Cheque:</label>
                         <input type="number" step="0.01" id="cheque" name="cheque">
                     </div>
 
                     <div>
-                        <label for="debit">debit:</label>
+                        <label for="debit">Debit:</label>
                         <input type="number" step="0.01" id="debit" name="debit">
                     </div>
 
                     <div>
-                        <label for="visa">visa:</label>
+                        <label for="visa">Visa:</label>
                         <input type="number" step="0.01" id="visa" name="visa">
                     </div>
 
                     <div>
-                        <label for="master_card">master_card:</label>
+                        <label for="master_card">Mastercard:</label>
                         <input type="number" step="0.01" id="master_card" name="master_card">
                     </div>
 
                     <div>
-                        <label for="amex">amex:</label>
+                        <label for="amex">Amex:</label>
                         <input type="number" step="0.01" id="amex" name="amex">
                     </div>
 
                     <div>
-                        <label for="discover">discover:</label>
+                        <label for="discover">Discover:</label>
                         <input type="number" step="0.01" id="discover" name="discover">
                     </div>
 
                     <div>
-                        <label for="travel_cheque">travel_cheque:</label>
+                        <label for="travel_cheque">Travel Cheque:</label>
                         <input type="number" step="0.01" id="travel_cheque" name="travel_cheque">
                     </div>
 
                     <div>
-                        <label for="cup">cup:</label>
+                        <label for="cup">Cup:</label>
                         <input type="number" step="0.01" id="cup" name="cup">
                     </div>
 
                     <div>
-                        <label for="alipay">alipay:</label>
+                        <label for="alipay">Alipay:</label>
                         <input type="number" step="0.01" id="alipay" name="alipay">
                     </div>
 
@@ -200,52 +200,52 @@ function inventory_page()
                     </div>
 
                     <div>
-                        <label for="cheque">cheque:</label>
+                        <label for="cheque">Cheque:</label>
                         <input type="number" min="0" step="0.01" id="cheque" name="cheque">
                     </div>
 
                     <div>
-                        <label for="debit">debit:</label>
+                        <label for="debit">Debit:</label>
                         <input type="number" min="0" step="0.01" id="debit" name="debit">
                     </div>
 
                     <div>
-                        <label for="visa">visa:</label>
+                        <label for="visa">Visa:</label>
                         <input type="number" min="0" step="0.01" id="visa" name="visa">
                     </div>
 
                     <div>
-                        <label for="master_card">master_card:</label>
+                        <label for="master_card">Mastercard:</label>
                         <input type="number" min="0" step="0.01" id="master_card" name="master_card">
                     </div>
 
                     <div>
-                        <label for="amex">amex:</label>
+                        <label for="amex">Amex:</label>
                         <input type="number" min="0" step="0.01" id="amex" name="amex">
                     </div>
 
                     <div>
-                        <label for="discover">discover:</label>
+                        <label for="discover">Discover:</label>
                         <input type="number" min="0" step="0.01" id="discover" name="discover">
                     </div>
 
                     <div>
-                        <label for="travel_cheque">travel_cheque:</label>
+                        <label for="travel_cheque">Travel Cheque:</label>
                         <input type="number" min="0" step="0.01" id="travel_cheque" name="travel_cheque">
                     </div>
 
                     <div>
-                        <label for="cup">cup:</label>
+                        <label for="cup">Cup:</label>
                         <input type="number" min="0" step="0.01" id="cup" name="cup">
                     </div>
 
                     <div>
-                        <label for="alipay">alipay:</label>
+                        <label for="alipay">Alipay:</label>
                         <input type="number" min="0" step="0.01" id="alipay" name="alipay">
                     </div>
 
                     <div>
-                        <label for="layaway">layaway:</label>
+                        <label for="layaway">Layaway:</label>
                         <input type="number" min="0" step="0.01" id="layaway" name="layaway">
                     </div>
 

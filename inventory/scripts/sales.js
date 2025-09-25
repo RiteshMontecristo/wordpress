@@ -1,21 +1,23 @@
+import { formatCurrency, formatLabel } from "./index.js";
+
 // store customer info
-let customerId, firstNameValue, lastNameValue, addressValue;
-const cart = [];
-let layawayTotal = 0;
+const TAX_RATES = { GST: 0.05, PST: 0.08 };
+const state = {
+  cart: [],
+  customer: {},
+  layawayTotal: 0,
+};
 
 const DOM = {
-  // Main divs
   divs: {
     searchCustomer: document.querySelector("#search-customer"),
-    customerDetails: document.querySelector("#customerDetails"),
     layawayDetails: document.querySelector("#layawayDetails"),
     addLayaway: document.querySelector("#addLayawayForm"),
     layawayReceipt: document.querySelector("#layawayReceipt"),
     searchProducts: document.querySelector("#search-products"),
     cart: document.querySelector("#cart"),
     cartItems: document.querySelector("#cart .cart-items"),
-    editItemsModal: document.querySelector("#edit-item-modal"),
-    saleResult: document.querySelector("#saleResult"),
+    // cartItems
   },
 
   buttons: {
@@ -62,10 +64,15 @@ const DOM = {
     total: document.querySelector("#cart #total"),
   },
 
+  modals: {
+    editItems: document.querySelector("#edit-item-modal"),
+  },
+
   customer: {
     name: document.querySelector("#customer-name"),
     address: document.querySelector("#customer-address"),
     layawaySum: document.querySelector("#layawaySum"),
+    details: document.querySelector("#customerDetails"),
   },
 
   layaway: {
@@ -79,31 +86,27 @@ const DOM = {
   results: {
     searchCustomer: document.querySelector("#search-customer-results"),
     searchProducts: document.querySelector("#search-product-results"),
+    saleResult: document.querySelector("#saleResult"),
   },
 };
 
+function showSelection(selection) {
+  Object.values(DOM.divs).forEach(
+    (div) => div !== DOM.divs.cartItems && div.classList.add("hidden")
+  );
+  selection.classList.remove("hidden");
+}
+
 DOM.buttons.viewCart.addEventListener("click", function (e) {
   e.preventDefault();
-
-  DOM.divs.cart.classList.remove("hidden");
-  DOM.divs.searchCustomer.classList.add("hidden");
-  DOM.divs.searchProducts.classList.add("hidden");
-  DOM.divs.layawayDetails.classList.add("hidden");
-  DOM.divs.layawayReceipt.classList.add("hidden");
-  DOM.divs.addLayaway.classList.add("hidden");
+  showSelection(DOM.divs.cart);
 
   displayCart();
 });
 
 DOM.buttons.viewProducts.addEventListener("click", function (e) {
   e.preventDefault();
-
-  DOM.divs.searchProducts.classList.remove("hidden");
-  DOM.divs.cart.classList.add("hidden");
-  DOM.divs.searchCustomer.classList.add("hidden");
-  DOM.divs.layawayDetails.classList.add("hidden");
-  DOM.divs.layawayReceipt.classList.add("hidden");
-  DOM.divs.addLayaway.classList.add("hidden");
+  showSelection(DOM.divs.searchProducts);
 });
 
 // STEP 1: Search the customer
@@ -153,21 +156,23 @@ function setupSelectCustomerButtons() {
 
       // Grabbing the selected customer's details
       const buttonParent = button.parentNode.parentNode;
-      firstNameValue = buttonParent.querySelector("#firstName").innerText;
-      lastNameValue = buttonParent.querySelector("#lastName").innerText;
-      addressValue = buttonParent.querySelector("#address").innerText;
+      state.customer.firstName =
+        buttonParent.querySelector("#firstName").innerText;
+      state.customer.lastName =
+        buttonParent.querySelector("#lastName").innerText;
+      state.customer.address = buttonParent.querySelector("#address").innerText;
 
-      customerId = button.dataset.customerid;
+      state.customer.customerId = button.dataset.customerid;
       DOM.divs.searchCustomer.classList.add("hidden");
       DOM.divs.searchProducts.classList.remove("hidden");
-      DOM.divs.customerDetails.classList.remove("hidden");
+      DOM.customer.details.classList.remove("hidden");
 
-      DOM.customer.name.textContent = `${firstNameValue} ${lastNameValue}`;
-      DOM.customer.address.textContent = addressValue;
+      DOM.customer.name.textContent = `${state.customer.firstName} ${state.customer.lastName}`;
+      DOM.customer.address.textContent = state.customer.address;
 
       // Fetching the layaway sum for the selected customer
       fetch(
-        `${ajax_inventory.ajax_url}?action=getLayawaySum&customer_id=${customerId}`,
+        `${ajax_inventory.ajax_url}?action=getLayawaySum&customer_id=${state.customer.customerId}`,
         {
           method: "GET",
         }
@@ -175,10 +180,10 @@ function setupSelectCustomerButtons() {
         .then((response) => response.json())
         .then((res) => {
           if (res.data > 0) {
-            layawayTotal = parseFloat(res.data).toFixed(2);
-            DOM.customer.layawaySum.innerHTML = `Layaway Total: <span>${parseFloat(
+            state.layawayTotal = Number(res.data);
+            DOM.customer.layawaySum.textContent = `Layaway Total: ${formatCurrency(
               res.data
-            ).toFixed(2)} CAD</span>`;
+            )} CAD`;
           }
         })
         .catch((error) => {
@@ -191,20 +196,15 @@ function setupSelectCustomerButtons() {
 // STEP 3: Layaway of the selected customer
 DOM.buttons.viewLayaway?.addEventListener("click", function (e) {
   e.preventDefault();
-  DOM.divs.layawayDetails.classList.remove("hidden");
-  DOM.divs.searchProducts.classList.add("hidden");
-  DOM.divs.cart.classList.add("hidden");
-  DOM.divs.searchCustomer.classList.add("hidden");
-  DOM.divs.layawayReceipt.classList.add("hidden");
-  DOM.divs.addLayaway.classList.add("hidden");
+  showSelection(DOM.divs.layawayDetails);
 
-  if (!customerId) {
+  if (!state.customer.customerId) {
     DOM.layaway.items.innerHTML = "Please select a customer first.";
     return;
   }
 
   fetch(
-    `${ajax_inventory.ajax_url}?action=getLayaway&customer_id=${customerId}`,
+    `${ajax_inventory.ajax_url}?action=getLayaway&customer_id=${state.customer.customerId}`,
     {
       method: "GET",
     }
@@ -219,13 +219,13 @@ DOM.buttons.viewLayaway?.addEventListener("click", function (e) {
           layawayItem.innerHTML = `
             <td>${item.payment_date.split(" ")[0]}</p>
             <td>${item.reference_num}</p>
-            <td>${item.transaction_type}</p>
-            <td>${item.method}</p>
+            <td>${formatLabel(item.transaction_type)}</p>
+            <td>${formatLabel(item.method)}</p>
             <td>${item.amount}</p>
           `;
           DOM.layaway.items.appendChild(layawayItem);
         });
-        DOM.inputs.layawayTotal.innerHTML = Number(layawayTotal).toFixed(2);
+        DOM.inputs.layawayTotal.innerHTML = formatCurrency(state.layawayTotal);
       } else {
         DOM.layaway.items.innerHTML =
           "No layaway items found for this customer.";
@@ -298,7 +298,7 @@ addLayaway?.addEventListener("submit", function (e) {
 
   const formData = new FormData(addLayaway);
   formData.append("action", "addLayaway");
-  formData.append("customer_id", customerId);
+  formData.append("customer_id", state.customer.customerId);
 
   fetch(`${ajax_inventory.ajax_url}`, {
     method: "POST",
@@ -310,23 +310,25 @@ addLayaway?.addEventListener("submit", function (e) {
         DOM.divs.layawayReceipt.classList.remove("hidden");
         DOM.divs.addLayaway.classList.add("hidden");
 
-        receiptCustomerName.innerHTML = `${firstNameValue} ${lastNameValue}`;
-        receiptCustomerAddress.innerHTML = addressValue;
-
-        result.data.payments.forEach((el) => {
-          layawayTotal = parseFloat(layawayTotal) + parseFloat(el.amount);
-        });
+        receiptCustomerName.innerHTML = `${state.customer.firstName} ${state.customer.lastName}`;
+        receiptCustomerAddress.innerHTML = state.customer.address;
 
         paymentAmount.innerHTML = result.data.payments
-          .map((payment) => `${parseFloat(payment.amount).toFixed(2)} CAD`)
+          .map((payment) => `${formatCurrency(payment.amount)} CAD`)
           .join("<br>");
 
         paymentMethod.innerHTML = result.data.payments
           .map((payment) => `${payment.method}`)
           .join("<br>");
 
+        layawayTotalDiv.innerHTML = formatCurrency(result.data.layaway_sum);
+        state.layawayTotal = result.data.layaway_sum;
         receiptDate.innerHTML = result.data.payment_date;
         salesmanName.innerHTML = result.data.salesperson;
+        DOM.customer.layawaySum.textContent = `Layaway Total: ${formatCurrency(
+          result.data.layaway_sum
+        )} CAD`;
+
         addLayaway.reset();
       } else {
         alert("Failed to process payment: " + result.data.message);
@@ -341,51 +343,46 @@ addLayaway?.addEventListener("submit", function (e) {
 // STEP 3.3: Print Layaway Receipt
 DOM.buttons.layawayReceiptPrint?.addEventListener("click", function (e) {
   e.preventDefault();
+  const cssPath = ajax_inventory.sales_css_url;
   // Create a new window for printing
   const printWindow = window.open("", "_blank");
   printWindow.document.write(`
         <html>
             <head>
               <title>Layaway Receipt</title>
-              <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        padding: 20px;
-                        margin: auto;
-                    }
-                    h2, h3 {
-                        margin: 0;
-                        padding: 0;
-                    }
-                    .layaway-receipt {
-                        border: 1px solid #ccc;
-                        background: white;
-                    }
-                    #printReceipt {
-                        display: none;
-                    }
-                    footer {
-                        margin-top: 20px;
-                        font-style: italic;
-                        text-align: center;
-                    }
-                </style>
+              <link rel="stylesheet" href="${cssPath}" onload="window.__cssLoaded = true;" />
             </head>
             <body>
               ${DOM.divs.layawayReceipt.outerHTML}
             </body>
         </html>
     `);
-  printWindow.focus();
-  printWindow.print();
-  printWindow.close();
+  // Wait for CSS to load
+  const checkCSS = setInterval(() => {
+    if (printWindow.__cssLoaded) {
+      clearInterval(checkCSS);
+      printWindow.document.body.classList.add("css-ready");
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  }, 50);
+
+  // Safety timeout (in case CSS fails to load)
+  setTimeout(() => {
+    clearInterval(checkCSS);
+    if (!printWindow.__cssLoaded) {
+      console.warn("CSS failed to load for print receipt");
+      printWindow.document.body.classList.add("css-ready"); // force show
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  }, 3000);
 });
 
-// STEP 3: Search the products
-const { searchProducts } = DOM.forms;
-
 // Searching the products
-searchProducts.addEventListener("submit", function (event) {
+DOM.forms.searchProducts.addEventListener("submit", function (event) {
   event.preventDefault();
   const searchValue = DOM.inputs.searchProducts.value.trim();
   DOM.buttons.searchProducts.setAttribute("disabled", true);
@@ -431,48 +428,48 @@ searchProducts.addEventListener("submit", function (event) {
             </div>
           `;
 
-          const addToCartButton =
-            DOM.results.searchProducts.querySelector(".add-to-cart");
-          addToCartButton.addEventListener("click", function () {
-            const product = {
-              unit_id,
-              product_id,
-              product_variant_id,
-              title,
-              price,
-              image_url,
-              sku,
-              variation_detail,
-              discount_amount: 0,
-              discount_percent: 0,
-              price_after_discount: price,
-            };
+          DOM.divs.searchProducts.addEventListener("click", function (e) {
+            if (e.target.classList.contains("add-to-cart")) {
+              const product = {
+                unit_id,
+                product_id,
+                product_variant_id,
+                title,
+                price,
+                image_url,
+                sku,
+                variation_detail,
+                discount_amount: 0,
+                discount_percent: 0,
+                price_after_discount: price,
+              };
 
-            if (cart.find((item) => item.unit_id === unit_id)) {
-              alert("This product is already in the cart.");
-              return;
+              if (state.cart.find((item) => item.unit_id === unit_id)) {
+                alert("This product is already in the cart.");
+                return;
+              }
+
+              state.cart.push(product);
+              displayCart();
+              DOM.results.searchProducts.innerHTML = "";
+              DOM.inputs.searchProducts.value = "";
+              DOM.divs.searchProducts.classList.add("hidden");
             }
-
-            cart.push(product);
-            displayCart();
-            DOM.results.searchProducts.innerHTML = "";
-            DOM.inputs.searchProducts.value = "";
-            DOM.divs.searchProducts.classList.add("hidden");
           });
         } else {
-          DOM.results.searchProducts.innerHTML = `No products found for "${searchValue}".`;
+          DOM.results.searchProducts.textContent = `No products found for "${searchValue}".`;
         }
         DOM.buttons.searchProducts.removeAttribute("disabled");
-        DOM.buttons.searchProducts.innerHTML = "Search";
+        DOM.buttons.searchProducts.textContent = "Search";
       })
       .catch((error) => {
         console.error("Error:", error);
       });
   } else {
-    DOM.results.searchProducts.innerHTML = "";
-    DOM.results.searchProducts.innerHTML = "Please enter a search term.";
+    DOM.results.searchProducts.textContent = "";
+    DOM.results.searchProducts.textContent = "Please enter a search term.";
     DOM.buttons.searchProducts.removeAttribute("disabled");
-    DOM.buttons.searchProducts.innerHTML = "Search";
+    DOM.buttons.searchProducts.textContent = "Search";
   }
 });
 
@@ -480,44 +477,44 @@ searchProducts.addEventListener("submit", function (event) {
 DOM.divs.cartItems.addEventListener("click", handleCartClick);
 
 function getTotals() {
-  const subtotal = cart.reduce((sum, item) => {
-    return sum + (parseFloat(item.price_after_discount || item.price) || 0);
+  const subtotal = state.cart.reduce((sum, item) => {
+    return sum + (Number(item.price_after_discount || item.price) || 0);
   }, 0);
 
-  const gstRate = DOM.inputs.excludeGst?.checked ? 0 : 0.05;
-  const pstRate = DOM.inputs.excludePst?.checked ? 0 : 0.08;
+  const gstRate = DOM.inputs.excludeGst?.checked ? 0 : TAX_RATES.GST;
+  const pstRate = DOM.inputs.excludePst?.checked ? 0 : TAX_RATES.PST;
 
   const gst = subtotal * gstRate;
   const pst = subtotal * pstRate;
   const total = subtotal + gst + pst;
 
   return {
-    subtotal: parseFloat(subtotal.toFixed(2)),
-    gst: parseFloat(gst.toFixed(2)),
-    pst: parseFloat(pst.toFixed(2)),
-    total: parseFloat(total.toFixed(2)),
+    subtotal: formatCurrency(subtotal),
+    gst: formatCurrency(gst),
+    pst: formatCurrency(pst),
+    total: formatCurrency(total),
   };
 }
 
 function calculateTotal(checkbox = true) {
   const { subtotal, gst, pst, total } = getTotals();
 
-  DOM.inputs.subtotal.value = subtotal.toFixed(2);
-  DOM.inputs.gst.value = gst.toFixed(2);
-  DOM.inputs.pst.value = pst.toFixed(2);
-  DOM.inputs.total.value = total.toFixed(2);
+  DOM.inputs.subtotal.value = subtotal;
+  DOM.inputs.gst.value = gst;
+  DOM.inputs.pst.value = pst;
+  DOM.inputs.total.value = total;
 
-  if (layawayTotal > 0 && !checkbox) {
+  if (state.layawayTotal > 0 && !checkbox) {
     const layawayInput = DOM.inputs.paymentMethods.layaway;
-    if (layawayInput) layawayInput.value = layawayTotal;
+    if (layawayInput) layawayInput.value = state.layawayTotal;
   }
 }
 
 function displayCart() {
   calculateTotal(false);
   let cartHTML;
-  if (cart.length > 0) {
-    cartHTML = cart
+  if (state.cart.length > 0) {
+    cartHTML = state.cart
       .map((item) => {
         return `
                 <div class="product-item">
@@ -545,7 +542,7 @@ function displayCart() {
   }
 
   DOM.divs.cartItems.innerHTML = cartHTML;
-  DOM.inputs.paymentMethods.layaway.max = layawayTotal;
+  DOM.inputs.paymentMethods.layaway.max = state.layawayTotal;
   DOM.divs.cart.classList.remove("hidden");
 }
 
@@ -553,7 +550,7 @@ function handleCartClick(e) {
   if (e.target.tagName !== "BUTTON") return;
 
   const button = e.target;
-  const productItem = button.closest("div");
+  const productItem = button.closest(".product-item div[data-unitid]");
   const unitId = productItem.dataset.unitid;
 
   if (button.textContent === "Remove from cart") {
@@ -564,33 +561,33 @@ function handleCartClick(e) {
 }
 
 function removeFromCart(unitId) {
-  const index = cart.findIndex((item) => item.unit_id == unitId);
+  const index = state.cart.findIndex((item) => item.unit_id == unitId);
   if (index > -1) {
-    cart.splice(index, 1);
+    state.cart.splice(index, 1);
     displayCart();
   }
 }
 
 function openEditModal(unitId) {
   // find the item
-  const item = cart.find((i) => i.unit_id == unitId);
+  const item = state.cart.find((i) => i.unit_id == unitId);
 
   if (!item) return;
 
-  const { editItemsModal } = DOM.divs;
-  editItemsModal.classList.remove("hidden");
+  const { editItems } = DOM.modals;
+  editItems.classList.remove("hidden");
 
   // grab the modal elements
-  const titleEl = editItemsModal.querySelector("#edit-item-title");
-  const skuEl = editItemsModal.querySelector("#edit-item-sku");
-  const priceEl = editItemsModal.querySelector("#edit-item-price");
-  const discountAmtEl = editItemsModal.querySelector("#edit-discount-amt");
-  const discountPctEl = editItemsModal.querySelector("#edit-discount-pct");
-  const priceAfterDiscountEl = editItemsModal.querySelector(
+  const titleEl = editItems.querySelector("#edit-item-title");
+  const skuEl = editItems.querySelector("#edit-item-sku");
+  const priceEl = editItems.querySelector("#edit-item-price");
+  const discountAmtEl = editItems.querySelector("#edit-discount-amt");
+  const discountPctEl = editItems.querySelector("#edit-discount-pct");
+  const priceAfterDiscountEl = editItems.querySelector(
     "#edit-price-after-discount"
   );
-  const saveBtn = editItemsModal.querySelector("#save-edit");
-  const cancelBtn = editItemsModal.querySelector("#cancel-edit");
+  const saveBtn = editItems.querySelector("#save-edit");
+  const cancelBtn = editItems.querySelector("#cancel-edit");
   const basePrice = parseFloat(item.price);
 
   // Populate modal fields
@@ -643,7 +640,7 @@ function openEditModal(unitId) {
   }
 
   function onCancelClick() {
-    editItemsModal.classList.add("hidden");
+    editItems.classList.add("hidden");
     removeModalListeners();
   }
 
@@ -656,7 +653,7 @@ function openEditModal(unitId) {
     item.price_after_discount = updatedPrice.toFixed(2);
 
     displayCart();
-    editItemsModal.classList.add("hidden");
+    editItems.classList.add("hidden");
     removeModalListeners();
   }
   // Attach modal listeners
@@ -668,7 +665,7 @@ function openEditModal(unitId) {
 }
 
 function validateAndSubmitSale() {
-  const { subtotal, gst, pst, total } = getTotals();
+  const { total } = getTotals();
 
   const payments = DOM.inputs.paymentMethods;
   let totalPaid = 0;
@@ -681,15 +678,15 @@ function validateAndSubmitSale() {
       method === "total"
     )
       continue;
-    totalPaid += parseFloat(payments[method].value) || 0;
+    totalPaid += Number(payments[method].value) || 0;
   }
-  totalPaid = parseFloat(totalPaid.toFixed(2));
+  totalPaid = totalPaid;
 
-  if (totalPaid !== total) {
+  if (Math.abs(totalPaid - Number(total)) > 0.01) {
     alert(
-      `Payment does not match total!\nExpected: $${total.toFixed(
-        2
-      )}\nReceived: $${totalPaid.toFixed(2)}`
+      `Payment does not match total!\nExpected: $${total}\nReceived: $${formatCurrency(
+        totalPaid
+      )}`
     );
     return false;
   }
@@ -718,21 +715,28 @@ DOM.inputs.excludePst.addEventListener("change", calculateTotal);
 DOM.forms.finalizeSale.addEventListener("submit", function (e) {
   e.preventDefault();
 
-  if (cart.length === 0) {
+  const submitBtn = DOM.forms.finalizeSale.querySelector("button");
+  submitBtn.disabled = true;
+
+  if (state.cart.length === 0) {
     alert(
       "Cart is empty. Please add items to the cart before finalizing the sale."
     );
+    submitBtn.disabled = false;
     return;
   }
   const validatedForm = validateAndSubmitSale();
 
-  if (!validatedForm) return;
+  if (!validatedForm) {
+    submitBtn.disabled = false;
+    return;
+  }
 
   const formData = new FormData(DOM.forms.finalizeSale);
 
   formData.append("action", "finalizeSale");
-  formData.append("customer_id", customerId);
-  formData.append("items", JSON.stringify(cart));
+  formData.append("customer_id", state.customer.customerId);
+  formData.append("items", JSON.stringify(state.cart));
 
   fetch(`${ajax_inventory.ajax_url}`, {
     method: "POST",
@@ -741,11 +745,9 @@ DOM.forms.finalizeSale.addEventListener("submit", function (e) {
     .then((response) => response.json())
     .then((result) => {
       if (result.success) {
-        console.log(result.data);
-
-        DOM.divs.saleResult.classList.remove("hidden");
+        DOM.results.saleResult.classList.remove("hidden");
         DOM.divs.cart.classList.add("hidden");
-        DOM.divs.customerDetails.classList.add("hidden");
+        DOM.customer.details.classList.add("hidden");
 
         const { data } = result;
 
@@ -774,9 +776,7 @@ DOM.forms.finalizeSale.addEventListener("submit", function (e) {
 
         const paymentLines = data.payments
           .map((payment) => {
-            return `${payment.method}: $${parseFloat(payment.amount).toFixed(
-              2
-            )}`;
+            return `${payment.method}: $${formatCurrency(payment.amount)}`;
           })
           .join(", ");
 
@@ -788,8 +788,8 @@ DOM.forms.finalizeSale.addEventListener("submit", function (e) {
               </div>
               <div>
                 <address>
-                  <p>${firstNameValue} ${lastNameValue}</p>
-                  <p>${addressValue.split(",").join("<br/>")}</p>
+                  <p>${state.customer.firstName} ${state.customer.lastName}</p>
+                  <p>${state.customer.address.split(",").join("<br/>")}</p>
                   <p>${data.customer?.phone ?? ""}</p>
                   <p>${data.customer?.email ?? ""}</p>
                 </address>
@@ -818,16 +818,16 @@ DOM.forms.finalizeSale.addEventListener("submit", function (e) {
                   <tr>
                     <td>Paid by ${paymentLines} <br /> Thank you for shopping at Montecristo Jewellers</td>
                     <td>
-                      <strong>Subtotal: $${data.totals.subtotal.toFixed(
-                        2
+                      <strong>Subtotal: $${formatCurrency(
+                        data.totals.subtotal
                       )}</strong><br />
-                      <strong>GST (5%): $${data.totals.gst.toFixed(
-                        2
+                      <strong>GST (5%): $${formatCurrency(
+                        data.totals.gst
                       )} </strong><br />
-                      <strong>PST (8%): $${data.totals.pst.toFixed(
-                        2
+                      <strong>PST (8%): $${formatCurrency(
+                        data.totals.pst
                       )} </strong><br />
-                      <strong>Total: $${data.totals.total.toFixed(2)}
+                      <strong>Total: $${formatCurrency(data.totals.total)}
                     </strong></td>
                   </tr>
                   </tfoot>
@@ -835,75 +835,52 @@ DOM.forms.finalizeSale.addEventListener("submit", function (e) {
             </main>
           `;
       } else {
+        submitBtn.disabled = false;
         alert("Failed to complete sale: " + result.data.message);
       }
     })
     .catch((error) => {
       console.error("Error:", error);
+      submitBtn.disabled = false;
       alert("An error occurred while processing the sale.");
     });
 });
 
 DOM.buttons.salesPrintReceipt?.addEventListener("click", function (e) {
   e.preventDefault();
+  const cssPath = ajax_inventory.sales_css_url;
   const printWindow = window.open("", "_blank");
   printWindow.document.write(`
         <html>
             <head>
               <title>Sales Receipt</title>
-              <style>
-                  .receipt-content {
-                    max-width: 700px;
-
-                    p {
-                      margin: 0;
-                    }
-
-                    header {
-                      display: grid;
-                      grid-template-columns: 1fr 1fr;
-
-                      div:first-child {
-                        text-align: center;
-                        grid-column: 1/-1;
-                      }
-
-                      div:last-child {
-                        text-align: end;
-                      }
-                    }
-
-                    main {
-                      table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin-top: 20px;
-                      }
-
-                      th,
-                      td {
-                        border: 1px solid #000;
-                      }
-
-                      tr {
-                        td:first-child {
-                          border-right: none;
-                        }
-
-                        td:last-child {
-                          border-left: none;
-                        }
-                      }
-                    }
-                  }
-              </style>
+              <link rel="stylesheet" href="${cssPath}" onload="window.__cssLoaded = true;" />
             </head>
             <body>
               ${DOM.receipts.content.outerHTML}
             </body>
         </html>
     `);
-  printWindow.focus();
-  printWindow.print();
-  printWindow.close();
+  // Wait for CSS to load
+  const checkCSS = setInterval(() => {
+    if (printWindow.__cssLoaded) {
+      clearInterval(checkCSS);
+      printWindow.document.body.classList.add("css-ready");
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  }, 50);
+
+  // Safety timeout (in case CSS fails to load)
+  setTimeout(() => {
+    clearInterval(checkCSS);
+    if (!printWindow.__cssLoaded) {
+      console.warn("CSS failed to load for print receipt");
+      printWindow.document.body.classList.add("css-ready"); // force show
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  }, 3000);
 });

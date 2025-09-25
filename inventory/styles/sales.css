@@ -72,31 +72,28 @@ form[name="finalize-sale"] {
 }
 
 @media print {
-  html,
   body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    margin: auto;
   }
 
+  h2,
+  h3 {
+    margin: 0;
+    padding: 0;
+  }
+  .layaway-receipt {
+    border: 1px solid #ccc;
+    background: white;
+  }
   #printReceipt {
     display: none;
   }
-
-  .layaway-receipt,
-  .layaway-receipt * {
-    visibility: visible;
-  }
-
-  .layaway-receipt {
-    border: 1px solid #000;
-    height: 100%;
-    overflow: hidden;
-    width: 100%;
-  }
-  .layaway-receipt * {
-    page-break-inside: avoid;
+  footer {
+    margin-top: 20px;
+    font-style: italic;
+    text-align: center;
   }
 }
 
