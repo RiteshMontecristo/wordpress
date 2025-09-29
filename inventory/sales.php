@@ -12,9 +12,10 @@ function inventory_page()
                 <h3 id="layawaySum"></h3>
             </div>
             <div>
-                <button id="viewProducts">Search Products</button>
-                <button id="viewCart">View Cart</button>
-                <button id="viewLayaway">View Layaway</button>
+                <button type="button" id="viewProducts">Search Products</button>
+                <button type="button" id="viewCart">View Cart</button>
+                <button type="button" id="viewLayaway">View Layaway</button>
+                <button type="button" id="addService">Add Service</button>
             </div>
         </div>
 
@@ -182,6 +183,72 @@ function inventory_page()
             </div>
         </div>
 
+        <div id="edit-item-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Edit Item</h3>
+                <p><strong id="edit-item-title"></strong></p>
+                <p>SKU: <span id="edit-item-sku"></span></p>
+                <p>Price: <span id="edit-item-price"></span></p>
+                <label>
+                    Discount Amt($):
+                    <input type="number" id="edit-discount-amt" min="0" step="0.01" />
+                </label>
+                <label>
+                    Discount Pct(%):
+                    <input type="number" id="edit-discount-pct" min="0" step="0.01" />
+                </label>
+                <label>
+                    Price After Discount:
+                    <input type="number" id="edit-price-after-discount" min="0" step="0.01" />
+                </label>
+                <div class="modal-actions">
+                    <button id="save-edit">Save</button>
+                    <button id="cancel-edit">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="service-modal" class="modal hidden">
+            <form name="add-service" class="modal-content">
+                <h3>Services & Repairs</h3>
+                <div>
+                    <label for="category">
+                        Category:
+                    </label>
+                    <select name="category" id="category">
+                        <option value="watch_service">Watch Service</option>
+                        <option value="jewellery_service">Jewellery Service</option>
+                        <option value="shipping">Shipping</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="2"></textarea>
+                </div>
+
+                <div>
+                    <label for="costPrice">Cost Price:</label>
+                    <input type="number" id="costPrice" min="0" step="0.01" required />
+                </div>
+
+                <div>
+                    <label for="retailPrice">Retail Price:</label>
+                    <input type="number" id="retailPrice" min="0" step="0.01" required />
+                </div>
+
+                <div>
+                    <label for="reference">Reference:</label>
+                    <input type="text" id="reference" min="0" step="0.01" />
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" id="add">Add</button>
+                    <button type="button" id="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+
         <div class="cart hidden" id="cart">
 
             <h3>Items in the Cart:</h3>
@@ -295,32 +362,6 @@ function inventory_page()
 
                 <button type="submit" id="submit-sale">Finalize Sale</button>
             </form>
-        </div>
-
-        <!-- Edit Item Modal -->
-        <div id="edit-item-modal" class="modal hidden">
-            <div class="modal-content">
-                <h3>Edit Item</h3>
-                <p><strong id="edit-item-title"></strong></p>
-                <p>SKU: <span id="edit-item-sku"></span></p>
-                <p>Price: <span id="edit-item-price"></span></p>
-                <label>
-                    Discount Amt($):
-                    <input type="number" id="edit-discount-amt" min="0" step="0.01" />
-                </label>
-                <label>
-                    Discount Pct(%):
-                    <input type="number" id="edit-discount-pct" min="0" step="0.01" />
-                </label>
-                <label>
-                    Price After Discount:
-                    <input type="number" id="edit-price-after-discount" min="0" step="0.01" />
-                </label>
-                <div class="modal-actions">
-                    <button id="save-edit">Save</button>
-                    <button id="cancel-edit">Cancel</button>
-                </div>
-            </div>
         </div>
 
         <div class="sales-reuslt hidden" id="saleResult">
@@ -579,14 +620,22 @@ function validate_sale_input($post_data)
     }
 
     $items_data = json_decode(stripslashes($post_data['items']));
-    if (json_last_error() !== JSON_ERROR_NONE || empty($items_data)) {
-        wp_send_json_error(['message' => 'Invalid or empty items JSON']);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        wp_send_json_error(['message' => 'Invalid JSON']);
+    }
+    $services_data = json_decode(stripslashes($post_data['services']));
+
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        wp_send_json_error(['message' => 'Invalid JSON']);
     }
 
-    return $items_data;
+    if (empty($items_data) && empty($services_data)) {
+        wp_send_json_error(['message' => 'Empty items and services']);
+    }
+    return [$items_data, $services_data];
 }
 
-function calculate_sale_totals($items_data, $exclude_gst = false, $exclude_pst = false)
+function calculate_sale_totals($items_data, $services_data, $exclude_gst = false, $exclude_pst = false)
 {
     define('GST_RATE', 0.05);
     define('PST_RATE', 0.08);
@@ -595,6 +644,9 @@ function calculate_sale_totals($items_data, $exclude_gst = false, $exclude_pst =
     $subtotal = 0;
     foreach ($items_data as $item) {
         $subtotal += floatval($item->price_after_discount);
+    }
+    foreach ($services_data as $service) {
+        $subtotal += floatval($service->retailPrice);
     }
     $subtotal = round($subtotal, 2);
     $gst = $exclude_gst ? 0 : round($subtotal * GST_RATE, 2);
@@ -626,7 +678,7 @@ function get_payments($post_data, $expected_total)
     return $payments;
 }
 
-function insert_order_and_items($order_data, $items_data, $payments, $date, $customer_id, $salesperson_id)
+function insert_order_and_items($order_data, $items_data, $services_data, $payments, $date, $customer_id, $salesperson_id)
 {
     global $wpdb;
     $wpdb->query('START TRANSACTION');
@@ -663,7 +715,6 @@ function insert_order_and_items($order_data, $items_data, $payments, $date, $cus
         // Insert order items and update inventory
         foreach ($items_data as $item) {
 
-            // Check if this inventory unit is already sold
             $status = $wpdb->get_var(
                 $wpdb->prepare(
                     "SELECT status FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
@@ -698,6 +749,21 @@ function insert_order_and_items($order_data, $items_data, $payments, $date, $cus
             }
         }
 
+        foreach ($services_data as $service) {
+
+            $success = $wpdb->insert($wpdb->prefix . 'mji_services', [
+                'order_id' => $order_id,
+                'category' => $service->category,
+                'description' => $service->description,
+                'cost_price' => $service->costPrice,
+                'sold_price' => $service->retailPrice
+            ]);
+
+            if (!$success) {
+                throw new RuntimeException("Failed to insert service for {$service->category}: " . $wpdb->last_error);
+            }
+        }
+
         $wpdb->query('COMMIT');
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
@@ -707,8 +773,8 @@ function insert_order_and_items($order_data, $items_data, $payments, $date, $cus
 
 function finalizeSale()
 {
-    $items_data = validate_sale_input($_POST);
-    $totals = calculate_sale_totals($items_data, !empty($_POST['exclude_gst']), !empty($_POST['exclude_pst']));
+    [$items_data, $services_data] = validate_sale_input($_POST);
+    $totals = calculate_sale_totals($items_data, $services_data, !empty($_POST['exclude_gst']), !empty($_POST['exclude_pst']));
     $payments = get_payments($_POST, $totals['total']);
 
     // clean and prepare data
@@ -728,7 +794,7 @@ function finalizeSale()
         'created_at' => $created_at,
     ];
 
-    insert_order_and_items($order_data, $items_data, $payments, $created_at, $customer_id, $salesperson_id);
+    insert_order_and_items($order_data, $items_data, $services_data, $payments, $created_at, $customer_id, $salesperson_id);
 
     foreach ($items_data as $item) {
 
@@ -760,11 +826,15 @@ function finalizeSale()
     }
 
     $salespeople = mji_get_salespeople();
-    $salesperson = $salespeople[$salesperson_id];
+    $salesperson = array_find($salespeople, function ($value) use ($salesperson_id) {
+        return $value->id == $salesperson_id;
+    });
+
     $salesperson_name = $salesperson->first_name . ' ' . $salesperson->last_name;
 
     wp_send_json_success([
         'items' => $items_data,
+        'services' => $services_data,
         'totals' => $totals,
         'payments' => $payments,
         'reference_num' => $reference_num,

@@ -71,6 +71,21 @@ form[name="finalize-sale"] {
   margin-left: 10px;
 }
 
+.cart-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .service-item {
+    padding: 16px;
+  }
+  
+  .product-item {
+    display: flex;
+    align-items: center;
+  }
+}
+
 @media print {
   body {
     font-family: Arial, sans-serif;

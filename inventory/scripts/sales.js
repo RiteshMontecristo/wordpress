@@ -6,6 +6,7 @@ const state = {
   cart: [],
   customer: {},
   layawayTotal: 0,
+  services: [],
 };
 
 const DOM = {
@@ -29,6 +30,7 @@ const DOM = {
     addLayaway: document.querySelector("#addLayaway"),
     layawayReceiptPrint: document.querySelector("#layawayPrintReceipt"),
     salesPrintReceipt: document.querySelector("#salesPrintReceipt"),
+    addService: document.querySelector("#addService"),
   },
 
   forms: {
@@ -36,6 +38,7 @@ const DOM = {
     addLayaway: document.querySelector("form[name='add-layaway']"),
     searchProducts: document.querySelector("form[name='search-products']"),
     finalizeSale: document.querySelector("#cart form[name='finalize-sale']"),
+    addService: document.querySelector("form[name='add-service']"),
   },
 
   inputs: {
@@ -66,6 +69,11 @@ const DOM = {
 
   modals: {
     editItems: document.querySelector("#edit-item-modal"),
+    service: document.querySelector("#service-modal"),
+  },
+
+  services: {
+    list: document.querySelector("#service-list"),
   },
 
   customer: {
@@ -88,6 +96,15 @@ const DOM = {
     searchProducts: document.querySelector("#search-product-results"),
     saleResult: document.querySelector("#saleResult"),
   },
+};
+
+DOM.services = {
+  ...DOM.services,
+  category: DOM.modals.service.querySelector("#category"),
+  description: DOM.modals.service.querySelector("#description"),
+  costPrice: DOM.modals.service.querySelector("#costPrice"),
+  retailPrice: DOM.modals.service.querySelector("#retailPrice"),
+  reference: DOM.modals.service.querySelector("#reference"),
 };
 
 function showSelection(selection) {
@@ -247,7 +264,6 @@ const { addLayaway } = DOM.forms;
 // STEP 3.2: Submit Layaway Form
 addLayaway?.addEventListener("submit", function (e) {
   e.preventDefault();
-
   const cash = addLayaway.querySelector("#cash").value;
   const cheque = addLayaway.querySelector("#cheque").value;
   const debit = addLayaway.querySelector("#debit").value;
@@ -381,6 +397,53 @@ DOM.buttons.layawayReceiptPrint?.addEventListener("click", function (e) {
   }, 3000);
 });
 
+DOM.buttons.addService?.addEventListener("click", function (e) {
+  e.preventDefault();
+  const { service } = DOM.modals;
+  service.classList.remove("hidden");
+  DOM.services.category.focus();
+});
+
+DOM.modals.service.addEventListener("click", function (e) {
+  if (e.target.id === "cancel") {
+    e.preventDefault();
+    resetServiceInuts();
+  }
+});
+
+DOM.forms.addService.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const { category, description, costPrice, retailPrice, reference } =
+    DOM.services;
+
+  if (costPrice.value.trim() === "" || retailPrice.value.trim() === "") {
+    alert("Please fill in all the required fields.");
+    return;
+  }
+
+  state.services.push({
+    category: category.value,
+    description: description.value,
+    costPrice: Number(costPrice.value),
+    retailPrice: Number(retailPrice.value),
+    reference: reference.value,
+  });
+
+  resetServiceInuts();
+  displayCart();
+});
+
+function resetServiceInuts() {
+  const { description, costPrice, retailPrice, reference } = DOM.services;
+  const { service } = DOM.modals;
+  description.value = "";
+  costPrice.value = "";
+  retailPrice.value = "";
+  reference.value = "";
+
+  service.classList.add("hidden");
+}
+
 // Searching the products
 DOM.forms.searchProducts.addEventListener("submit", function (event) {
   event.preventDefault();
@@ -455,7 +518,6 @@ DOM.forms.searchProducts.addEventListener("submit", function (event) {
             displayCart();
             DOM.results.searchProducts.innerHTML = "";
             DOM.inputs.searchProducts.value = "";
-            DOM.divs.searchProducts.classList.add("hidden");
           });
         } else {
           DOM.results.searchProducts.textContent = `No products found for "${searchValue}".`;
@@ -478,9 +540,12 @@ DOM.forms.searchProducts.addEventListener("submit", function (event) {
 DOM.divs.cartItems.addEventListener("click", handleCartClick);
 
 function getTotals() {
-  const subtotal = state.cart.reduce((sum, item) => {
+  let subtotal = state.cart.reduce((sum, item) => {
     return sum + (Number(item.price_after_discount || item.price) || 0);
   }, 0);
+  subtotal = state.services.reduce((sum, item) => {
+    return sum + Number(item.retailPrice);
+  }, subtotal);
 
   const gstRate = DOM.inputs.excludeGst?.checked ? 0 : TAX_RATES.GST;
   const pstRate = DOM.inputs.excludePst?.checked ? 0 : TAX_RATES.PST;
@@ -513,9 +578,11 @@ function calculateTotal(checkbox = true) {
 
 function displayCart() {
   calculateTotal(false);
-  let cartHTML;
+  showSelection(DOM.divs.cart);
+  let cartHTML = "";
+
   if (state.cart.length > 0) {
-    cartHTML = state.cart
+    cartHTML += state.cart
       .map((item) => {
         return `
                 <div class="product-item">
@@ -529,7 +596,9 @@ function displayCart() {
                     <span>SKU: ${item.sku}</span><br />
                     <span>Price: ${item.price} CAD</span><br />
                     <span>Discount: ${item.discount_amount}</span><br />
-                    <span>Discounted Price: ${item.price_after_discount}</span>
+                    <span>Discounted Price: ${
+                      item.price_after_discount
+                    }</span><br />
                     <button type="button">Edit</button>
                     <button type="button">Remove from cart</button>
                   </div>
@@ -537,14 +606,44 @@ function displayCart() {
               `;
       })
       .join("");
-  } else {
+  }
+
+  if (state.services.length > 0) {
+    cartHTML += state.services
+      .map((service, index) => {
+        return `
+          <div class="service-item">
+            <strong>${formatLabel(service.category)}</strong> </br>
+            ${
+              service.description
+                ? `<span>Description: ${service.description}</span><br />`
+                : ``
+            }
+            <span>Cost Price: ${formatCurrency(
+              service.costPrice
+            )} CAD</span><br />
+            <span>Retail Price: ${formatCurrency(
+              service.retailPrice
+            )} CAD</span><br />
+            ${
+              service.reference
+                ? `<span>Reference: ${service.reference}</span><br />`
+                : ``
+            }
+            <button id="${index}" type="button">Remove from cart</button>
+            </div>
+      `;
+      })
+      .join("");
+  }
+
+  if (state.cart.length == 0 && state.services.length == 0) {
     cartHTML =
       "<p>No items in the cart!!. Please add by searching the prooducts.</p>";
   }
 
   DOM.divs.cartItems.innerHTML = cartHTML;
   DOM.inputs.paymentMethods.layaway.max = state.layawayTotal;
-  DOM.divs.cart.classList.remove("hidden");
 }
 
 function handleCartClick(e) {
@@ -552,13 +651,23 @@ function handleCartClick(e) {
 
   const button = e.target;
   const productItem = button.closest(".product-item div[data-unitid]");
-  const unitId = productItem.dataset.unitid;
+  const buttonId = button.id;
 
-  if (button.textContent === "Remove from cart") {
-    removeFromCart(unitId);
-  } else if (button.textContent === "Edit") {
-    openEditModal(unitId);
+  if (buttonId) {
+    removeFromService(buttonId);
+  } else {
+    const unitId = productItem.dataset.unitid;
+    if (button.textContent === "Remove from cart") {
+      removeFromCart(unitId);
+    } else if (button.textContent === "Edit") {
+      openEditModal(unitId);
+    }
   }
+}
+
+function removeFromService(id) {
+  state.services.splice(id, 1);
+  displayCart();
 }
 
 function removeFromCart(unitId) {
@@ -719,7 +828,7 @@ DOM.forms.finalizeSale.addEventListener("submit", function (e) {
   const submitBtn = DOM.forms.finalizeSale.querySelector("button");
   submitBtn.disabled = true;
 
-  if (state.cart.length === 0) {
+  if (state.cart.length === 0 && state.services.length === 0) {
     alert(
       "Cart is empty. Please add items to the cart before finalizing the sale."
     );
@@ -738,6 +847,7 @@ DOM.forms.finalizeSale.addEventListener("submit", function (e) {
   formData.append("action", "finalizeSale");
   formData.append("customer_id", state.customer.customerId);
   formData.append("items", JSON.stringify(state.cart));
+  formData.append("services", JSON.stringify(state.services));
 
   fetch(`${ajax_inventory.ajax_url}`, {
     method: "POST",
@@ -752,8 +862,8 @@ DOM.forms.finalizeSale.addEventListener("submit", function (e) {
 
         const { data } = result;
 
-        const itemRows = data.items
-          .map((item) => {
+        let itemRows = data.items
+          ?.map((item) => {
             const attributePairs =
               item.attributes?.map((attr) => {
                 // Get the first (and only) key-value pair in each object
@@ -774,6 +884,17 @@ DOM.forms.finalizeSale.addEventListener("submit", function (e) {
               `;
           })
           .join("");
+
+        itemRows += data.services.map((service) => {
+          return `
+            <tr>
+                <td>${formatLabel(service.category)} <br /> ${
+            service.description
+          }</td>
+                <td>$${formatCurrency(service.retailPrice)}</td>
+            </tr>
+          `;
+        });
 
         const paymentLines = data.payments
           .map((payment) => {
