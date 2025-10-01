@@ -2,11 +2,11 @@
 
 $discoverArr = array(
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1756830006/rolex/discover-rolex-page-assets-landscape/M226627-0001_2403jva_002_2000x920.webp",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1756830124/rolex/discover-rolex-page-assets-portrait/M226627-0001_2403jva_002_780x1050.webp",
+        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1759335510/rolex/discover-rolex-page-assets-landscape/M52508-0008_2503stojan_003_copie_2000x920.webp",
+        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1759335615/rolex/discover-rolex-page-assets-portrait/M52508-0008_2503stojan_003_copie_780x1050.webp",
         "title" => "Rolex",
-        "subtitle" => "Yacht-Master",
-        "url" => "/rolex/yacht-master",
+        "subtitle" => "1908",
+        "url" => "/rolex/1908",
         "text_color" => "black"
     ),
     array(
