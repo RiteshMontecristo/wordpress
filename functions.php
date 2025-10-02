@@ -581,7 +581,8 @@ function rolex_form_shortcode($atts)
                 <div class="contact-complete">
                     <a href="/rolex" class="primary-cta">Done</a>
                     <!-- Calling the success image shortcode -->
-                    <?php echo do_shortcode('[responsive_image desktop_image_url="' . $atts['success_img_url'] . '" mobile_image_url="' . $atts['success_img_url'] . '" alt_text="' . $atts['success_alt'] . '"]') ?>
+                    <?php
+                    echo do_shortcode('[responsive_image desktop_image_url="' . $atts['success_img_url'] . '" mobile_image_url="' . $atts['success_img_url'] . '" alt_text="' . $atts['success_alt'] . '"]') ?>
                 </div>
             </div>
             <script src="https://www.google.com/recaptcha/api.js?render=6LeQyf4qAAAAAAWm4dRwb-HQ55gjfYYzwVNMIZMI"></script>

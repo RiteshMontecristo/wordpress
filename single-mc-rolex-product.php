@@ -742,7 +742,7 @@ get_template_part('template-parts/rolex-header');
 				<picture class="">
 					<source srcset="<?php echo $product["mobile_url"] ?>" media="(max-width: 768px)">
 					<source srcset="<?php echo $product["desktop_url"] ?>" media="(min-width: 769px)">
-					<img decoding="async" loading="lazy" src="<?php echo $product["desktop_url"] ?>" alt="<?php echo $product["subtitle"] ?>" width="100%" height="auto">
+					<img decoding="async" loading="lazy" src="<?php echo $product["desktop_url"] ?>" alt="<?php echo $product["subtitle"] ?>" title="<?php echo $product["subtitle"] ?>" width="100%" height="auto">
 				</picture>
 			</a>
 
