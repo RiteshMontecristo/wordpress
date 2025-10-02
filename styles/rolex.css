@@ -3036,7 +3036,7 @@ button.accordion-text:hover {
 
 .discover .discover-text {
   width: 100%;
-  bottom: 70px;
+  bottom: 40px;
   position: absolute;
 }
 
@@ -3090,6 +3090,12 @@ button.accordion-text:hover {
   width: 50px;
   background-color: var(--color-rolex-green);
   transition: all 0.2s;
+}
+
+@media (min-width: 500px) {
+  .discover .discover-text {
+    bottom: 70px;
+  }
 }
 
 @media (min-width: 768px) {

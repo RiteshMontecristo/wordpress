@@ -1079,7 +1079,7 @@ button.menu-toggle span::before {
 .home .rolex-article .rolex-article-text {
   position: absolute;
   width: 100%;
-  bottom: 70px;
+  bottom: 40px;
   display: grid !important;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   padding: 0 7%;
