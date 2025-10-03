@@ -114,17 +114,42 @@ function reports_get_sales_results()
 {
     global $wpdb;
 
-    $start_date = sanitize_text_field($_GET['start_date']);
-    $end_date = sanitize_text_field($_GET['end_date']);
+    $start_raw = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+    $end_raw   = isset($_GET['end_date'])   ? sanitize_text_field($_GET['end_date'])   : '';
+
+    $start_ts = strtotime($start_raw);
+    $end_ts   = strtotime($end_raw);
+
+    if ($start_ts === false || $end_ts === false) {
+        return [];
+    }
+
+    $start_date = date('Y-m-d H:i:s', $start_ts);
+    $end_date   = date('Y-m-d H:i:s', $end_ts);
+
     $salesperson = !empty($_GET['salesperson']) ? intval($_GET['salesperson']) : null;
     $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
 
     $orders_table = $wpdb->prefix . 'mji_orders';
     $order_items = $wpdb->prefix . 'mji_order_items';
-    $inventory = $wpdb->prefix . 'mji_product_inventory_units';
-    $salespeople = $wpdb->prefix . 'mji_salespeople';
+    $inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
+    $salespeople_table = $wpdb->prefix . 'mji_salespeople';
+    $service_table = $wpdb->prefix . 'mji_services';
 
-    $query = "
+    $where1 = ["o.created_at BETWEEN %s AND %s"];
+    $params1 = [$start_date, $end_date];
+
+    if ($salesperson !== null) {
+        $where1[] = "o.salesperson_id = %d";
+        $params1[] = $salesperson;
+    }
+
+    if ($location !== null) {
+        $where1[] = "pi.location_id = %d";
+        $params1[] = $location;
+    }
+
+    $query1 = "
                 SELECT 
                     s.first_name AS salesperson_first_name,
                     s.last_name AS salesperson_last_name, 
@@ -132,29 +157,48 @@ function reports_get_sales_results()
                     pi.wc_product_variant_id AS product_variant_id,
                     pi.sku AS sku,
                     pi.location_id,
-                    COALESCE(oi.sale_price, 0) as retail_paid,
-                    COALESCE(oi.discount_amount, 0) as discount_amount,
-                    COALESCE(pi.cost_price, 0) as cost_price,
-                    COALESCE(pi.retail_price, 0) as retail_price
+                    COALESCE(oi.sale_price, 0) AS retail_paid,
+                    COALESCE(oi.discount_amount, 0) AS discount_amount,
+                    COALESCE(pi.cost_price, 0) AS cost_price,
+                    COALESCE(pi.retail_price, 0) AS retail_price,
+                    'TEST' AS description
                 FROM $orders_table o
                 INNER JOIN $order_items oi ON o.id = oi.order_id
-                INNER JOIN $inventory pi ON oi.product_inventory_unit_id = pi.id
-                INNER JOIN $salespeople s ON o.salesperson_id = s.id
-                WHERE o.created_at BETWEEN %s AND %s
+                INNER JOIN $inventory_table pi ON oi.product_inventory_unit_id = pi.id
+                INNER JOIN $salespeople_table s ON o.salesperson_id = s.id
+                WHERE " . implode(" AND ", $where1) . "
             ";
 
-    $params = [$start_date, $end_date];
+    $where2 = ["o.created_at BETWEEN %s AND %s"];
+    $params2 = [$start_date, $end_date];
 
-    if ($salesperson) {
-        $query .= " AND o.salesperson_id = %d";
-        $params[] = $salesperson;
+    if ($salesperson !== null) {
+        $where2[] = "o.salesperson_id = %d";
+        $params2[] = $salesperson;
     }
 
-    if ($location) {
-        $query .= " AND pi.location_id = %d";
-        $params[] = $location;
-    }
+    $query2 = "
+                SELECT 
+                    s.first_name AS salesperson_first_name,
+                    s.last_name AS salesperson_last_name, 
+                    NULL AS product_id,
+                    NULL AS product_variant_id,
+                    category AS sku,
+                    NULL AS location_id,
+                    COALESCE(si.sold_price, 0) as retail_paid,
+                    COALESCE(0, 0) as discount_amount,
+                    COALESCE(si.cost_price, 0) as cost_price,
+                    COALESCE(si.sold_price, 0) as retail_price,
+                    si.description AS description
+                FROM $orders_table o
+                INNER JOIN $service_table si ON si.order_id = o.id
+                INNER JOIN $salespeople_table s ON o.salesperson_id = s.id
+                WHERE " . implode(" AND ", $where2) . "
+            ";
 
+
+    $query = $query1 . " UNION ALL " . $query2;
+    $params = array_merge($params1, $params2);
     $results = $wpdb->get_results($wpdb->prepare($query, ...$params));
 
     return $results;
@@ -195,7 +239,24 @@ function reports_render_sales_report($results)
             $product_id = $row->product_variant_id ?: $row->product_id;
             $product = wc_get_product($product_id);
 
+            $profit = $row->retail_paid - $row->cost_price;
+            $margin_percent = $row->retail_paid ? ($profit / $row->retail_paid) * 100 : 0;
+            $desc = $row->description ? ' - ' . $row->description : '';
+            $name = format_label($row->sku) . $desc;
+
             if (!$product) {
+                echo '<tr>';
+                echo '<td>' .  $name . '</td>';
+                echo '<td>Service</td>';
+                echo '<td>' . number_format($row->cost_price, 2) . '</td>';
+                echo '<td>' . number_format($row->retail_paid, 2) . '</td>';
+                echo '<td>' . number_format($row->retail_paid, 2) . '</td>';
+                echo '<td>' . number_format($row->discount_amount, 2) . '</td>';
+                echo '<td>' . number_format(0, 2) . '%</td>';
+                echo '<td>' . number_format($profit, 2) . '</td>';
+                echo '<td>' . number_format($margin_percent, 2) . '%</td>';
+                echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
+                echo '</tr>';
                 continue; // Skip invalid products
             }
 
@@ -316,7 +377,8 @@ function reports_render_inventory_report($results)
         $total_cost_price = 0;
         $total_retail_price = 0;
         $get_store_locations = mji_get_locations();
-        $location_name = array_find($get_store_locations, fn($loc) => $loc->id == intval($_GET['location']))->name;
+        $location_obj = array_find($get_store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+        $location_name = $location_obj ? $location_obj->name : 'Unknown Location';
 
         echo '<div style="max-height:700px; overflow-y:auto; position:relative;">';
         echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
@@ -383,7 +445,7 @@ function reports_render_inventory_report($results)
                                         <td>' . number_format($total_retail_price, 2) . '</td>
                                     </tr>
                                 </tfoot>';
-        echo '</tbody></table></div>';
+        echo '</table></div>';
     } else {
         echo '<p>No inventory reports found for this store.</p>';
     }

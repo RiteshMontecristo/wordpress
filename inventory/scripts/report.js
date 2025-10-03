@@ -1,6 +1,6 @@
 document
   .getElementById("exportInventory")
-  .addEventListener("click", function () {
+  ?.addEventListener("click", function () {
     const table = document.getElementById("inventoryTable");
     const rows = table.querySelectorAll("tr");
     const csv = [];
@@ -26,7 +26,7 @@ document
 
 document
   .getElementById("printInventory")
-  .addEventListener("click", function () {
+  ?.addEventListener("click", function () {
     const report = document.getElementById("report");
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`

@@ -1,4 +1,20 @@
 <?php
+
+
+function format_label($input)
+{
+    // Split by any non-alphanumeric characters
+    $words = preg_split('/[^a-zA-Z0-9]+/', $input, -1, PREG_SPLIT_NO_EMPTY);
+
+    // Capitalize first letter of each word
+    $words = array_map(function ($word) {
+        return ucfirst($word);
+    }, $words);
+
+    // Join with spaces
+    return implode(' ', $words);
+}
+
 require_once get_stylesheet_directory() . '/inventory/print.php';
 require_once get_stylesheet_directory() . '/inventory/sales.php';
 require_once get_stylesheet_directory() . '/inventory/customer.php';
