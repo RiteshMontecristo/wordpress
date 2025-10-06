@@ -1,20 +1,4 @@
 <?php
-
-
-function format_label($input)
-{
-    // Split by any non-alphanumeric characters
-    $words = preg_split('/[^a-zA-Z0-9]+/', $input, -1, PREG_SPLIT_NO_EMPTY);
-
-    // Capitalize first letter of each word
-    $words = array_map(function ($word) {
-        return ucfirst($word);
-    }, $words);
-
-    // Join with spaces
-    return implode(' ', $words);
-}
-
 require_once get_stylesheet_directory() . '/inventory/print.php';
 require_once get_stylesheet_directory() . '/inventory/sales.php';
 require_once get_stylesheet_directory() . '/inventory/customer.php';
@@ -706,6 +690,41 @@ function mji_store_dropdown($required = true, $selected_id = '')
     return $html;
 }
 
+function mji_get_brands()
+{
+    // Try transient first
+    $brands = get_transient('mji_brands');
+    if ($brands !== false) {
+        return $brands;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mji_brands';
+    $results = $wpdb->get_results("SELECT id, name FROM $table_name ORDER BY name ASC");
+
+    $brands = $results ?: [];
+    set_transient('mji_brands', $brands, DAY_IN_SECONDS);
+
+    return $brands;
+}
+
+function mji_brands_dropdown($required = true, $selected_id = '')
+{
+    $brands = mji_get_brands();
+    $required_attr = $required ? 'required' : '';
+
+    $html = "<select name='brands' id='brands' {$required_attr}>";
+    $html .= '<option value="">Select Brands</option>';
+
+    foreach ($brands as $b) {
+        $selected = ($b->id == $selected_id) ? 'selected' : '';
+        $html .= "<option value='{$b->id}' {$selected}>{$b->name}</option>";
+    }
+
+    $html .= '</select>';
+    return $html;
+}
+
 // To look at our categories and then make the primary category based on parent category
 add_action('admin_menu', function () {
     add_submenu_page(
@@ -851,3 +870,17 @@ add_action('admin_notices', function () {
         delete_transient('mji_global_admin_errors');
     }
 });
+
+function format_label($input)
+{
+    // Split by any non-alphanumeric characters
+    $words = preg_split('/[^a-zA-Z0-9]+/', $input, -1, PREG_SPLIT_NO_EMPTY);
+
+    // Capitalize first letter of each word
+    $words = array_map(function ($word) {
+        return ucfirst($word);
+    }, $words);
+
+    // Join with spaces
+    return implode(' ', $words);
+}
