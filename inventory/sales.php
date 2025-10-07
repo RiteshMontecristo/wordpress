@@ -328,10 +328,13 @@ function inventory_page()
                         <?= mji_salesperson_dropdown() ?>
                     </div>
                     <div>
-                        <label for="date">Date:</label>
+                        <label for="sales-date">Date:</label>
                         <input type="date" id="sales-date" name="date" value="<?php echo date('Y-m-d'); ?>">
                     </div>
-
+                    <div>
+                        <label for="location">Store:</label>
+                        <?= mji_store_dropdown() ?>
+                    </div>
                     <div>
                         <label for="subtotal">Subtotal:</label>
                         <input type="number" readonly name="subtotal" id="subtotal"></input>
@@ -551,7 +554,7 @@ function searchProducts()
     $table_name = $wpdb->prefix . 'mji_product_inventory_units';
 
     $query = $wpdb->prepare("
-            SELECT id, wc_product_id, wc_product_variant_id, sku, retail_price
+            SELECT id, wc_product_id, wc_product_variant_id, sku, retail_price, location_id
             FROM {$table_name}
             WHERE sku LIKE %s
             AND status = 'in_stock'
@@ -560,6 +563,7 @@ function searchProducts()
 
     if (!empty($result)) {
         $unit_id = $result->id;
+        $location_id = $result->location_id;
         $product_id = $result->wc_product_id;
         $product_variant_id = $result->wc_product_variant_id;
         $sku = $result->sku;
@@ -585,6 +589,7 @@ function searchProducts()
             'unit_id' => $unit_id,
             'product_id' => $product_id,
             'product_variant_id' => $product_variant_id,
+            'location_id' => $location_id,
             'title' => get_the_title($product_id),
             'image_url' => esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($product_id), 'thumbnail')),
             'sku' => $sku,
@@ -678,7 +683,7 @@ function get_payments($post_data, $expected_total)
     return $payments;
 }
 
-function insert_order_and_items($order_data, $items_data, $services_data, $payments, $date, $customer_id, $salesperson_id)
+function insert_order_and_items($order_data, $items_data, $services_data, $payments, $location_id)
 {
     global $wpdb;
     $wpdb->query('START TRANSACTION');
@@ -701,9 +706,9 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                 'order_id' => $order_id,
                 'amount' => $payment['amount'],
                 'method' => $payment['method'],
-                'payment_date' => $date,
-                'customer_id' => $customer_id,
-                'salesperson_id' => $salesperson_id,
+                'payment_date' => $order_data["created_at"],
+                'customer_id' => $order_data["customer_id"],
+                'salesperson_id' => $order_data["salesperson_id"],
                 'transaction_type' => $payment['method'] === 'layaway' ? 'layaway_redemption' : 'purchase',
                 'reference_num' => $order_data['reference_num'],
             ]);
@@ -715,20 +720,25 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
         // Insert order items and update inventory
         foreach ($items_data as $item) {
 
-            $status = $wpdb->get_var(
+            $row = $wpdb->get_row(
                 $wpdb->prepare(
-                    "SELECT status FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
+                    "SELECT status, location_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
                     $item->unit_id
                 )
             );
-            if ($status == 'in_stock') {
+            
+            if ($row->status == 'in_stock') {
+
+                if ($location_id != $row->location_id) {
+                    throw new RuntimeException("Failed to insert order item for {$item->title} due to the item location and order location being different.");
+                }
 
                 $success = $wpdb->insert($wpdb->prefix . 'mji_order_items', [
                     'order_id' => $order_id,
                     'product_inventory_unit_id' => $item->unit_id,
                     'sale_price' => $item->price_after_discount,
                     'discount_amount' => $item->discount_amount,
-                    'created_at' => $date
+                    'created_at' => $order_data->created_at
                 ]);
 
                 if (!$success) {
@@ -737,7 +747,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 
                 $success = $wpdb->update(
                     $wpdb->prefix . 'mji_product_inventory_units',
-                    ['status' => 'sold', 'sold_date' => $date],
+                    ['status' => 'sold', 'sold_date' => $order_data->created_at],
                     ['id' => $item->unit_id]
                 );
 
@@ -745,7 +755,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     throw new RuntimeException("Failed to update inventory for {$item->title}: " . $wpdb->last_error);
                 }
             } else {
-                throw new Exception("Item {$item->title} is already sold or is reserved.");
+                throw new RuntimeException("Item {$item->title} is already sold or is reserved.");
             }
         }
 
@@ -756,7 +766,8 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                 'category' => $service->category,
                 'description' => $service->description,
                 'cost_price' => $service->costPrice,
-                'sold_price' => $service->retailPrice
+                'sold_price' => $service->retailPrice,
+                'location_id' => $location_id
             ]);
 
             if (!$success) {
@@ -780,6 +791,7 @@ function finalizeSale()
     // clean and prepare data
     $customer_id = intval($_POST['customer_id']);
     $salesperson_id = intval($_POST['salesperson']);
+    $location_id = intval($_POST['location']);
     $reference_num = sanitize_text_field($_POST['reference']);
     $created_at = sanitize_text_field($_POST['date']);
 
@@ -794,7 +806,7 @@ function finalizeSale()
         'created_at' => $created_at,
     ];
 
-    insert_order_and_items($order_data, $items_data, $services_data, $payments, $created_at, $customer_id, $salesperson_id);
+    insert_order_and_items($order_data, $items_data, $services_data, $payments, $location_id);
 
     foreach ($items_data as $item) {
 

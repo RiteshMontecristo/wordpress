@@ -59,6 +59,7 @@ const DOM = {
       alipay: document.querySelector("#cart #alipay"),
       layaway: document.querySelector("#cart #layaway"),
     },
+    location: document.querySelector("#cart #location"),
     subtotal: document.querySelector("#cart #subtotal"),
     excludeGst: document.querySelector("#cart #exclude-gst"),
     excludePst: document.querySelector("#cart #exclude-pst"),
@@ -468,6 +469,7 @@ DOM.forms.searchProducts.addEventListener("submit", function (event) {
           const {
             image_url,
             sku,
+            location_id,
             price,
             title,
             unit_id,
@@ -497,6 +499,7 @@ DOM.forms.searchProducts.addEventListener("submit", function (event) {
           addToCartButton.addEventListener("click", function (e) {
             const product = {
               unit_id,
+              location_id,
               product_id,
               product_variant_id,
               title,
@@ -512,6 +515,19 @@ DOM.forms.searchProducts.addEventListener("submit", function (event) {
             if (state.cart.find((item) => item.unit_id === unit_id)) {
               alert("This product is already in the cart.");
               return;
+            }
+
+            if (state.cart.length > 0) {
+              // Ensure all the items are from the same store, since we are treating each store as a separate entity
+              if (state.cart[0].location_id != product.location_id) {
+                alert(
+                  "The products in the cart aren't from same store, Please fix that first before proceeding"
+                );
+                return;
+              }
+            } else {
+              DOM.inputs.location.setAttribute("disabled", true);
+              DOM.inputs.location.value = product.location_id;
             }
 
             state.cart.push(product);
@@ -675,6 +691,9 @@ function removeFromCart(unitId) {
   if (index > -1) {
     state.cart.splice(index, 1);
     displayCart();
+  }
+  if (state.cart.length == 0) {
+    DOM.inputs.location.removeAttribute("disabled");
   }
 }
 
@@ -842,7 +861,14 @@ DOM.forms.finalizeSale.addEventListener("submit", function (e) {
     return;
   }
 
+  // Need to add this as disabled attribute value doesnt get added to the formdata
+  const locationSelect = DOM.inputs.location;
+  const locationSelectName = locationSelect.name;
+  const locationSelectValue = locationSelect.value;
   const formData = new FormData(DOM.forms.finalizeSale);
+  if (!formData.has(locationSelect)) {
+    formData.append(locationSelectName, locationSelectValue);
+  }
 
   formData.append("action", "finalizeSale");
   formData.append("customer_id", state.customer.customerId);
