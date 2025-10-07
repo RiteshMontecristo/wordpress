@@ -354,6 +354,7 @@ function create_services_table()
     // Define table name with WordPress prefix
     $table_name = $wpdb->prefix . 'mji_services';
     $orders_table = $wpdb->prefix . 'mji_orders';
+    $locations_table = $wpdb->prefix . 'mji_locations';
 
     // Define character set and collation
     $charset_collate = $wpdb->get_charset_collate();
@@ -362,12 +363,14 @@ function create_services_table()
     $sql = "CREATE TABLE $table_name (
         id BIGINT PRIMARY KEY AUTO_INCREMENT,
         order_id BIGINT NOT NULL,
+        location_id BIGINT NOT NULL,
         category ENUM('watch_service', 'jewellery_service', 'shipping')  NOT NULL,
         description TEXT,
         cost_price DECIMAL(10,2) NOT NULL,
         sold_price DECIMAL(10,2) NOT NULL,
 
-        FOREIGN KEY (order_id) REFERENCES $orders_table(id)
+        FOREIGN KEY (order_id) REFERENCES $orders_table(id),
+        FOREIGN KEY (location_id) REFERENCES $locations_table(id)
         ) $charset_collate;";
 
     $result = $wpdb->query($sql);
