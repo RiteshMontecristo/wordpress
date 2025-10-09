@@ -726,7 +726,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     $item->unit_id
                 )
             );
-            
+
             if ($row->status == 'in_stock') {
 
                 if ($location_id != $row->location_id) {
@@ -738,7 +738,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     'product_inventory_unit_id' => $item->unit_id,
                     'sale_price' => $item->price_after_discount,
                     'discount_amount' => $item->discount_amount,
-                    'created_at' => $order_data->created_at
+                    'created_at' => $order_data['created_at']
                 ]);
 
                 if (!$success) {
@@ -747,7 +747,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 
                 $success = $wpdb->update(
                     $wpdb->prefix . 'mji_product_inventory_units',
-                    ['status' => 'sold', 'sold_date' => $order_data->created_at],
+                    ['status' => 'sold', 'sold_date' => $order_data['created_at']],
                     ['id' => $item->unit_id]
                 );
 
@@ -758,7 +758,6 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                 throw new RuntimeException("Item {$item->title} is already sold or is reserved.");
             }
         }
-
         foreach ($services_data as $service) {
 
             $success = $wpdb->insert($wpdb->prefix . 'mji_services', [
