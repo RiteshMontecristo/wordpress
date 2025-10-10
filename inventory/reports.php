@@ -177,6 +177,11 @@ function reports_get_sales_results()
         $params2[] = $salesperson;
     }
 
+    if ($location !== null) {
+        $where2[] = "si.location_id = %d";
+        $params2[] = $location;
+    }
+
     $query2 = "
                 SELECT 
                     s.first_name AS salesperson_first_name,
@@ -212,11 +217,15 @@ function reports_render_sales_report($results)
         $total_retail_paid = 0;
         $total_profit = 0;
 
+        $location_id = isset($_GET['location']) ? intval($_GET['location']) : 0;
+        $location_arr = mji_get_locations();
+        $location = $location_id > 0 ? $location_arr[$location_id]->name : '';
+
         echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
         echo '<button id="printInventory" class="button button-secondary" style="margin-bottom:10px;">Print Report</button>';
         echo '<div id="report">
                 <header>
-                        <h2>Sales Report - Montecristo Jewellers</h2>
+                        <h2>Sales Report - Montecristo Jewellers ' .  $location . '</h2>
                         <p>Date: ' . esc_html($_GET['start_date']) . ' to ' . esc_html($_GET['end_date']) . '</p>
                 </header>
                 <table id="inventoryTable" class="widefat striped"><thead>
@@ -315,7 +324,7 @@ function reports_render_inventory_section()
     reports_render_inventory_filters();
 
     echo '<hr>';
-    if (isset($_GET['location'])) {
+    if (isset($_GET['start_date']) && isset($_GET['end_date'])) {
         $results = reports_get_inventory_result();
         reports_render_inventory_report($results);
     }
@@ -323,6 +332,8 @@ function reports_render_inventory_section()
 
 function reports_render_inventory_filters()
 {
+    $location = isset($_GET['location']) ? intval($_GET['location']) : '';
+    $brands = isset($_GET['brands']) ? intval($_GET['brands']) : '';
 ?>
     <form method="get" action="">
         <input type="hidden" name="page" value="reports-management">
@@ -330,9 +341,42 @@ function reports_render_inventory_filters()
 
         <table class="form-table">
             <tr>
+                <th scope="row"><label for="start_date">Start Date</label></th>
+                <td>
+                    <?php
+                    if (isset($_GET['start_date'])) {
+                        $startDate = sanitize_text_field($_GET['start_date']);
+                    } else {
+                        $startDate = date("Y-m-01", strtotime("first day of last month"));
+                    }
+                    ?>
+                    <input type="date" name="start_date" id="start_date" value="<?php echo $startDate; ?>">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="end_date">End Date</label></th>
+                <td>
+                    <?php
+
+                    if (isset($_GET['end_date'])) {
+                        $endDate = sanitize_text_field($_GET['end_date']);
+                    } else {
+                        $endDate = date("Y-m-t", strtotime("last month"));
+                    }
+                    ?>
+                    <input type="date" name="end_date" id="end_date" value="<?php echo $endDate; ?>">
+                </td>
+            </tr>
+            <tr>
                 <th scope="row"><label for="location">Store</label></th>
                 <td>
-                    <?= mji_store_dropdown() ?>
+                    <?= mji_store_dropdown(true, $location) ?>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="brands">Brands</label></th>
+                <td>
+                    <?= mji_brands_dropdown(false, $brands) ?>
                 </td>
             </tr>
         </table>
@@ -347,12 +391,29 @@ function reports_get_inventory_result()
 {
     global $wpdb;
 
+
+    $start_raw = !empty($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+    $end_raw = !empty($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
     $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
+    $brands =  !empty($_GET['brands']) ? intval($_GET['brands']) : null;
 
-    if (!$location)
+    $start_ts = strtotime($start_raw);
+    $end_ts   = strtotime($end_raw);
+
+    if ($start_ts === false || $end_ts === false) {
+        echo '<p style="color:red">No start and end date provided.</p>';
         return;
+    }
 
-    $inventory = $wpdb->prefix . 'mji_product_inventory_units';
+    $start_date = date('Y-m-d H:i:s', $start_ts);
+    $end_date   = date('Y-m-d H:i:s', $end_ts);
+
+    if (!$location || !$start_date || !$end_date) {
+        echo '<p style="color:red">Please provide store location</p>';
+        return;
+    }
+
+    $inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
 
     $query = "
             SELECT 
@@ -361,11 +422,20 @@ function reports_get_inventory_result()
                 i.sku AS sku,
                 COALESCE(i.cost_price, 0) as cost_price,
                 COALESCE(i.retail_price, 0) as retail_price
-            FROM $inventory i
-            WHERE i.location_id = %s AND status = 'in_stock'
+            FROM $inventory_table i
+            WHERE i.location_id = %d
+            AND i.created_date <= %s
+            AND (i.sold_date IS NULL OR i.sold_date >= %s)
         ";
 
-    $results = $wpdb->get_results($wpdb->prepare($query, ...array($location)));
+    $params = [$location, $end_date, $start_date];
+
+    if ($brands) {
+        $query .= " AND i.brand_id = %d";
+        $params[] = $brands;
+    }
+
+    $results = $wpdb->get_results($wpdb->prepare($query, ...$params));
     return $results;
 }
 
