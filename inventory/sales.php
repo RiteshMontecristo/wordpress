@@ -5,6 +5,27 @@ function inventory_page()
     <div class="wrap inventory-sales">
         <h1>Inventory Management</h1>
 
+
+        <div id="top-store" class="store-location">
+            <h2>Store: <span id="store-name"></span></h2>
+            <button id="change-store-btn">Change</button>
+        </div>
+
+        <div id="store-modal" class="modal">
+            <div class="modal-content">
+
+                <h2>Select Store:</h2>
+                <?php
+                $locations = mji_get_locations();
+
+                foreach ($locations as  $location) {
+                    echo "<button class='store-btn' data-id='" . $location->id . "'>" . $location->name . "</button>";
+                }
+                ?>
+            </div>
+
+        </div>
+
         <div id="customerDetails" class="customer-details hidden">
             <div id="customerInfo" class="customer-info">
                 <span id="customer-name">Customer Name</span> <br />
@@ -332,10 +353,6 @@ function inventory_page()
                         <input type="date" id="sales-date" name="date" value="<?php echo date('Y-m-d'); ?>">
                     </div>
                     <div>
-                        <label for="location">Store:</label>
-                        <?= mji_store_dropdown() ?>
-                    </div>
-                    <div>
                         <label for="subtotal">Subtotal:</label>
                         <input type="number" readonly name="subtotal" id="subtotal"></input>
                     </div>
@@ -392,12 +409,17 @@ function search_customer()
 
 add_action('wp_ajax_search_customer', 'search_customer');
 
-function get_layaway_sum($id = null)
+function get_layaway_sum($customer_id = null, $location_id = null)
 {
-    $customer_id = isset($_GET['customer_id']) ? intval($_GET['customer_id']) :  $id;
+    $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) :  $customer_id;
+    $location = isset($_GET['location_id']) ? intval($_GET['location_id']) :  $location_id;
 
-    if (!$customer_id) {
+    if (!$customer) {
         return wp_send_json_error('Customer ID is required');
+    }
+
+    if (!$location) {
+        return wp_send_json_error('Location ID is required');
     }
 
     global $wpdb;
@@ -419,11 +441,13 @@ function get_layaway_sum($id = null)
     FROM {$table_name}
     WHERE transaction_type IN ('layaway_deposit', 'layaway_redemption')
     AND customer_id = %d
-    ", $customer_id);
+    AND location_id = %d
+    ", $customer, $location);
 
     $result = $wpdb->get_row($query);
     $balance = !is_null($result->net_layaway_balance) ? (float) $result->net_layaway_balance : 0.0;
-    if ($id) return $balance;
+
+    if ($customer_id && $location_id) return $balance;
     return wp_send_json_success($balance);
 
     wp_die();
@@ -438,7 +462,12 @@ function get_layaway()
         return wp_send_json_error('Customer ID is required');
     }
 
+    if (!isset($_GET['location_id'])) {
+        return wp_send_json_error('Location ID is required');
+    }
+
     $customer_id = intval($_GET['customer_id']);
+    $location_id = intval($_GET['location_id']);
 
     global $wpdb;
 
@@ -449,7 +478,8 @@ function get_layaway()
         FROM {$table_name}
         WHERE (transaction_type = 'layaway_deposit' OR transaction_type = 'layaway_redemption')
         AND customer_id = %d
-    ", $customer_id);
+        AND location_id = %d
+    ", $customer_id, $location_id);
 
     $layaway_items = $wpdb->get_results($query);
 
@@ -489,9 +519,10 @@ function add_layaway()
     $payment_date = sanitize_text_field($_POST['layaway_date']);
     $notes = sanitize_textarea_field($_POST['layaway_notes']);
     $customer_id = intval($_POST['customer_id']);
+    $location_id = intval($_POST['location_id']);
 
-    if (empty($reference_num) || empty($salesperson_id) || empty($payment_date) || empty($customer_id)) {
-        wp_send_json_error(['message' => 'Reference number, salesperson, payment date, and customer ID are required.']);
+    if (empty($reference_num) || empty($salesperson_id) || empty($payment_date) || empty($customer_id) || empty($location_id)) {
+        wp_send_json_error(['message' => 'Reference number, salesperson, payment date, Location ID and customer ID are required.']);
         wp_die();
     }
 
@@ -499,6 +530,8 @@ function add_layaway()
     $wpdb->query('START TRANSACTION');
 
     try {
+
+
         foreach ($payments as $payment) {
 
             $layaway_data = [
@@ -510,6 +543,7 @@ function add_layaway()
                 'payment_date' => $payment_date,
                 'notes' => $notes,
                 'customer_id' => $customer_id,
+                'location_id' => $location_id
             ];
 
             $format = array('%s', '%d', '%s', '%f', '%s', '%s', '%s', '%d');
@@ -520,9 +554,12 @@ function add_layaway()
             }
         }
 
-        $salesperson = $wpdb->get_row($wpdb->prepare("SELECT first_name, last_name FROM {$wpdb->prefix}mji_salespeople WHERE id = %d", $salesperson_id));
 
-        $layaway_sum = get_layaway_sum($customer_id);
+        $salespeople_arr = mji_get_salespeople();
+        $salesperson = array_find($salespeople_arr, function ($value) use ($salesperson_id) {
+            return $value->id == $salesperson_id;
+        });
+        $layaway_sum = get_layaway_sum($customer_id, $location_id);
         $response = [
             'salesperson' => $salesperson->first_name . ' ' . $salesperson->last_name,
             'reference_num' => $reference_num,
@@ -711,6 +748,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                 'salesperson_id' => $order_data["salesperson_id"],
                 'transaction_type' => $payment['method'] === 'layaway' ? 'layaway_redemption' : 'purchase',
                 'reference_num' => $order_data['reference_num'],
+                'location_id' => $location_id
             ]);
             if (!$success) {
                 throw new RuntimeException("Failed to insert payment: " . $wpdb->last_error);
@@ -758,6 +796,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                 throw new RuntimeException("Item {$item->title} is already sold or is reserved.");
             }
         }
+
         foreach ($services_data as $service) {
 
             $success = $wpdb->insert($wpdb->prefix . 'mji_services', [
@@ -776,6 +815,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 
         $wpdb->query('COMMIT');
     } catch (Exception $e) {
+        custom_log($e->getMessage());
         $wpdb->query('ROLLBACK');
         wp_send_json_error(['message' => $e->getMessage()]);
     }

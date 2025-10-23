@@ -5,6 +5,7 @@ require_once get_stylesheet_directory() . '/inventory/customer.php';
 require_once get_stylesheet_directory() . '/inventory/salespeople.php';
 require_once get_stylesheet_directory() . '/inventory/product_units.php';
 require_once get_stylesheet_directory() . '/inventory/reports.php';
+require_once get_stylesheet_directory() . '/inventory/imports.php';
 
 // Create the table when theme activated
 function mji_create_all_tables()
@@ -155,6 +156,7 @@ function create_payments_table()
     $customers_table = $wpdb->prefix . 'mji_customers';
     $orders_table = $wpdb->prefix . 'mji_orders';
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
+    $locations_table = $wpdb->prefix . 'mji_locations';
 
     // Define character set and collation
     $charset_collate = $wpdb->get_charset_collate();
@@ -164,18 +166,19 @@ function create_payments_table()
         id BIGINT PRIMARY KEY AUTO_INCREMENT,
         customer_id BIGINT NOT NULL,
         salesperson_id BIGINT NOT NULL,
+        location_id BIGINT,
         order_id BIGINT NULL,         
-        layaway_id BIGINT NULL,
         reference_num VARCHAR(50),
-        method ENUM('cash', 'cheque','debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay', 'layaway', 'gift_card') NOT NULL,
+        method ENUM('cash', 'cheque','debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay', 'layaway', 'gift_card', 'credit') NOT NULL,
         amount DECIMAL(10,2) NOT NULL,
-        transaction_type ENUM('purchase', 'layaway_deposit', 'layaway_redemption', 'refund') NOT NULL DEFAULT 'purchase',
+        transaction_type ENUM('purchase', 'layaway_deposit', 'layaway_redemption', 'credit', 'credit_redemption') NOT NULL DEFAULT 'purchase',
         payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
         notes TEXT,
 
         FOREIGN KEY (customer_id) REFERENCES $customers_table(id),
         FOREIGN KEY (order_id) REFERENCES $orders_table(id),
-        FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id)
+        FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id),
+        FOREIGN KEY (location_id) REFERENCES $locations_table(id)
         ) $charset_collate;";
 
     $result = $wpdb->query($sql);
@@ -387,7 +390,7 @@ function create_inventory_menu()
 {
     add_menu_page(
         'Inventory Management', // Page Title
-        'Manage Sales', // Menu Title
+        'Inventory', // Menu Title
         'manage_options', // Capability
         'inventory-management', // Menu Slug
         'inventory_page', // Callback Function
@@ -422,6 +425,16 @@ function create_inventory_menu()
         'manage_options',
         'reports-management',
         'reports_page'
+    );
+
+    // Submenu: Import Data
+    add_submenu_page(
+        'inventory-management',
+        'Import',
+        'Import',
+        'manage_options',
+        'import-data',
+        'import_page'
     );
 }
 add_action('admin_menu', 'create_inventory_menu');
