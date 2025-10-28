@@ -408,7 +408,7 @@
                                                 <li><a href="/jewellery/wedding-bands">Wedding Bands</a></li>
                                             </ul>
                                         </li>
-                                        <li><a href="/designer/annamaria-cammilli">Annamaria Cammilli</a></li>
+                                        <li><a href="/designer/cammillifirenze">Cammilli Firenze</a></li>
                                         <li><a href="/designer/faberge">Fabergé</a></li>
                                         <li><a href="/designer/messika">Messika</a></li>
                                         <li><a href="/designer/mikimoto">Mikimoto</a></li>
