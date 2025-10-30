@@ -189,7 +189,7 @@ export const CheckoutSelector = {
                     <tr>
                       <td>${item.title}${
           item.variation_detail ? ` (${item.variation_detail})` : ""
-        } <br>${attributesString}</td>
+        } <br> SKU: ${item.sku} <br>${attributesString}</td>
                       <td>$${item.price_after_discount}</td>
                     </tr>
                   `;
