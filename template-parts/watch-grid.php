@@ -46,7 +46,7 @@ if ($rolex_product->have_posts()) {
                 $alt = "Rolex " . $family_handle . " in " .  $spec_material . " " .  $rmc_number . "- Montecristo Jewellers";
 
             ?>
-                <a class="f4-background-container" href="<?php esc_url(the_permalink()) ?>">
+                <a class="f4-background-container" href="<?= esc_url(get_permalink()) ?>">
                     <div class="height"></div>
 
                     <div class="height-container">

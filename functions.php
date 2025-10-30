@@ -270,7 +270,7 @@ function responsive_image_shortcode($atts)
     $link_class    = esc_attr($atts['classname']);
     $url = esc_url($atts['url']);
 
-    $dimensions = get_image_sizes($image_src);
+    if (!str_contains($image_src, "mapbox")) $dimensions = get_image_sizes($image_src);
     $width    = $dimensions['width'] ?? 2400;
     $height   = $dimensions['height'] ?? 920;
 
