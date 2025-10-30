@@ -213,7 +213,7 @@ function create_locations_table()
     } else {
         custom_log("✅ Successfully created {$table_name}");
 
-        $wpdb->insert($table_name, ['name' => 'Downtown']);
+        $wpdb->insert($table_name, ['name' => 'Hastings']);
         $wpdb->insert($table_name, ['name' => 'Richmond']);
         $wpdb->insert($table_name, ['name' => 'Metrotown']);
     }
@@ -450,17 +450,11 @@ function custom_woocommerce_admin_search($where, $wp_query)
         // Get the search term
         $search_term = esc_sql($_GET['s']);
         $custom_table = $wpdb->prefix . 'mji_product_inventory_units';
-        // // Modifying the SQL WHERE clause to include the repeatable SKU field
-        // $where .= " OR EXISTS (
-        //                SELECT 1 FROM wp_product_skus ps
-        //                 WHERE ps.product_id = {$wpdb->posts}.ID
-        //                 AND ps.sku_text = '{$search_term}'
-        // )";
         $where .= " OR EXISTS (
             SELECT 1
             FROM $custom_table
             WHERE $custom_table.wc_product_id = {$wpdb->posts}.ID
-              AND $custom_table.sku LIKE '$search_term'
+              AND $custom_table.sku = '$search_term'
         )";
     }
 
