@@ -2,11 +2,11 @@
 
 $discoverArr = array(
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1759335510/rolex/discover-rolex-page-assets-landscape/M52508-0008_2503stojan_003_copie_2000x920.webp",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1759335615/rolex/discover-rolex-page-assets-portrait/M52508-0008_2503stojan_003_copie_780x1050.webp",
+        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1762283843/rolex/discover-rolex-page-assets-landscape/M126729VTNR-0001_2501stojan_001_RVB-V2_2000x920.webp",
+        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1762283923/rolex/discover-rolex-page-assets-portrait/M126729VTNR-0001_2501stojan_001_RVB-V2_780x1050.webp",
         "title" => "Rolex",
-        "subtitle" => "1908",
-        "url" => "/rolex/1908",
+        "subtitle" => "GMT-Master II",
+        "url" => "/rolex/gmt-master-ii",
         "text_color" => "black"
     ),
     array(
