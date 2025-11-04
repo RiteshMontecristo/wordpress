@@ -7,7 +7,7 @@ $discoverArr = array(
         "title" => "Rolex",
         "subtitle" => "GMT-Master II",
         "url" => "/rolex/gmt-master-ii",
-        "text_color" => "black"
+        "text_color" => "white"
     ),
     array(
         "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1756914319/rolex/discover-rolex-page-assets-landscape/RBA_SailGP_Website_Banner_FD1_3997-r_2000x920.webp",
