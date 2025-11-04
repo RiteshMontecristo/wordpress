@@ -320,8 +320,7 @@ button:focus:not(:focus-visible) {
 }
 
 .primary-cta:hover {
-  color: white;
-  background-color: var(--color-rolex-rolex-green);
+  background-color: var(--color-rolex-rolex-green) !important;
 }
 
 .primary-cta svg {
