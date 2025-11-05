@@ -1,5 +1,7 @@
 <?php
 
+use RankMath\WooCommerce\Product_Helper;
+
 add_action('add_meta_boxes', 'add_inventory_units_meta_box');
 
 function add_inventory_units_meta_box()
@@ -91,9 +93,7 @@ function render_inventory_units_meta_box($post)
                 <?php if ($is_variation): ?>
                     <th>Variation</th>
                 <?php endif; ?>
-                <?php if ($add_serial): ?>
-                    <th>Serial</th>
-                <?php endif; ?>
+                <th>Serial</th>
                 <th>Location</th>
                 <th>Actions</th>
             </tr>
@@ -110,11 +110,9 @@ function render_inventory_units_meta_box($post)
                             <?= esc_html($variation_name_by_id[$unit->wc_product_variant_id]) ?>
                         </td>
                     <?php endif; ?>
-                    <?php if ($add_serial): ?>
-                        <td data-field="serial" data-value=" <?= esc_html($unit->serial) ?>" class="editable-cell">
-                            <?= esc_html($unit->serial) ?>
-                        </td>
-                    <?php endif; ?>
+                    <td data-field="serial" data-value=" <?= esc_html($unit->serial) ?>" class="editable-cell">
+                        <?= esc_html($unit->serial) ?>
+                    </td>
                     <td data-field="location" data-value="<?= esc_html($unit->location_id) ?>" class="editable-cell">
                         <?= esc_html($location_name_by_id[$unit->location_id]) ?></td>
                     <td>
@@ -141,9 +139,7 @@ function render_inventory_units_meta_box($post)
                         <?= $variation_select ?>
                     </td>
                 <?php endif; ?>
-                <?php if ($add_serial): ?>
-                    <td><input type="text" id="serialNum" name="new_serial" placeholder="Enter serial" /></td>
-                <?php endif; ?>
+                <td><input type="text" id="serialNum" name="new_serial" placeholder="Enter serial" /></td>
                 <td>
                     <?= get_all_location("select") ?>
                 </td>
@@ -287,7 +283,7 @@ function update_inventory_units()
     $status = sanitize_text_field($_POST['status']);
     $location_id = intval($_POST['locationID']);
     $variation_id = isset($_POST['variationID']) ? intval($_POST['variationID']) : null;
-    $serial = isset($_POST['serialNum']) ? sanitize_text_field($_POST['serialNum']) : null;
+    $serial = isset($_POST['serialNum']) && !is_empty($_POST['serialNum']) ? sanitize_text_field($_POST['serialNum']) : null;
 
     $data =   [
         'wc_product_id' => $product_id,
@@ -395,6 +391,7 @@ function get_brand_model_id($table_name, $value)
     return $id;
 }
 
+// Save for the normal product
 add_action('save_post_product', 'watch_simple_product_changes', 20, 3);
 function watch_simple_product_changes($post_id, $post, $update)
 {
@@ -488,6 +485,7 @@ function watch_simple_product_changes($post_id, $post, $update)
     }
 }
 
+// Save for the variant product
 add_action('woocommerce_save_product_variation', 'watch_variation_retail_price', 5, 2);
 function watch_variation_retail_price($variation_id, $i)
 {
