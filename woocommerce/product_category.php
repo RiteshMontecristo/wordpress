@@ -265,6 +265,43 @@ function add_sidebar_for_products()
 }
 add_action("woocommerce_before_shop_loop", "add_sidebar_for_products", 45);
 
+// Prepend brand name to product title on shop/category pages only
+// add_filter('the_title', 'prepend_brand_to_product_title', 10, 2);
+function prepend_brand_to_product_title($title, $id)
+{
+    // Only on frontend shop/category pages, and only for products
+    if (! is_admin() && in_the_loop() && is_shop() || is_product_category()) {
+        $terms = wp_get_post_terms($id, 'product_cat');
+        if (!empty($terms)) {
+            foreach ($terms as $term) {
+                $has_children = get_term_children($term->term_id, 'product_cat');
+                // Check if the category has children and is not the main category then its the brand
+                if ($has_children && $term->slug != "watches" && $term->slug != "jewellery" && $term->slug != "designer") {
+                    $brand = $term->name;
+                    if ($brand && strpos($title, $brand) !== 0) {
+                        $title = $brand . ' ' . $title;
+                    }
+                }
+            }
+        }
+    }
+
+    return str_replace("Watch", "", $title);
+}
+
+// Display model number below product title on shop/category pages
+add_action('woocommerce_after_shop_loop_item_title', 'display_product_model_number', 5);
+function display_product_model_number()
+{
+    global $product;
+
+    // Option A: Get from attribute 'pa_model'
+    $model_number = $product->get_attribute('model-number');
+    if ($model_number) {
+        echo '<div class="product-model-number">' . esc_html($model_number) . '</div>';
+    }
+}
+
 // removing add to cart button
 remove_action("woocommerce_after_shop_loop_item", "woocommerce_template_loop_add_to_cart", 10);
 

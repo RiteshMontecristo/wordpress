@@ -17,33 +17,65 @@ function product_wrapper_closer()
 }
 add_action("woocommerce_single_product_summary", "product_wrapper_closer", 55);
 
-function add_brand_name()
+function get_brand_name()
 {
+    static $brand_name = '';
+
+    if ($brand_name) return $brand_name;
+
     $terms = wp_get_post_terms(get_the_ID(), 'product_cat');
     if (!empty($terms)) {
         foreach ($terms as $term) {
             // Check if the category has child categories
             $has_children = get_term_children($term->term_id, 'product_cat');
             if ($has_children && $term->slug != "watches" && $term->slug != "jewellery" && $term->slug != "designer") {
-                echo "<h2 class='brand'>$term->name</h2>";
+                $brand_name = $term->name;
             }
         }
     }
+    return $brand_name;
+}
+
+function add_brand_name()
+{
+    $brand_name = get_brand_name();
+    echo "<h2 class='brand'>$brand_name</h2>";
 }
 add_action("woocommerce_single_product_summary", "add_brand_name", 4);
+
+function custom_single_product_title($title, $id)
+{
+    // Only on single product pages
+    if (is_product() && get_the_ID() === $id) {
+        // Modify the title as needed
+        $brand_name = get_brand_name();
+
+        $title = trim(str_replace($brand_name, "", $title));
+    }
+    return $title;
+}
+add_filter('the_title', 'custom_single_product_title', 10, 2);
 
 // Remove quantity input field from product pages
 add_filter('woocommerce_is_sold_individually', '__return_true');
 
 function price_container()
 {
+    global $product;
+
+    // Option A: Get from attribute 'pa_model'
+    $model_number = $product->get_sku();
+    if ($model_number) {
+        echo '<div class="product-model-number">' . esc_html($model_number) . '</div>';
+    }
     echo "<div class='price_container'>";
 }
 add_action("woocommerce_single_product_summary", "price_container", 9);
 
 function custom_price_zero_message($price, $product)
 {
-    if (has_term('montecristo', 'product_cat', $product->get_id())) {
+    $brand_name = get_brand_name();
+    if ($brand_name === 'Montecristo') {
         return;
     }
     if ($product->get_price() == 0) {
@@ -103,23 +135,22 @@ add_action("woocommerce_single_product_summary", "close_price_container", 11);
 
 function single_page_contact()
 {
-    $terms = wp_get_post_terms(get_the_ID(), 'product_cat');
-    $is_montecristo = false;
-    if (!empty($terms)) {
-        foreach ($terms as $term) {
-            if ($term->name == "Montecristo") {
-                $is_montecristo = true;
-            }
-        }
+    $brand_name = get_brand_name();
+
+    if ($brand_name == 'Omega') {
+        $contact = "tel:+1-604-325-2116";
+    } else {
+        $contact = "tel:+1-604-263-3611";
     }
-    if ($is_montecristo) {
+    if ($brand_name === 'Montecristo') {
     ?>
         <div class="montecristo-category">
             <a href="/customize-your-jewellery" class="btn btn-customize">Customize Jewellery</a>
             <a href="/contact" class="btn btn-contact">Contact Us</a>
         </div>
     <?php } else { ?>
-        <a href="/contact" class="btn btn-contact">Contact Us</a>
+        <a href="/contact#contactUs" class="btn btn-contact">Contact Us</a>
+        <a href="<?= $contact ?>" class="btn btn-call">Call Us</a>
 <?php }
 }
 
