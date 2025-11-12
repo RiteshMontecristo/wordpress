@@ -295,8 +295,7 @@ function display_product_model_number()
 {
     global $product;
 
-    // Option A: Get from attribute 'pa_model'
-    $model_number = $product->get_attribute('model-number');
+    $model_number = $product->get_sku();
     if ($model_number) {
         echo '<div class="product-model-number">' . esc_html($model_number) . '</div>';
     }
