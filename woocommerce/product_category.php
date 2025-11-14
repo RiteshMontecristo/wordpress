@@ -142,7 +142,9 @@ function add_banner()
         $data_attributes = "data-brand='{$current_category->slug}'";
 
         echo "<h1 id='data-selector' $data_attributes>" . $current_category->name . "</h1>";
+        echo "<div>";
         echo apply_filters('the_content', $current_category->description);
+        echo "</div>";
         echo '</div>';
         echo '</div>';
     }
