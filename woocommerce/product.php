@@ -178,11 +178,30 @@ function add_sku_to_variation_data($variation_data)
 add_action('wp_footer', 'change_sku_number_for_variant');
 function change_sku_number_for_variant()
 {
-    if (is_product()) { ?>
+    if (is_product()) {
+        global $product;
+
+        // Store original SKU and price HTML
+        $original_sku   = $product->get_sku();
+        $original_price = $product->get_price_html();
+    ?>
         <script>
             jQuery(function($) {
+
+                var originalSKU = '<?php echo esc_js($original_sku); ?>';
+                var originalPrice = '<?php echo $original_price; ?>';
+
+                console.log(originalPrice);
                 $('form.variations_form').on('found_variation', function(event, variation) {
                     $(".product-model-number").text(variation.sku);
+                    $(".price_container .price").html(variation.price_html);
+                });
+
+                // When variations are reset (clear selection)
+                $('form.variations_form .reset_variations').on('click', function() {
+                    console.log("User clicked Clear button");
+                    $(".product-model-number").text(originalSKU);
+                    $(".price_container .price").html(originalPrice);
                 });
             });
         </script>
@@ -193,7 +212,7 @@ function change_sku_number_for_variant()
 function my_blocked_products_list()
 {
     return array(
-        'categories' => array('Cammilli Firenze', 'Fabergé', 'Messika', 'Mikimoto', 'Montecristo', 'Pomellato', 'Roberto Coin', 'Bell & Ross', 'Blancpain', 'Breguet', 'Corum', 'Glashütte Original', 'Longines', 'MIDO', 'OMEGA'), // change slugs
+        'categories' => array('cammillifirenze', 'faberge', 'messika', 'mikimoto', 'montecristo', 'pomellato', 'roberto-coin', 'bellross', 'blancpain', 'breguet', 'corum', 'faberge-watches', 'girard-perregaux', 'glashutte-original', 'longines', 'mido', 'omega'), // change slugs
         'product_ids' => array(),          // change IDs
     );
 }

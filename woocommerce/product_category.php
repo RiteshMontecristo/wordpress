@@ -779,9 +779,6 @@ add_filter('woocommerce_variable_sale_price_html', 'show_lowest_variant_price', 
 add_filter('woocommerce_variable_price_html', 'show_lowest_variant_price', 10, 2);
 function show_lowest_variant_price($price, $product)
 {
-    if (is_product()) {
-        return $price; // do nothing on single product pages
-    }
     $min_price = $product->get_variation_price('min', true);
     return wc_price($min_price) . "~";
 }
