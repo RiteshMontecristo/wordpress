@@ -151,7 +151,7 @@ function single_page_contact()
     <?php } else { ?>
         <a href="/contact#contactUs" class="btn btn-contact">Contact Us</a>
         <a href="<?= $contact ?>" class="btn btn-call">Call Us</a>
-<?php }
+    <?php }
 }
 
 add_action("woocommerce_single_product_summary", "single_page_contact", 31);
@@ -167,3 +167,58 @@ function product_description()
     require_once get_stylesheet_directory() . '/woocommerce/tabs/tabs.php';
 }
 add_action("woocommerce_after_single_product_summary", "product_description", 10);
+
+add_filter('woocommerce_available_variation', 'add_sku_to_variation_data');
+function add_sku_to_variation_data($variation_data)
+{
+    $variation_data['sku'] = $variation_data['variation_id'] ? get_post_meta($variation_data['variation_id'], '_sku', true) : '';
+    return $variation_data;
+}
+
+add_action('wp_footer', 'change_sku_number_for_variant');
+function change_sku_number_for_variant()
+{
+    if (is_product()) { ?>
+        <script>
+            jQuery(function($) {
+                $('form.variations_form').on('found_variation', function(event, variation) {
+                    $(".product-model-number").text(variation.sku);
+                });
+            });
+        </script>
+<?php }
+}
+
+// Remove Add to cart from the list created here
+function my_blocked_products_list()
+{
+    return array(
+        'categories' => array('Cammilli Firenze', 'Fabergé', 'Messika', 'Mikimoto', 'Montecristo', 'Pomellato', 'Roberto Coin', 'Bell & Ross', 'Blancpain', 'Breguet', 'Corum', 'Glashütte Original', 'Longines', 'MIDO', 'OMEGA'), // change slugs
+        'product_ids' => array(),          // change IDs
+    );
+}
+
+/* ------------------------
+ * SINGLE PRODUCT: buffer form output and strip the <button>
+ * ------------------------ */
+add_action('woocommerce_before_add_to_cart_form', function () {
+    $blocked = my_blocked_products_list();
+    global $product;
+    if (! $product) return;
+
+    if (has_term($blocked['categories'], 'product_cat', $product->get_id()) || in_array($product->get_id(), $blocked['product_ids'])) {
+        ob_start(); // start buffering the form output
+
+        add_action('woocommerce_after_add_to_cart_form', function () {
+            $buffer = ob_get_clean();
+
+            if (! $buffer) return;
+
+            // remove button elements that have class "add_to_cart" or "single_add_to_cart_button"
+            $buffer = preg_replace('#<button\b[^>]*(?:add_to_cart|single_add_to_cart_button)[^>]*>.*?</button>#is', '', $buffer);
+
+            // echo the cleaned form HTML back out
+            echo $buffer;
+        }, 999);
+    }
+}, 1);
