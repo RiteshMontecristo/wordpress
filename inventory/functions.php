@@ -385,6 +385,86 @@ function create_services_table()
     }
 }
 
+function mji_update_inventory_units_table()
+{
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mji_product_inventory_units';
+
+    // 1️⃣ Add supplier_id column if it doesn't exist
+    $column = $wpdb->get_results($wpdb->prepare(
+        "SHOW COLUMNS FROM `$table_name` LIKE %s",
+        'supplier_id'
+    ));
+    if (empty($column)) {
+        $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `supplier_id` BIGINT NULL");
+        custom_log("✅ Added column `supplier_id`");
+    }
+
+    // 2️⃣ Add invoice_number column if it doesn't exist
+    $column = $wpdb->get_results($wpdb->prepare(
+        "SHOW COLUMNS FROM `$table_name` LIKE %s",
+        'invoice_number'
+    ));
+    if (empty($column)) {
+        $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `invoice_number` VARCHAR(100) NULL");
+        custom_log("✅ Added column `invoice_number`");
+    }
+
+    // 3️⃣ Add true_cost column if it doesn't exist
+    $column = $wpdb->get_results($wpdb->prepare(
+        "SHOW COLUMNS FROM `$table_name` LIKE %s",
+        'true_cost'
+    ));
+    if (empty($column)) {
+        $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `true_cost` DECIMAL(10,2) NULL");
+        custom_log("✅ Added column `true_cost`");
+
+        // 3a️⃣ Populate true_cost with current cost_price
+        $wpdb->query("UPDATE `$table_name` SET `true_cost` = `cost_price`");
+        custom_log("✅ Populated `true_cost` with `cost_price` values");
+    }
+
+    // 4️⃣ Optional: log completion
+    custom_log("✅ Inventory units table updated successfully.");
+}
+
+
+function create_suppliers_table()
+{
+    global $wpdb;
+
+    // Define table name with WordPress prefix
+    $table_name = $wpdb->prefix . 'mji_suppliers';
+
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+
+    if ($exists === $table_name) {
+        custom_log("✅ Table already exists: {$table_name} — skipping creation");
+    } else {
+        // Define character set and collation
+        $charset_collate = $wpdb->get_charset_collate();
+
+        // Define the SQL query to create the table
+        $sql = "CREATE TABLE $table_name (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(50)
+        ) $charset_collate;";
+
+        $result = $wpdb->query($sql);
+
+        if ($result === false) {
+            custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+        } else {
+            custom_log("✅ Successfully created {$table_name}");
+        }
+    }
+}
+
+// Needed to add suppliers and invocies for inventory doing this both here
+// add_action('admin_init', 'mji_update_inventory_units_table');
+// add_action('admin_init', 'create_suppliers_table');
+
+
 // Add menu page in WordPress admin
 function create_inventory_menu()
 {
@@ -460,8 +540,16 @@ function custom_woocommerce_admin_search($where, $wp_query)
 
     return $where;
 }
-
 add_filter('posts_where', 'custom_woocommerce_admin_search', 10, 2);
+
+// IMPORTING SELECT2 for select search HTML
+function my_enqueue_scripts()
+{
+    wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js', ['jquery']);
+    wp_enqueue_style('select2-css', 'https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/css/select2.min.css');
+}
+add_action('admin_enqueue_scripts', 'my_enqueue_scripts');
+
 
 // ORDER ITEM REDUCTION
 add_action('woocommerce_checkout_order_processed', 'adjust_stock_after_order', 10, 3);
@@ -735,6 +823,40 @@ function mji_brands_dropdown($required = true, $selected_id = '')
     return $html;
 }
 
+
+function mji_get_suppliers()
+{
+    // Try transient first
+    $brands = get_transient('mji_suppliers');
+    if ($brands !== false) {
+        return $brands;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mji_suppliers';
+    $results = $wpdb->get_results("SELECT id, name FROM $table_name ORDER BY name ASC");
+
+    $brands = $results ?: [];
+    set_transient('mji_suppliers', $brands, DAY_IN_SECONDS);
+
+    return $brands;
+}
+
+function mji_suppliers_dropdown($required = true)
+{
+    $suppliers = mji_get_suppliers();
+    $required_attr = $required ? 'required' : '';
+
+?>
+    <select id="supplierID" name="supplier_id" class="supplier-select" <?= $required_attr ?>>
+        <option value="">Select or add supplier</option>
+        <?php foreach ($suppliers as $supplier): ?>
+            <option value="<?= $supplier->id ?>"><?= esc_html($supplier->name) ?></option>
+        <?php endforeach; ?>
+    </select>
+
+<?php
+}
 // To look at our categories and then make the primary category based on parent category
 add_action('admin_menu', function () {
     add_submenu_page(
