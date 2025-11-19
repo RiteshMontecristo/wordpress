@@ -1,35 +1,103 @@
 const inventoryTable = document.querySelector("#inventory-units-table");
-const addInventoryUnit = document.querySelector("#addNewInventoryUnit");
-const addUnitButton = addInventoryUnit?.querySelector("#addUnit");
-const editUnitButton = inventoryTable?.querySelectorAll(".edit-unit");
-const saveUnitButton = inventoryTable?.querySelectorAll(".save-unit");
 
-addUnitButton?.addEventListener("click", function (event) {
-  event.preventDefault();
-  addUnitButton.setAttribute("disabled", true);
-  const productID = addInventoryUnit.dataset.productId;
-  const sku = addInventoryUnit.querySelector("#sku").value;
-  const status = addInventoryUnit.querySelector("#status").value;
-  const variationID = addInventoryUnit.querySelector("#variationID")?.value;
-  const locationID = addInventoryUnit.querySelector("#locationID").value;
-  const serialInput = addInventoryUnit.querySelector("#serialNum");
+const inventoryUnitModal = document?.querySelector("#inventory_unit_modal");
+const addUnitModal = document?.querySelector("#open_add_modal");
+const editUnitModal = inventoryTable?.querySelectorAll(".edit-unit");
+const saveModal = inventoryUnitModal?.querySelector("#modal_save");
+const cancelModal = inventoryUnitModal?.querySelector("#modal_cancel");
 
-  if (!sku) {
-    alert("Please enter SKU as it is a required fields.");
-    addUnitButton.removeAttribute("disabled");
+const unitIdModal = inventoryUnitModal?.querySelector("#modal_unit_id");
+const productIdModal = inventoryUnitModal?.querySelector("#modal_product_id");
+const skuModal = inventoryUnitModal?.querySelector("#modal_sku");
+const statusModal = inventoryUnitModal?.querySelector("#modal_status");
+const variantModal = inventoryUnitModal?.querySelector("#variationID");
+const serialModal = inventoryUnitModal?.querySelector("#modal_serial");
+const locationModal = inventoryUnitModal?.querySelector("#location");
+const supplierModal = inventoryUnitModal?.querySelector("#supplierID");
+const invoiceNumberModal = inventoryUnitModal?.querySelector(
+  "#modal_invoice_number"
+);
+const invoiceDateModal = inventoryUnitModal?.querySelector(
+  "#modal_invoice_date"
+);
+const costPriceModal = inventoryUnitModal?.querySelector("#modal_cost_price");
+const trueCostModal = inventoryUnitModal?.querySelector("#modal_true_cost");
+const retailPriceModal = inventoryUnitModal?.querySelector(
+  "#modal_retail_price"
+);
+const notesModal = inventoryUnitModal?.querySelector("#modal_notes");
+
+addUnitModal?.addEventListener("click", (e) => {
+  e.preventDefault();
+  resetModal();
+  inventoryUnitModal.style.display = "block";
+});
+
+cancelModal?.addEventListener("click", (e) => {
+  e.preventDefault();
+  inventoryUnitModal.style.display = "none";
+});
+
+saveModal?.addEventListener("click", (e) => {
+  e.preventDefault();
+
+  saveModal.setAttribute("disabled", true);
+  const errorDiv = document.querySelector("#modal_error_message");
+  errorDiv.style.display = "none"; // Reset
+
+  const unitId = unitIdModal?.value || "";
+  const productId = productIdModal?.value || "";
+  const sku = skuModal?.value || "";
+  const status = statusModal?.value || "";
+  const variant = variantModal?.value || "";
+  const serial = serialModal?.value || "";
+  const location = locationModal?.value || "";
+  const supplier = supplierModal?.value || "";
+  const invoiceNumber = invoiceNumberModal?.value || "";
+  const invoiceDate = invoiceDateModal?.value || "";
+  const trueCost = trueCostModal?.value || "";
+  const costPrice = costPriceModal?.value || "";
+  const retailPrice = retailPriceModal?.value || "";
+  const notes = notesModal?.value || "";
+
+  let errors = [];
+  if (!productId) errors.push("Product ID is required.");
+  if (!sku) errors.push("SKU is required.");
+  if (!location) errors.push("Location is required.");
+  if (!supplier) errors.push("Supplier is required.");
+  if (!invoiceNumber) errors.push("Invoice Number is required.");
+  if (!invoiceDate) errors.push("Invoice Date is required.");
+  if (!costPrice) errors.push("Cost Price is required.");
+  if (!trueCost) errors.push("True Cost is required.");
+  if (!retailPrice) errors.push("Retail Price is required.");
+
+  if (errors.length > 0) {
+    errorDiv.innerHTML = errors.join("<br>");
+    errorDiv.style.display = "block";
+    saveModal.removeAttribute("disabled");
     return;
   }
 
   const formData = new FormData();
-  formData.append("action", "create_inventory_units");
-  formData.append("product_id", productID);
+  formData.append("product_id", productId);
   formData.append("sku", sku);
   formData.append("status", status);
-  formData.append("locationID", locationID);
-  if (serialInput) {
-    formData.append("serialNum", serialInput.value);
+  formData.append("location", location);
+  formData.append("supplier", supplier);
+  formData.append("invoice_number", invoiceNumber);
+  formData.append("invoice_date", invoiceDate);
+  formData.append("true_cost", trueCost);
+  formData.append("cost_price", costPrice);
+  formData.append("retail_price", retailPrice);
+  serial && formData.append("serial", serial);
+  notes && formData.append("notes", notes);
+  variant && formData.append("variationID", variant);
+
+  if (unitId) {
+    formData.append("unit_id", unitId);
+  } else {
+    formData.append("action", "create_inventory_units");
   }
-  variationID && formData.append("variationID", variationID);
 
   fetch(`${ajax_inventory.ajax_url}`, {
     method: "POST",
@@ -39,9 +107,15 @@ addUnitButton?.addEventListener("click", function (event) {
     .then((res) => {
       if (res.success) {
         alert("Unit added successfully!");
-        location.reload();
+        window.location.reload();
       } else {
-        alert(res.data);
+        if (Array.isArray(res.data.errors)) {
+          errorDiv.innerHTML = res.data.errors.join("<br>");
+        } else {
+          errorDiv.innerHTML = res.data.errors;
+        }
+        errorDiv.style.display = "block";
+        saveModal.removeAttribute("disabled");
       }
     })
     .catch((error) => {
@@ -49,110 +123,78 @@ addUnitButton?.addEventListener("click", function (event) {
     });
 });
 
-editUnitButton?.forEach((button) => {
+// Select searchbox
+jQuery(document).ready(function ($) {
+  $(".supplier-select").select2({
+    tags: true, // allows user to add new supplier
+    placeholder: "Select or type supplier name",
+    allowClear: true,
+  });
+});
+
+// Change the price when different variation selected due to different cost and retail price
+function updatePricesFromVariation() {
+  const selectedOption = variantModal.options[variantModal.selectedIndex];
+  const retail = selectedOption.dataset.retail;
+  const cost = selectedOption.dataset.cost;
+
+  if (retail) retailPriceModal.value = retail;
+  if (cost) {
+    trueCostModal.value = cost;
+    costPriceModal.value = cost;
+  }
+}
+variantModal?.addEventListener("change", updatePricesFromVariation);
+
+editUnitModal?.forEach((button) => {
   button.addEventListener("click", function (event) {
     event.preventDefault();
+    inventoryUnitModal.style.display = "block";
     const tr = this.closest("tr");
-    tr.querySelector(".edit-unit").style.display = "none";
-    tr.querySelector(".save-unit").style.display = "inline-block";
+    const unitData = {
+      productId: tr.dataset.productId,
+      unitId: tr.dataset.unitId,
+      sku: tr.dataset.sku,
+      status: tr.dataset.status,
+      variant: tr.dataset.variant,
+      serial: tr.dataset.serial,
+      location: tr.dataset.location,
+      supplier: tr.dataset.supplier,
+      invoiceNumber: tr.dataset.invoiceNumber,
+      invoiceDate: tr.dataset.invoiceDate,
+      costPrice: tr.dataset.costPrice,
+      trueCost: tr.dataset.trueCost,
+      retailPrice: tr.dataset.retailPrice,
+      notes: tr.dataset.notes,
+    };
 
-    tr.querySelectorAll(".editable-cell").forEach((cell) => {
-      const fieldType = cell.getAttribute("data-field");
-      const currentValue = cell.dataset.value.trim();
-
-      let newElement, cloneNode;
-
-      switch (fieldType) {
-        case "sku":
-          newElement = document.createElement("input");
-          newElement.type = "text";
-          newElement.id = "sku";
-          newElement.value = currentValue;
-          break;
-
-        case "status":
-          const addStatusHTML = addInventoryUnit.querySelector("#status");
-          cloneNode = addStatusHTML.cloneNode(true);
-          break;
-
-        case "location":
-          const addLocationHTML = addInventoryUnit.querySelector("#locationID");
-          cloneNode = addLocationHTML.cloneNode(true);
-          break;
-
-        case "variant":
-          const addVariationtionHTML =
-            addInventoryUnit.querySelector("#variationID");
-          cloneNode = addVariationtionHTML.cloneNode(true);
-          break;
-
-        case "serial":
-          newElement = document.createElement("input");
-          newElement.type = "text";
-          newElement.id = "serialNum";
-          newElement.value = currentValue;
-          break;
-
-        default:
-          newElement = null;
-      }
-
-      if (newElement) {
-        cell.textContent = "";
-        cell.appendChild(newElement);
-      }
-      if (cloneNode) {
-        cell.textContent = "";
-        cloneNode.value = currentValue;
-        cell.appendChild(cloneNode);
-      }
-    });
-  });
-});
-
-saveUnitButton?.forEach((button) => {
-  button.addEventListener("click", function (e) {
-    e.preventDefault();
-    this.setAttribute("disabled", true);
-    const tr = this.closest("tr");
-
-    const unitId = tr.dataset.unitId;
-    const productId = tr.dataset.productId;
-    const sku = tr.querySelector("#sku").value;
-    const status = tr.querySelector("#status").value;
-    const variationID = tr.querySelector("#variationID")?.value;
-    const locationID = tr.querySelector("#locationID").value;
-    const serial = tr.querySelector("#serialNum");
-
-    const formData = new FormData();
-    formData.append("action", "update_inventory_units");
-    formData.append("unitId", unitId);
-    formData.append("productId", productId);
-    formData.append("sku", sku);
-    formData.append("status", status);
-    formData.append("variationID", variationID);
-    formData.append("locationID", locationID);
-
-    if (serial) {
-      formData.append("serialNum", serial.value);
+    // Populate modal inputs
+    unitIdModal.value = unitData.unitId || "";
+    productIdModal.value = unitData.productId || "";
+    skuModal.value = unitData.sku || "";
+    statusModal.value = unitData.status || "";
+    if (variantModal) {
+      variantModal.value = unitData.variant || "";
     }
-
-    fetch(`${ajax_inventory.ajax_url}`, {
-      method: "POST",
-      body: formData,
-    })
-      .then((res) => res.json())
-      .then((res) => {
-        if (res.success) {
-          alert("Unit updated successfully!");
-          location.reload();
-        } else {
-          alert(res.data);
-        }
-        console.log(res);
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-      });
+    serialModal.value = unitData.serial || "";
+    locationModal.value = unitData.location || "";
+    supplierModal.value = unitData.supplier || "";
+    invoiceNumberModal.value = unitData.invoiceNumber || "";
+    invoiceDateModal.value = unitData.invoiceDate || "";
+    costPriceModal.value = unitData.costPrice || "";
+    trueCostModal.value = unitData.trueCost || "";
+    retailPriceModal.value = unitData.retailPrice || "";
+    notesModal.value = unitData.notes || "";
   });
 });
+
+function resetModal() {
+  unitIdModal.value = "";
+  skuModal.value = "";
+  statusModal.value = "in_stock";
+  serialModal.value = "";
+  locationModal.value = "1";
+  supplierModal.value = "";
+  invoiceNumberModal.value = "";
+  notesModal.value = "";
+}
