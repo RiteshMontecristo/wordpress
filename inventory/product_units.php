@@ -281,18 +281,17 @@ function generate_variation_dropdown($product, &$variation_name_by_id)
 function create_inventory_units()
 {
     global $wpdb;
-    // MTMI22-0270 price diff
-    // 3175	3500
 
     // Check required fields
     $errors = [];
 
+    $unit_id = isset($_POST['unit_id']) ? intval($_POST['unit_id']) : null;
     $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : null;
+    $variation_id = isset($_POST['variationID']) ? intval($_POST['variationID']) : null;
     $sku = isset($_POST['sku']) ? sanitize_text_field($_POST['sku']) : null;
     $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : null;
     $serial_number = (isset($_POST['serial']) && !is_empty($_POST['serial'])) ? $_POST['serial'] : null;
     $location_id = isset($_POST['location']) ? intval($_POST['location']) : null;
-    $variation_id = isset($_POST['variationID']) ? intval($_POST['variationID']) : null;
     $invoice_number = isset($_POST['invoice_number']) ? sanitize_text_field($_POST['invoice_number']) : null;
     $invoice_date = isset($_POST['invoice_date']) ? sanitize_text_field($_POST['invoice_date']) : null;
     if ($invoice_date && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $invoice_date)) {
@@ -324,6 +323,7 @@ function create_inventory_units()
     }
 
     $product = wc_get_product($product_id);
+    $variation = $variation_id ? wc_get_product($variation_id) : null;
     $category_id = get_post_meta($product_id, 'rank_math_primary_product_cat', true);
     if ($category_id == 0) {
         wp_send_json_error('No primary category set for this product.');
@@ -336,43 +336,10 @@ function create_inventory_units()
     $brands_table = $wpdb->prefix . 'mji_brands';
     $suppliers_table = $wpdb->prefix . 'mji_suppliers';
 
-    // Grab the model number and also if price changed, need to change woocommerce products price and quantity change as well
-    if ($variation_id) {
-        $variation = wc_get_product($variation_id);
-        $wc_retail_price = $variation->get_price();
-        $wc_cost_price = get_post_meta($variation_id, '_cost_price', true);
-        wc_update_product_stock($variation_id, 1, 'increase');
-        WC_Product_Variable::sync_stock_status($variation->get_parent_id());
-
-        if ($wc_retail_price !== $retail_price) {
-            update_post_meta($variation_id, '_regular_price', $retail_price);
-            update_post_meta($variation_id, '_price', $retail_price);
-            WC_Product_Variable::sync($product_id);
-        }
-
-        if ($wc_cost_price !== $cost_price) {
-            update_post_meta($variation_id, '_cost_price', $cost_price);
-        }
-
-        // Deleting stale data so customer gets correct info
-        wc_delete_product_transients($variation_id);
-        wc_delete_product_transients($product_id);
+    // Grab the model number
+    if ($variation) {
         $model = $variation->get_sku();
     } else {
-        $wc_retail_price = $product->get_price();
-        $wc_cost_price = get_post_meta($product_id, '_cost_price', true);
-        wc_update_product_stock($product_id, 1, 'increase');
-
-        if ($wc_retail_price !== $retail_price) {
-            update_post_meta($product_id, '_regular_price', $retail_price);
-            update_post_meta($product_id, '_price', $retail_price);
-        }
-
-        if ($wc_cost_price !== $cost_price) {
-            update_post_meta($product_id, '_cost_price', $cost_price);
-        }
-
-        wc_delete_product_transients($product_id);
         $model = $product->get_sku();
     }
 
@@ -392,38 +359,144 @@ function create_inventory_units()
     }
 
     try {
-        $result = $wpdb->insert(
-            $table_name,
-            [
-                'wc_product_id' => $product_id,
-                'wc_product_variant_id' => $variation_id,
-                'sku' => $sku,
-                'serial' => $serial_number,
-                'status' => $status,
-                'location_id' => $location_id,
-                'invoice_number' => $invoice_number,
-                'created_date' => $invoice_date,
-                'true_cost' => $true_cost,
-                'cost_price' => $cost_price,
-                'retail_price' => $retail_price,
-                'model_id' => $model_id,
-                'brand_id' => $brand_id,
-                'supplier_id' => $supplier_id,
-                'notes' => $notes
-            ]
-        );
-
-        if ($result === false) {
-            custom_log('Database error: ' . $wpdb->last_error);
-            wp_send_json_error(
+        // If unit id present then update else need to create product unit
+        if ($unit_id) {
+            update_unit_sku($unit_id, $sku);
+            $result = $wpdb->update(
+                $table_name,
                 [
-                    'message' => 'Please fix the following errors:',
-                    'errors' => 'Database error: ' . $wpdb->last_error
+                    'wc_product_id' => $product_id,
+                    'wc_product_variant_id' => $variation_id,
+                    'sku' => $sku,
+                    'serial' => $serial_number,
+                    'status' => $status,
+                    'location_id' => $location_id,
+                    'invoice_number' => $invoice_number,
+                    'created_date' => $invoice_date,
+                    'true_cost' => $true_cost,
+                    'cost_price' => $cost_price,
+                    'retail_price' => $retail_price,
+                    'model_id' => $model_id,
+                    'brand_id' => $brand_id,
+                    'supplier_id' => $supplier_id,
+                    'notes' => $notes
+                ],
+                ['id' => $unit_id],
+            );
+
+            if ($result === false) {
+                custom_log('Database error: ' . $wpdb->last_error);
+                wp_send_json_error(
+                    [
+                        'message' => 'Please fix the following errors:',
+                        'errors' => 'Database error: ' . $wpdb->last_error
+                    ]
+                );
+            }
+            // if price changed, need to change woocommerce products price and quantity change as well
+            if ($variation) {
+                $wc_retail_price = $variation->get_price();
+                $wc_cost_price = get_post_meta($variation_id, '_cost_price', true);
+
+                if ($wc_retail_price !== $retail_price) {
+                    update_post_meta($variation_id, '_regular_price', $retail_price);
+                    update_post_meta($variation_id, '_price', $retail_price);
+                    WC_Product_Variable::sync($product_id);
+                }
+
+                if ($wc_cost_price !== $cost_price) {
+                    update_post_meta($variation_id, '_cost_price', $cost_price);
+                }
+
+                // Deleting stale data so customer gets correct info
+                wc_delete_product_transients($variation_id);
+                wc_delete_product_transients($product_id);
+            } else {
+                $wc_retail_price = $product->get_price();
+                $wc_cost_price = get_post_meta($product_id, '_cost_price', true);
+
+                if ($wc_retail_price !== $retail_price) {
+                    update_post_meta($product_id, '_regular_price', $retail_price);
+                    update_post_meta($product_id, '_price', $retail_price);
+                }
+
+                if ($wc_cost_price !== $cost_price) {
+                    update_post_meta($product_id, '_cost_price', $cost_price);
+                }
+
+                wc_delete_product_transients($product_id);
+            }
+            wp_send_json_success($result);
+        } else {
+            sku_exists_anywhere($sku);
+            $result = $wpdb->insert(
+                $table_name,
+                [
+                    'wc_product_id' => $product_id,
+                    'wc_product_variant_id' => $variation_id,
+                    'sku' => $sku,
+                    'serial' => $serial_number,
+                    'status' => $status,
+                    'location_id' => $location_id,
+                    'invoice_number' => $invoice_number,
+                    'created_date' => $invoice_date,
+                    'true_cost' => $true_cost,
+                    'cost_price' => $cost_price,
+                    'retail_price' => $retail_price,
+                    'model_id' => $model_id,
+                    'brand_id' => $brand_id,
+                    'supplier_id' => $supplier_id,
+                    'notes' => $notes
                 ]
             );
-        }
 
-        wp_send_json_success($result);
+            if ($result === false) {
+                custom_log('Database error: ' . $wpdb->last_error);
+                wp_send_json_error(
+                    [
+                        'message' => 'Please fix the following errors:',
+                        'errors' => 'Database error: ' . $wpdb->last_error
+                    ]
+                );
+            }
+            // if price changed, need to change woocommerce products price and quantity change as well
+            if ($variation) {
+                $wc_retail_price = $variation->get_price();
+                $wc_cost_price = get_post_meta($variation_id, '_cost_price', true);
+                wc_update_product_stock($variation_id, 1, 'increase');
+                WC_Product_Variable::sync_stock_status($variation->get_parent_id());
+
+                if ($wc_retail_price !== $retail_price) {
+                    update_post_meta($variation_id, '_regular_price', $retail_price);
+                    update_post_meta($variation_id, '_price', $retail_price);
+                    WC_Product_Variable::sync($product_id);
+                }
+
+                if ($wc_cost_price !== $cost_price) {
+                    update_post_meta($variation_id, '_cost_price', $cost_price);
+                }
+
+                // Deleting stale data so customer gets correct info
+                wc_delete_product_transients($variation_id);
+                wc_delete_product_transients($product_id);
+            } else {
+                $wc_retail_price = $product->get_price();
+                $wc_cost_price = get_post_meta($product_id, '_cost_price', true);
+                wc_update_product_stock($product_id, 1, 'increase');
+
+                if ($wc_retail_price !== $retail_price) {
+                    update_post_meta($product_id, '_regular_price', $retail_price);
+                    update_post_meta($product_id, '_price', $retail_price);
+                }
+
+                if ($wc_cost_price !== $cost_price) {
+                    update_post_meta($product_id, '_cost_price', $cost_price);
+                }
+
+                wc_delete_product_transients($product_id);
+            }
+            wp_send_json_success($result);
+        }
     } catch (Exception $e) {
         custom_log("Error " . $e->getMessage());
         wp_send_json_error(['message' => 'Error creating inventory unit: ' . $e->getMessage()]);
@@ -431,81 +504,6 @@ function create_inventory_units()
 }
 
 add_action('wp_ajax_create_inventory_units', 'create_inventory_units');
-
-function update_inventory_units()
-{
-    global $wpdb;
-
-    $unit_id = intval($_POST['unitId']);
-    $product_id = intval($_POST['productId']);
-    $sku = sanitize_text_field($_POST['sku']);
-    $status = sanitize_text_field($_POST['status']);
-    $location_id = intval($_POST['locationID']);
-    $variation_id = isset($_POST['variationID']) ? intval($_POST['variationID']) : null;
-    $serial = isset($_POST['serialNum']) && !is_empty($_POST['serialNum']) ? sanitize_text_field($_POST['serialNum']) : null;
-
-    $data =   [
-        'wc_product_id' => $product_id,
-        'wc_product_variant_id' => $variation_id,
-        'sku' => $sku,
-        'status' => $status,
-        'location_id' => $location_id,
-        'serial' => $serial
-    ];
-    $format = [
-        '%d', // wc_product_id
-        '%d', // wc_product_variant_id
-        '%s', // sku
-        '%s', // status
-        '%d',  // location_id
-        '%s'  // serial
-    ];
-
-    if ($variation_id) {
-        $variation = wc_get_product($variation_id);
-        $retail_price = $variation->get_price();
-        $cost_price = get_post_meta($variation_id, '_cost_price', true);
-        $model = $variation->get_sku();
-        $models_table = $wpdb->prefix . 'mji_models';
-
-        $model_id = get_brand_model_id($models_table, $model);
-
-        $data['cost_price'] = $cost_price;
-        $data['retail_price'] = $retail_price;
-        $data['model_id'] = $model_id;
-        $format[] = '%f'; // cost_price
-        $format[] = '%f'; // retail_price
-        $format[] = '%d'; // model_id
-    }
-
-    if ($unit_id <= 0 || $product_id <= 0 || empty($sku)) {
-        wp_send_json_error('Invalid unit or product ID or no SKU provided.');
-        return;
-    }
-
-    $table_name = $wpdb->prefix . 'mji_product_inventory_units';
-
-    try {
-        $result = $wpdb->update(
-            $table_name,
-            $data,
-            ['id' => $unit_id],
-            $format
-        );
-
-        if ($result === false) {
-            custom_log('Database error: ' . $wpdb->last_error);
-            wp_send_json_error('Database error: ' . $wpdb->last_error);
-        }
-
-        wp_send_json_success($result);
-    } catch (Exception $e) {
-        custom_log("Error " . $e->getMessage());
-        wp_send_json_error(['message' => 'Error updating inventory unit: ' . $e->getMessage()]);
-    }
-}
-
-add_action('wp_ajax_update_inventory_units', 'update_inventory_units');
 
 // Grab the brand and model id
 function get_brand_model_id($table_name, $value)
@@ -551,6 +549,59 @@ function get_brand_model_id($table_name, $value)
     return $id;
 }
 
+// to check if the sku exists in the two table before creating
+function sku_exists_anywhere($new_sku)
+{
+    global $wpdb;
+
+    $units_table = $wpdb->prefix . 'mji_product_inventory_units';
+    $history_table = $wpdb->prefix . 'mji_product_sku_history';
+
+    // Check current units table
+    $exists_units = $wpdb->get_var(
+        $wpdb->prepare("SELECT COUNT(*) FROM $units_table WHERE sku = %s", $new_sku)
+    );
+
+    // Check old SKUs history
+    $exists_history = $wpdb->get_var(
+        $wpdb->prepare("SELECT COUNT(*) FROM $history_table WHERE old_sku = %s", $new_sku)
+    );
+
+    if ($exists_units > 0 || $exists_history > 0) {
+        wp_send_json_error(
+            [
+                'message' => 'Please fix the following errors:',
+                'errors' => 'The SKU exists already'
+            ]
+        );
+    };
+}
+
+function update_unit_sku($unit_id, $new_sku)
+{
+    global $wpdb;
+
+    $units_table = $wpdb->prefix . 'mji_product_inventory_units';
+    $history_table = $wpdb->prefix . 'mji_product_sku_history';
+
+    // Fetch current SKU
+    $current_sku = $wpdb->get_var(
+        $wpdb->prepare("SELECT sku FROM $units_table WHERE id = %d", $unit_id)
+    );
+
+    // If same SKU, do nothing
+    if ($current_sku === $new_sku) {
+        return true;
+    }
+
+    sku_exists_anywhere($new_sku);
+
+    $wpdb->insert($history_table, [
+        'unit_id' => $unit_id,
+        'old_sku' => $current_sku
+    ]);
+}
+
 // Save for the normal product
 add_action('save_post_product', 'watch_simple_product_changes', 20, 3);
 function watch_simple_product_changes($post_id, $post, $update)
@@ -560,6 +611,11 @@ function watch_simple_product_changes($post_id, $post, $update)
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_product_inventory_units';
 
+    $exists_units = $wpdb->get_var(
+        $wpdb->prepare("SELECT COUNT(*) FROM $table_name WHERE wc_product_id = %s", $post_id)
+    );
+
+    if (!$exists_units) return;
     // Update brands for simple and variable products
     $old_primary_cat = get_post_meta($post_id, 'rank_math_primary_product_cat', true);
     $new_primary_cat = isset($_POST['rank_math_primary_product_cat']) ? intval($_POST['rank_math_primary_product_cat']) : $old_primary_cat;
@@ -649,6 +705,16 @@ function watch_simple_product_changes($post_id, $post, $update)
 add_action('woocommerce_save_product_variation', 'watch_variation_retail_price', 5, 2);
 function watch_variation_retail_price($variation_id, $i)
 {
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . "mji_product_inventory_units";
+
+    $exists_units = $wpdb->get_var(
+        $wpdb->prepare("SELECT COUNT(*) FROM $table_name WHERE wc_product_variant_id = %s", $variation_id)
+    );
+
+    if (!$exists_units) return;
+
     $old_price = get_post_meta($variation_id, '_price', true);
 
     $new_price = isset($_POST['variable_regular_price'][$i])
@@ -659,7 +725,6 @@ function watch_variation_retail_price($variation_id, $i)
     $new_model = isset($_POST['variable_sku'][$i]) ?
         sanitize_text_field($_POST['variable_sku'][$i]) : $old_model;
 
-    global $wpdb;
 
     $result = $wpdb->update(
         $wpdb->prefix . 'mji_product_inventory_units',
@@ -681,7 +746,7 @@ function watch_variation_retail_price($variation_id, $i)
 
     $model_id = $wpdb->get_var(
         $wpdb->prepare(
-            "SELECT model_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE wc_product_variant_id = %d LIMIT 1",
+            "SELECT model_id FROM $table_name WHERE wc_product_variant_id = %d LIMIT 1",
             $variation_id
         )
     );

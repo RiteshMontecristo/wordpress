@@ -92,11 +92,10 @@ saveModal?.addEventListener("click", (e) => {
   serial && formData.append("serial", serial);
   notes && formData.append("notes", notes);
   variant && formData.append("variationID", variant);
+  formData.append("action", "create_inventory_units");
 
   if (unitId) {
     formData.append("unit_id", unitId);
-  } else {
-    formData.append("action", "create_inventory_units");
   }
 
   fetch(`${ajax_inventory.ajax_url}`, {
@@ -179,6 +178,7 @@ editUnitModal?.forEach((button) => {
     serialModal.value = unitData.serial || "";
     locationModal.value = unitData.location || "";
     supplierModal.value = unitData.supplier || "";
+    jQuery(supplierModal).trigger("change"); // need to use jquery to change the modal value
     invoiceNumberModal.value = unitData.invoiceNumber || "";
     invoiceDateModal.value = unitData.invoiceDate || "";
     costPriceModal.value = unitData.costPrice || "";

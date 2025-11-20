@@ -428,6 +428,43 @@ function mji_update_inventory_units_table()
     custom_log("✅ Inventory units table updated successfully.");
 }
 
+function create_sku_history_table()
+{
+    global $wpdb;
+
+    // Define table name with WordPress prefix
+    $table_name = $wpdb->prefix . 'mji_product_sku_history';
+    $product_inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
+
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+
+    if ($exists === $table_name) {
+        custom_log("✅ Table already exists: {$table_name} — skipping creation");
+    } else {
+        // Define character set and collation
+        $charset_collate = $wpdb->get_charset_collate();
+
+        // Define the SQL query to create the table
+        $sql = "CREATE TABLE $table_name (
+        `id` BIGINT NOT NULL AUTO_INCREMENT,
+        `unit_id` BIGINT NOT NULL,
+        `old_sku` VARCHAR(50) NOT NULL,
+        `changed_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        KEY `old_sku` (`old_sku`),
+        FOREIGN KEY (`unit_id`) REFERENCES `$product_inventory_table`(`id`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+        ) $charset_collate;";
+
+        $result = $wpdb->query($sql);
+
+        if ($result === false) {
+            custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+        } else {
+            custom_log("✅ Successfully created {$table_name}");
+        }
+    }
+}
 
 function create_suppliers_table()
 {
@@ -463,7 +500,7 @@ function create_suppliers_table()
 // Needed to add suppliers and invocies for inventory doing this both here
 // add_action('admin_init', 'mji_update_inventory_units_table');
 // add_action('admin_init', 'create_suppliers_table');
-
+// add_action('admin_init', 'create_sku_history_table');
 
 // Add menu page in WordPress admin
 function create_inventory_menu()
@@ -530,11 +567,19 @@ function custom_woocommerce_admin_search($where, $wp_query)
         // Get the search term
         $search_term = esc_sql($_GET['s']);
         $custom_table = $wpdb->prefix . 'mji_product_inventory_units';
+        $history_table = $wpdb->prefix . 'mji_product_sku_history';
+
         $where .= " OR EXISTS (
-            SELECT 1
-            FROM $custom_table
+            SELECT 1 FROM $custom_table
             WHERE $custom_table.wc_product_id = {$wpdb->posts}.ID
-              AND $custom_table.sku = '$search_term'
+            AND (
+                $custom_table.sku = '$search_term'
+                OR EXISTS (
+                    SELECT 1 FROM $history_table
+                    WHERE $history_table.unit_id = $custom_table.id
+                    AND $history_table.old_sku = '$search_term'
+                )
+            )
         )";
     }
 
