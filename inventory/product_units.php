@@ -288,7 +288,7 @@ function create_inventory_units()
     $unit_id = isset($_POST['unit_id']) ? intval($_POST['unit_id']) : null;
     $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : null;
     $variation_id = isset($_POST['variationID']) ? intval($_POST['variationID']) : null;
-    $sku = isset($_POST['sku']) ? sanitize_text_field($_POST['sku']) : null;
+    $sku = isset($_POST['sku']) ? strtoupper(sanitize_text_field($_POST['sku'])) : null;
     $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : null;
     $serial_number = (isset($_POST['serial']) && !is_empty($_POST['serial'])) ? $_POST['serial'] : null;
     $location_id = isset($_POST['location']) ? intval($_POST['location']) : null;
