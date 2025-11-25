@@ -185,16 +185,12 @@ if (!empty($children) || $parent_category_name == "Jewellery") {
                             <label for="diamond">Diamond</label>
                         </li>
                         <li>
-                            <input type="checkbox" name="gemstone[]" id="pearls" value="pearls">
-                            <label for="pearls">Pearls</label>
+                            <input type="checkbox" name="gemstone[]" id="no-stone" value="no-stone">
+                            <label for="no-stone">No Diamond</label>
                         </li>
                         <li>
                             <input type="checkbox" name="gemstone[]" id="colored-gems" value="colored-gems">
-                            <label for="colored-gems">Colored Gems</label>
-                        </li>
-                        <li>
-                            <input type="checkbox" name="gemstone[]" id="no-stone" value="no-stone">
-                            <label for="no-stone">No stone</label>
+                            <label for="colored-gems">Colored Gemstone</label>
                         </li>
                     </ul>
                 </div>
@@ -213,6 +209,10 @@ if (!empty($children) || $parent_category_name == "Jewellery") {
                         <li>
                             <input type="checkbox" name="materials[]" id="18k-rose-gold" value="18k-rose-gold">
                             <label for="18k-rose-gold">Rose Gold</label>
+                        </li>
+                        <li>
+                            <input type="checkbox" name="materials[]" id="platinum" value="platinum">
+                            <label for="platinum">Platinum</label>
                         </li>
                     </ul>
                 </div>
