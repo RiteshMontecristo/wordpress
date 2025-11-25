@@ -16,7 +16,6 @@ function checkFormValidity() {
   return (
     firstName.value.trim() !== "" &&
     lastName.value.trim() !== "" &&
-    phone.value.trim() !== "" &&
     address.value.trim() !== "" &&
     city.value.trim() !== "" &&
     province.value.trim() !== "" &&
@@ -26,9 +25,14 @@ function checkFormValidity() {
 }
 
 function checkPostalCodeValidity() {
+  const input = postalCode.value.trim();
+
+  const usZipRegex = /^\d{5}(-\d{4})?$/;
+
   const canadaPostalRegex =
-    /^[ABCEGHJ-NPRSTVXY][0-9][ABCEGHJ-NPRSTV-Z][ ]?[0-9][ABCEGHJ-NPRSTV-Z][0-9]$/;
-  return canadaPostalRegex.test(postalCode.value.trim());
+    /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\s*\d[ABCEGHJ-NPRSTV-Z]\d$/i;
+
+  return usZipRegex.test(input) || canadaPostalRegex.test(input);
 }
 
 customerForm?.addEventListener("submit", (e) => {

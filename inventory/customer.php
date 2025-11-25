@@ -53,10 +53,15 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     // Handle search
     if (!empty($search_query)) {
         $search = $search_query;
+        $search_digits = normalize_phone($search);
+
         $search_query = $wpdb->prepare("
-        AND MATCH(first_name, last_name, phone, street_address, city, province, postal_code, country) 
-        AGAINST(%s IN NATURAL LANGUAGE MODE)
-    ", $search);
+        AND (
+            MATCH(first_name, last_name, phone, street_address, city, province, postal_code, country)
+            AGAINST(%s IN NATURAL LANGUAGE MODE)
+            OR phone LIKE %s
+        )
+    ", $search, $search_digits);
     }
 
     // Build main query
@@ -90,6 +95,18 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
 
     foreach ($customers as $customer) {
 
+        $phone =  "";
+        $digits = $customer->phone;
+        if (!empty($digits)) {
+            if (strlen($digits) === 11 && substr($digits, 0, 1) === '1') {
+                $digits = substr($digits, 1);
+            }
+            $area = substr($digits, 0, 3);
+            $part1 = substr($digits, 3, 3);
+            $part2 = substr($digits, 6, 4);
+            $phone = "($area) $part1-$part2";
+        }
+
         if ($context === "customer") {
             $actionMethod = "
         <td>
@@ -108,7 +125,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
         echo "<tr>
                 <td id='firstName'>{$customer->first_name}</td>
                 <td id='lastName'>{$customer->last_name}</td>
-                <td id='phone'>{$customer->phone}</td>
+                <td id='phone'>{$phone}</td>
                 <td id='email'>{$customer->email}</td>
                 <td id='address'>{$customer->street_address},<br /> {$customer->city} {$customer->province}, <br /> {$customer->postal_code}</td>
                 $actionMethod
@@ -141,8 +158,6 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     }
     echo '</div></div>';
 
-
-
     // Dropdown to change per page limit
     echo '<form method="GET">';
     echo '<input type="hidden" name="page" value="customer-management">';
@@ -155,7 +170,6 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     }
     echo '</select>';
     echo '</form>';
-
 
     return ob_get_clean();
 }
@@ -176,7 +190,7 @@ function add_customer_form()
         <input id="lastName" type="text" name="lastName" required>
 
         <label for="phone">Phone:</label>
-        <input id="phone" type="text" name="phone" required>
+        <input id="phone" type="text" name="phone">
 
         <label for="email">Email:</label>
         <input id="email" type="email" name="email">
@@ -212,13 +226,13 @@ function add_customer_form()
         $lastName = sanitize_text_field($_POST['lastName']);
         $email = sanitize_email($_POST['email']);
         $phone = sanitize_text_field($_POST['phone']);
+        $phone = normalize_phone($phone);
         $address = sanitize_textarea_field($_POST['address']);
         $city = sanitize_textarea_field($_POST['city']);
         $province = sanitize_textarea_field($_POST['province']);
         $postalCode = sanitize_textarea_field($_POST['postalCode']);
         $country = sanitize_textarea_field($_POST['country']);
 
-        $CANADA_POSTAL_REGEX = "/^[ABCEGHJ-NPRSTVXY][0-9][ABCEGHJ-NPRSTV-Z][ ]?[0-9][ABCEGHJ-NPRSTV-Z][0-9]$/";
         $errors = [];
 
         // Validate required fields
@@ -226,8 +240,6 @@ function add_customer_form()
             $errors[] = 'First name is required';
         if (empty($lastName))
             $errors[] = 'Last name is required';
-        if (empty($phone))
-            $errors[] = 'Phone number is required';
         if (empty($city))
             $errors[] = 'City is required';
         if (empty($province))
@@ -242,7 +254,8 @@ function add_customer_form()
             $errors[] = 'Please enter a valid email address or leave the field blank';
         }
 
-        if (!preg_match($CANADA_POSTAL_REGEX, $postalCode)) {
+        $validated_postal_code = validate_postal_code($postalCode);
+        if (!$validated_postal_code['valid']) {
             $errors[] = 'Invalid Canadian postal code format';
         } else {
             // Format postal code with space only if valid
@@ -330,6 +343,7 @@ function edit_customer_form()
         $lastName = sanitize_text_field($_POST['lastName']);
         $email = sanitize_email($_POST['email']);
         $phone = sanitize_text_field($_POST['phone']);
+        $phone = normalize_phone($phone);
         $address = sanitize_textarea_field($_POST['address']);
         $city = sanitize_textarea_field($_POST['city']);
         $province = sanitize_textarea_field($_POST['province']);
@@ -606,4 +620,32 @@ function view_customer_page()
     </div>
 
 <?php
+}
+
+function normalize_phone($raw_phone)
+{
+    // Remove everything except digits
+    $digits = preg_replace('/\D+/', '', $raw_phone);
+
+    // Optional: ensure final length is now 11 digits (North America)
+    return $digits;
+}
+
+function validate_postal_code($postalCode)
+{
+    $postalCode = trim(strtoupper($postalCode));
+
+    $canadaRegex = '/^[ABCEGHJ-NPRSTVXY][0-9][ABCEGHJ-NPRSTV-Z] ?[0-9][ABCEGHJ-NPRSTV-Z][0-9]$/';
+    $usRegex     = '/^\d{5}(-\d{4})?$/'; // Accepts 12345 or 12345-6789
+
+    if (preg_match($canadaRegex, $postalCode)) {
+        $postalCode = preg_replace('/^([A-Z]\d[A-Z]) ?(\d[A-Z]\d)$/', '$1 $2', $postalCode);
+        return ['valid' => true, 'formatted' => $postalCode, 'country' => 'CA'];
+    }
+
+    if (preg_match($usRegex, $postalCode)) {
+        return ['valid' => true, 'formatted' => $postalCode, 'country' => 'US'];
+    }
+
+    return ['valid' => false, 'error' => 'Invalid postal code format (must be valid US ZIP or Canadian postal code)'];
 }
