@@ -59,7 +59,8 @@ function create_customers_table()
         first_name VARCHAR(255) NOT NULL,
         last_name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE,
-        phone VARCHAR(15) UNIQUE CHECK (CHAR_LENGTH(phone) >= 10),    
+        phone_primary VARCHAR(15) NULL,
+        phone_secondary VARCHAR(15) NULL,
         street_address VARCHAR(255),
         city VARCHAR(100),
         province VARCHAR(100),
@@ -67,7 +68,8 @@ function create_customers_table()
         country VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FULLTEXT (
-            first_name, last_name, phone,
+            first_name, last_name,
+            phone_primary, phone_secondary,
             street_address, city, province, postal_code, country
         )
     ) $charset_collate;";

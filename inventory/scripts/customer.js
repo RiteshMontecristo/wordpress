@@ -4,7 +4,6 @@ const editCustomerForm = document.querySelector("form[name='edit_customer']");
 // Form fields for adding or editing a customer
 const firstName = customerForm?.querySelector("#firstName");
 const lastName = customerForm?.querySelector("#lastName");
-const phone = customerForm?.querySelector("#phone");
 const address = customerForm?.querySelector("#address");
 const city = customerForm?.querySelector("#city");
 const province = customerForm?.querySelector("#province");

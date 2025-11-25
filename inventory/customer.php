@@ -96,7 +96,8 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     foreach ($customers as $customer) {
 
         $phone =  "";
-        $digits = $customer->phone;
+        custom_log($customer);
+        $digits = $customer->phone_primary;
         if (!empty($digits)) {
             if (strlen($digits) === 11 && substr($digits, 0, 1) === '1') {
                 $digits = substr($digits, 1);
@@ -189,8 +190,11 @@ function add_customer_form()
         <label for="lastName">Last Name:</label>
         <input id="lastName" type="text" name="lastName" required>
 
-        <label for="phone">Phone:</label>
-        <input id="phone" type="text" name="phone">
+        <label for="primaryPhone">Primary Phone:</label>
+        <input id="primaryPhone" type="text" name="primaryPhone">
+
+        <label for="secondaryPhone">Secondary Phone:</label>
+        <input id="secondaryPhone" type="text" name="secondaryPhone">
 
         <label for="email">Email:</label>
         <input id="email" type="email" name="email">
@@ -208,7 +212,7 @@ function add_customer_form()
         <input id="postalCode" type="text" name="postalCode"></input>
 
         <label for="country">Country:</label>
-        <?php countrySelector(); ?>
+        <?php countrySelector("Canada"); ?>
 
         <button id="customer_cta" class="button button-primary">Save Customer</button>
     </form>
@@ -225,8 +229,10 @@ function add_customer_form()
         $firstName = sanitize_text_field($_POST['firstName']);
         $lastName = sanitize_text_field($_POST['lastName']);
         $email = sanitize_email($_POST['email']);
-        $phone = sanitize_text_field($_POST['phone']);
-        $phone = normalize_phone($phone);
+        $primary_phone = sanitize_text_field($_POST['primaryPhone']);
+        $secondary_phone = sanitize_text_field($_POST['secondaryPhone']);
+        $normalized_primary_phone = normalize_phone($primary_phone);
+        $normalized_secondary_phone = normalize_phone($secondary_phone);
         $address = sanitize_textarea_field($_POST['address']);
         $city = sanitize_textarea_field($_POST['city']);
         $province = sanitize_textarea_field($_POST['province']);
@@ -275,7 +281,8 @@ function add_customer_form()
         $inserted = $wpdb->insert($table_name, [
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'phone' => $phone,
+            'phone_primary' => $normalized_primary_phone,
+            'phone_secondary' => $normalized_secondary_phone,
             'email' => !empty($email) ? $email : null,
             'street_address' => $address,
             'city' => $city,
@@ -342,8 +349,10 @@ function edit_customer_form()
         $firstName = sanitize_text_field($_POST['firstName']);
         $lastName = sanitize_text_field($_POST['lastName']);
         $email = sanitize_email($_POST['email']);
-        $phone = sanitize_text_field($_POST['phone']);
-        $phone = normalize_phone($phone);
+        $primary_phone = sanitize_text_field($_POST['primaryPhone']);
+        $secondary_phone = sanitize_text_field($_POST['secondaryPhone']);
+        $normalized_primary_phone = normalize_phone($primary_phone);
+        $normalized_secondary_phone = normalize_phone($secondary_phone);
         $address = sanitize_textarea_field($_POST['address']);
         $city = sanitize_textarea_field($_POST['city']);
         $province = sanitize_textarea_field($_POST['province']);
@@ -394,7 +403,8 @@ function edit_customer_form()
         $updated = $wpdb->update($table_name, [
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'phone' => $phone,
+            'phone_primary' => $normalized_primary_phone,
+            'phone_secondary' => $normalized_secondary_phone,
             'email' => !empty($email) ? $email : null,
             'street_address' => $address,
             'city' => $city,
@@ -429,8 +439,12 @@ function edit_customer_form()
         <label>Last Name:</label>
         <input id="lastName" type="text" name="lastName" value="<?php echo $customer->last_name; ?>" required>
 
-        <label>Phone:</label>
-        <input id="phone" type="text" name="phone" value="<?php echo $customer->phone; ?>" required>
+
+        <label for="primaryPhone">Primary Phone:</label>
+        <input id="primaryPhone" type="text" name="primaryPhone" value="<?php echo $customer->phone_primary; ?>">
+
+        <label for="secondaryPhone">Secondary Phone:</label>
+        <input id="secondaryPhone" type="text" name="secondaryPhone" value="<?php echo $customer->phone_secondary; ?>">
 
         <label>Email:</label>
         <input id="email" type="email" name="email" value="<?php echo $customer->email; ?>">
@@ -556,7 +570,8 @@ function view_customer_page()
         <div style="background:#fff; padding:15px; border:1px solid #ddd; margin-bottom:20px;">
             <h2><?php echo esc_html($customer->first_name . ' ' . $customer->last_name); ?></h2>
             <p><strong>Email:</strong> <?php echo esc_html($customer->email); ?></p>
-            <p><strong>Phone:</strong> <?php echo esc_html($customer->phone); ?></p>
+            <p><strong>Priamry Phone:</strong> <?php echo esc_html($customer->phone_primary); ?></p>
+            <p><strong>Secondary Phone:</strong> <?php echo esc_html($customer->phone_secondary); ?></p>
             <p><strong>Address:</strong>
                 <?php echo esc_html($customer->street_address . ', ' . $customer->city . ' ' . $customer->province . ', ' . $customer->postal_code); ?>
             </p>
