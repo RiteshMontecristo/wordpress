@@ -3,7 +3,7 @@ import { showSelection } from "../sales.js";
 import { AppState } from "./state.js";
 
 export const CheckoutSelector = {
-  TAX_RATES: { GST: 0.05, PST: 0.08 },
+  TAX_RATES: { GST: 0.05, PST: 0.07 },
 
   init() {
     this.details = document.querySelector("#customerDetails");
@@ -140,6 +140,14 @@ export const CheckoutSelector = {
 
     const payments = this.payment;
     let totalPaid = 0;
+
+    if (
+      payments.layaway.value > 0 &&
+      payments.layaway.value > AppState.layawayTotal
+    ) {
+      alert("Layaway entered is greater than the amount the customer has.");
+      return false;
+    }
 
     for (const payment of Object.values(payments)) {
       totalPaid += Number(payment.value) || 0;
