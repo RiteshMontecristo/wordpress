@@ -3,6 +3,9 @@
 
 function customer_page()
 {
+    if (isset($_GET['added']) && $_GET['added'] === '1') {
+        echo '<div class="updated notice is-dismissible"><p>Customer added successfully!</p></div>';
+    }
 ?>
     <div class="wrap">
         <h1>Customer Management</h1>
@@ -46,28 +49,37 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     global $wpdb;
     ob_start();
     $table_name = $wpdb->prefix . 'mji_customers';
+    $phones_table = $wpdb->prefix . 'mji_customer_phones';
 
     // Pagination settings
     $offset = ($current_page - 1) * $per_page;
+    $where = 'WHERE 1=1';
+    $join = "LEFT JOIN $phones_table p ON c.id = p.customer_id";
 
     // Handle search
     if (!empty($search_query)) {
         $search = $search_query;
         $search_digits = normalize_phone($search);
+        $search_escaped = $wpdb->esc_like($search_digits);
 
-        $search_query = $wpdb->prepare("
-        AND (
-            MATCH(first_name, last_name, phone, street_address, city, province, postal_code, country)
-            AGAINST(%s IN NATURAL LANGUAGE MODE)
-            OR phone LIKE %s
-        )
-    ", $search, $search_digits);
+        $where .= " AND (
+                        MATCH(c.first_name, c.last_name, c.street_address, c.city, c.province, c.postal_code, c.country)
+                        AGAINST('" . esc_sql($search) . "' IN NATURAL LANGUAGE MODE)
+                        OR p.phone LIKE '" . esc_sql($search_escaped) . "'
+                    )";
     }
 
-    // Build main query
-    $query = "SELECT * FROM $table_name WHERE 1=1 $search_query LIMIT %d OFFSET %d";
-    $sql = $wpdb->prepare($query, $per_page, $offset);
-    $customers = $wpdb->get_results($sql);
+    // Main query with join and pagination
+    $query = $wpdb->prepare("
+        SELECT c.*, GROUP_CONCAT(p.phone ORDER BY p.phone ASC SEPARATOR ',') AS phones
+        FROM $table_name c
+        $join
+        $where
+        GROUP BY c.id
+        LIMIT %d OFFSET %d
+    ", $per_page, $offset);
+
+    $customers = $wpdb->get_results($query);
 
     if (empty($customers)) {
         echo '<div class="notice notice-info is-dismissible"><p>No customers found!</p></div>';
@@ -75,7 +87,12 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     }
 
     // Get total number of customers
-    $total_customers = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE 1=1 $search_query");
+    $total_customers = $wpdb->get_var("
+                                        SELECT COUNT(DISTINCT c.id)
+                                        FROM $table_name c
+                                        $join
+                                        $where
+                                    ");
 
     // Pagination calculation
     $total_pages = ceil($total_customers / $per_page);
@@ -85,7 +102,8 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
             <tr>
                 <th>First Name</th>
                 <th>Last Name</th>
-                <th>Phone</th>
+                <th>Primary Phone</th>
+                <th>Secondary Phone</th>
                 <th>Email</th>
                 <th>Address</th>
                 <th>Actions</th>
@@ -95,17 +113,15 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
 
     foreach ($customers as $customer) {
 
-        $phone =  "";
-        custom_log($customer);
-        $digits = $customer->phone_primary;
+        $primary_phone =  "";
+        $secondary_phone =  "";
+        $digits = $customer->phones;
         if (!empty($digits)) {
-            if (strlen($digits) === 11 && substr($digits, 0, 1) === '1') {
-                $digits = substr($digits, 1);
-            }
-            $area = substr($digits, 0, 3);
-            $part1 = substr($digits, 3, 3);
-            $part2 = substr($digits, 6, 4);
-            $phone = "($area) $part1-$part2";
+            $phone_numbers = explode(',', $customer->phones);
+            $primary_digits   = $phone_numbers[0] ?? '';
+            $secondary_digits = $phone_numbers[1] ?? '';
+            $primary_phone   = !is_empty($primary_digits) ? format_phone($primary_digits) : '';
+            $secondary_phone   = !is_empty($secondary_digits) ? format_phone($secondary_digits) : '';
         }
 
         if ($context === "customer") {
@@ -126,7 +142,8 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
         echo "<tr>
                 <td id='firstName'>{$customer->first_name}</td>
                 <td id='lastName'>{$customer->last_name}</td>
-                <td id='phone'>{$phone}</td>
+                <td id='primaryPhone'>{$primary_phone}</td>
+                <td id='secondaryPhone'>{$secondary_phone}</td>
                 <td id='email'>{$customer->email}</td>
                 <td id='address'>{$customer->street_address},<br /> {$customer->city} {$customer->province}, <br /> {$customer->postal_code}</td>
                 $actionMethod
@@ -179,42 +196,79 @@ function add_customer_form()
 {
 ?>
     <h2>Add Customer</h2>
-    <form name="customer" method="post">
-
-        <!-- Hidden field to trigger the form submission as we are submitting through AJAX -->
-        <input type="hidden" name="add_customer" value="1">
+    <form name="customer" method="post" class="customer-grid-form">
         <?php wp_nonce_field('add_customer_action', 'add_customer_nonce'); ?>
-        <label for="firstName">First Name:</label>
-        <input id="firstName" type="text" name="firstName" required>
+        <input type="hidden" name="add_customer" value="1">
 
-        <label for="lastName">Last Name:</label>
-        <input id="lastName" type="text" name="lastName" required>
+        <div class="customer-form-grid">
+            <!-- First Name -->
+            <div class="form-group">
+                <label for="firstName" class="form-label">First Name</label>
+                <input id="firstName" type="text" name="firstName" class="regular-text" required>
+            </div>
 
-        <label for="primaryPhone">Primary Phone:</label>
-        <input id="primaryPhone" type="text" name="primaryPhone">
+            <!-- Last Name -->
+            <div class="form-group">
+                <label for="lastName" class="form-label">Last Name</label>
+                <input id="lastName" type="text" name="lastName" class="regular-text" required>
+            </div>
 
-        <label for="secondaryPhone">Secondary Phone:</label>
-        <input id="secondaryPhone" type="text" name="secondaryPhone">
+            <!-- Primary Phone -->
+            <div class="form-group">
+                <label for="primaryPhone" class="form-label">Primary Phone</label>
+                <input id="primaryPhone" type="tel" name="primaryPhone" class="regular-text">
+            </div>
 
-        <label for="email">Email:</label>
-        <input id="email" type="email" name="email">
+            <!-- Secondary Phone -->
+            <div class="form-group">
+                <label for="secondaryPhone" class="form-label">Secondary Phone</label>
+                <input id="secondaryPhone" type="tel" name="secondaryPhone" class="regular-text">
+            </div>
 
-        <label for="address">Street Address:</label>
-        <input id="address" type="text" name="address"></input>
+            <!-- Email -->
+            <div class="form-group">
+                <label for="email" class="form-label">Email</label>
+                <input id="email" type="email" name="email" class="regular-text">
+            </div>
 
-        <label for="city">City:</label>
-        <input id="city" type="text" name="city"></input>
+            <!-- Address -->
+            <div class="form-group full-width">
+                <label for="address" class="form-label">Street Address</label>
+                <input id="address" type="text" name="address" class="regular-text">
+            </div>
 
-        <label for="province">Province:</label>
-        <input id="province" type="text" name="province"></input>
+            <!-- City -->
+            <div class="form-group">
+                <label for="city" class="form-label">City</label>
+                <input id="city" type="text" name="city" class="regular-text">
+            </div>
 
-        <label for="postalCode">Postal Code:</label>
-        <input id="postalCode" type="text" name="postalCode"></input>
+            <!-- Province -->
+            <div class="form-group">
+                <label for="province" class="form-label">Province</label>
+                <input id="province" type="text" name="province" class="regular-text">
+            </div>
 
-        <label for="country">Country:</label>
-        <?php countrySelector("Canada"); ?>
+            <!-- Postal Code -->
+            <div class="form-group">
+                <label for="postalCode" class="form-label">Postal Code</label>
+                <input id="postalCode" type="text" name="postalCode" class="regular-text">
+            </div>
 
-        <button id="customer_cta" class="button button-primary">Save Customer</button>
+            <!-- Country -->
+            <div class="form-group">
+                <label for="country" class="form-label">Country</label>
+                <?php countrySelector("Canada"); ?>
+            </div>
+
+            <!-- Notes -->
+            <div class="form-group full-width">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea id="notes" name="notes" rows="3" class="large-text"></textarea>
+            </div>
+        </div>
+
+        <?php submit_button('Save Customer', 'primary', 'customer_cta', false); ?>
     </form>
     <?php
     // Handle form submission
@@ -226,6 +280,7 @@ function add_customer_form()
         global $wpdb;
 
         $table_name = $wpdb->prefix . 'mji_customers';
+        $phones_table = $wpdb->prefix . 'mji_customer_phones';
         $firstName = sanitize_text_field($_POST['firstName']);
         $lastName = sanitize_text_field($_POST['lastName']);
         $email = sanitize_email($_POST['email']);
@@ -233,11 +288,12 @@ function add_customer_form()
         $secondary_phone = sanitize_text_field($_POST['secondaryPhone']);
         $normalized_primary_phone = normalize_phone($primary_phone);
         $normalized_secondary_phone = normalize_phone($secondary_phone);
-        $address = sanitize_textarea_field($_POST['address']);
-        $city = sanitize_textarea_field($_POST['city']);
-        $province = sanitize_textarea_field($_POST['province']);
-        $postalCode = sanitize_textarea_field($_POST['postalCode']);
-        $country = sanitize_textarea_field($_POST['country']);
+        $address = sanitize_text_field(stripslashes($_POST['address']));
+        $city = sanitize_text_field($_POST['city']);
+        $province = sanitize_text_field($_POST['province']);
+        $postalCode = sanitize_text_field($_POST['postalCode']);
+        $country = sanitize_text_field($_POST['country']);
+        $notes = sanitize_textarea_field($_POST['notes']);
 
         $errors = [];
 
@@ -270,6 +326,16 @@ function add_customer_form()
             }
         }
 
+        $validated_primary   = validate_phone($normalized_primary_phone);
+        $validated_secondary = validate_phone($normalized_secondary_phone);
+
+        if ($validated_primary === false) {
+            $errors[] = "Primary phone number is invalid. Must be 10 digits or 11 digits starting with 1.";
+        }
+        if ($validated_secondary === false) {
+            $errors[] = "Secondary phone number is invalid. Must be 10 digits or 11 digits starting with 1.";
+        }
+
         // Stop if any errors
         if (!empty($errors)) {
             foreach ($errors as $error) {
@@ -278,24 +344,59 @@ function add_customer_form()
             return;
         }
 
+        $new_phones = array_filter([$validated_primary, $validated_secondary]);
+
+        foreach ($new_phones as $phone) {
+            $duplicate = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT customer_id FROM $phones_table 
+                    WHERE phone = %s",
+                    $phone
+                )
+            );
+
+            if ($duplicate) {
+                echo '<div class="notice notice-error"><p>The phone number ' . esc_html(format_phone($phone)) . ' is already used by another customer.</p></div>';
+                return;
+            }
+        }
+
         $inserted = $wpdb->insert($table_name, [
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'phone_primary' => $normalized_primary_phone,
-            'phone_secondary' => $normalized_secondary_phone,
             'email' => !empty($email) ? $email : null,
             'street_address' => $address,
             'city' => $city,
             'province' => $province,
             'postal_code' => $postalCode,
-            'country' => $country
+            'country' => $country,
+            'notes' => $notes,
         ]);
 
-        if ($inserted) {
-            echo '<div class="updated"><p>Customer added successfully!</p></div>';
-        } else {
+        if (!$inserted) {
             echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
         }
+
+        $customer_id = $wpdb->insert_id;
+        foreach ($new_phones as $phone) {
+            $phone_inserted = $wpdb->insert($phones_table, [
+                'phone' => $phone,
+                'customer_id' => $customer_id
+            ]);
+            if (!$phone_inserted) {
+                // If phone doesn't insert due to any issue, rollback customer and show error
+                $wpdb->delete($table_name, ['id' => $customer_id], ['%d']);
+                echo '<div class="notice notice-error is-dismissible"><p>Phone number ' . esc_html($phone) . ' already exists!</p></div>';
+                return;
+            }
+        }
+        
+        $redirect_url = add_query_arg(
+            ['page' => 'customer-management', 'added' => '1'],
+            admin_url('admin.php')
+        );
+        wp_redirect($redirect_url);
+        exit;
     }
 }
 
@@ -336,6 +437,7 @@ function edit_customer_form()
 
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_customers';
+    $phones_table = $wpdb->prefix . 'mji_customer_phones';
     $customer_id = intval($_GET['id']);
 
     // Handle form submission
@@ -353,13 +455,13 @@ function edit_customer_form()
         $secondary_phone = sanitize_text_field($_POST['secondaryPhone']);
         $normalized_primary_phone = normalize_phone($primary_phone);
         $normalized_secondary_phone = normalize_phone($secondary_phone);
-        $address = sanitize_textarea_field($_POST['address']);
-        $city = sanitize_textarea_field($_POST['city']);
-        $province = sanitize_textarea_field($_POST['province']);
-        $postalCode = sanitize_textarea_field($_POST['postalCode']);
-        $country = sanitize_textarea_field($_POST['country']);
+        $address = sanitize_text_field(stripslashes($_POST['address']));
+        $city = sanitize_text_field($_POST['city']);
+        $province = sanitize_text_field($_POST['province']);
+        $postalCode = sanitize_text_field($_POST['postalCode']);
+        $country = sanitize_text_field($_POST['country']);
+        $notes = sanitize_textarea_field($_POST['notes']);
 
-        $CANADA_POSTAL_REGEX = "/^[ABCEGHJ-NPRSTVXY][0-9][ABCEGHJ-NPRSTV-Z][ ]?[0-9][ABCEGHJ-NPRSTV-Z][0-9]$/";
         $errors = [];
 
         // Validate required fields
@@ -367,8 +469,6 @@ function edit_customer_form()
             $errors[] = 'First name is required';
         if (empty($lastName))
             $errors[] = 'Last name is required';
-        if (empty($phone))
-            $errors[] = 'Phone number is required';
         if (empty($city))
             $errors[] = 'City is required';
         if (empty($province))
@@ -383,7 +483,8 @@ function edit_customer_form()
             $errors[] = 'Please enter a valid email address or leave the field blank';
         }
 
-        if (!preg_match($CANADA_POSTAL_REGEX, $postalCode)) {
+        $validated_postal_code = validate_postal_code($postalCode);
+        if (!$validated_postal_code['valid']) {
             $errors[] = 'Invalid Canadian postal code format';
         } else {
             // Format postal code with space only if valid
@@ -392,82 +493,257 @@ function edit_customer_form()
             }
         }
 
+        $validated_primary   = validate_phone($normalized_primary_phone);
+        $validated_secondary = validate_phone($normalized_secondary_phone);
+
+        if ($validated_primary === false) {
+            $errors[] = "Primary phone number is invalid. Must be 10 digits or 11 digits starting with 1.";
+        }
+        if ($validated_secondary === false) {
+            $errors[] = "Secondary phone number is invalid. Must be 10 digits or 11 digits starting with 1.";
+        }
+
         // Stop if any errors
         if (!empty($errors)) {
             foreach ($errors as $error) {
                 echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($error) . '</p></div>';
             }
-            return;
-        }
-
-        $updated = $wpdb->update($table_name, [
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'phone_primary' => $normalized_primary_phone,
-            'phone_secondary' => $normalized_secondary_phone,
-            'email' => !empty($email) ? $email : null,
-            'street_address' => $address,
-            'city' => $city,
-            'province' => $province,
-            'postal_code' => $postalCode,
-            'country' => $country
-        ], ['id' => $customer_id]);
-
-
-        if ($updated || $updated === 0) {
-            echo '<div class="updated"><p>Customer updated successfully!</p></div>';
         } else {
-            echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+
+            // To ensure if the primary or secondary number is left blank, remove it
+            $new_phones = array_filter([$validated_primary, $validated_secondary]);
+
+            $existing_phones = $wpdb->get_col(
+                $wpdb->prepare("SELECT phone FROM $phones_table WHERE customer_id = %d", $customer_id)
+            );
+            // Phones to insert
+            $to_insert = array_diff($new_phones, $existing_phones);
+            $to_delete = array_diff($existing_phones, $new_phones);
+            $duplicate_number_exists = false;
+            $phone_errors = [];
+            if (!is_empty($to_insert)) {
+                foreach ($new_phones as $phone) {
+                    $duplicate = $wpdb->get_var(
+                        $wpdb->prepare(
+                            "SELECT customer_id FROM $phones_table 
+                        WHERE phone = %s AND customer_id != %d",
+                            $phone,
+                            $customer_id
+                        )
+                    );
+
+                    if ($duplicate) {
+                        echo '<div class="notice notice-error"><p>The phone number ' . esc_html(format_phone($phone)) . ' is already used by another customer.</p></div>';
+                        $duplicate_number_exists = true;
+                    }
+                }
+
+                if (!$duplicate_number_exists) {
+                    foreach ($to_insert as $phone) {
+                        $inserted = $wpdb->insert($phones_table, [
+                            'customer_id' => $customer_id,
+                            'phone' => $phone
+                        ]);
+                        if ($inserted === false) {
+                            $phone_errors[] = 'Failed to add phone number ' . esc_html(format_phone($phone)) . ': ' . $wpdb->last_error;
+                        }
+                    }
+                }
+            }
+            if (!$duplicate_number_exists) {
+                if (!is_empty($to_delete)) {
+                    foreach ($to_delete as $phone) {
+                        $deleted = $wpdb->delete($phones_table, [
+                            'customer_id' => $customer_id,
+                            'phone' => $phone
+                        ]);
+                        if ($deleted === false) {
+                            $phone_errors[] = 'Failed to delete phone number ' . esc_html(format_phone($phone)) . ': ' . $wpdb->last_error;
+                        }
+                    }
+                }
+
+                // If phone operations failed → do NOT continue
+                if (!empty($phone_errors)) {
+                    foreach ($phone_errors as $err) {
+                        echo '<div class="notice notice-error is-dismissible"><p>' . $err . '</p></div>';
+                    }
+                } else {
+
+                    $updated = $wpdb->update($table_name, [
+                        'first_name' => $firstName,
+                        'last_name' => $lastName,
+                        'email' => !empty($email) ? $email : null,
+                        'street_address' => $address,
+                        'city' => $city,
+                        'province' => $province,
+                        'postal_code' => $postalCode,
+                        'country' => $country,
+                        'notes' => $notes,
+                    ], ['id' => $customer_id]);
+
+
+                    if ($updated !== false) {
+                        echo '<div class="updated"><p>Customer updated successfully!</p></div>';
+                    } else {
+                        echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+                    }
+                }
+            }
         }
     }
 
-    $customer = $wpdb->get_row("SELECT * FROM $table_name WHERE id = $customer_id");
+    // Grab the values for edits
+    $customer = $wpdb->get_row(
+        $wpdb->prepare("
+            SELECT c.*, GROUP_CONCAT(p.phone ORDER BY p.phone ASC SEPARATOR ',') AS phones
+            FROM $table_name c
+            LEFT JOIN $phones_table p ON c.id = p.customer_id
+            WHERE c.id = %d
+            GROUP BY c.id
+        ", $customer_id)
+    );
     if (!$customer) {
         echo '<div class="notice notice-error is-dismissible"><p>Customer not found!</p></div>';
         return;
     }
+
+    $primary_phone = '';
+    $secondary_phone = '';
+    if (!empty($customer->phones)) {
+        $phone_numbers = explode(',', $customer->phones);
+        $primary_phone   = $phone_numbers[0] ?? '';
+        $secondary_phone = $phone_numbers[1] ?? '';
+    }
     ?>
     <h2>Edit Customer</h2>
-    <form name="customer" method="post">
-
-        <!-- Hidden field to trigger the form submission as we are submitting through AJAX -->
-        <input type="hidden" name="edit_customer" value="1">
+    <form name="customer" method="post" class="customer-grid-form">
         <?php wp_nonce_field('edit_customer_action', 'edit_customer_nonce'); ?>
-        <label>First Name:</label>
-        <input id="firstName" type="text" name="firstName" value="<?php echo $customer->first_name; ?>" required>
+        <input type="hidden" name="edit_customer" value="1">
 
-        <label>Last Name:</label>
-        <input id="lastName" type="text" name="lastName" value="<?php echo $customer->last_name; ?>" required>
+        <div class="customer-form-grid">
+            <!-- First Name -->
+            <div class="form-group">
+                <label for="firstName" class="form-label">First Name</label>
+                <input
+                    id="firstName"
+                    type="text"
+                    name="firstName"
+                    class="regular-text"
+                    value="<?php echo esc_attr($customer->first_name ?? ''); ?>"
+                    required>
+            </div>
 
+            <!-- Last Name -->
+            <div class="form-group">
+                <label for="lastName" class="form-label">Last Name</label>
+                <input
+                    id="lastName"
+                    type="text"
+                    name="lastName"
+                    class="regular-text"
+                    value="<?php echo esc_attr($customer->last_name ?? ''); ?>"
+                    required>
+            </div>
 
-        <label for="primaryPhone">Primary Phone:</label>
-        <input id="primaryPhone" type="text" name="primaryPhone" value="<?php echo $customer->phone_primary; ?>">
+            <!-- Primary Phone -->
+            <div class="form-group">
+                <label for="primaryPhone" class="form-label">Primary Phone</label>
+                <input
+                    id="primaryPhone"
+                    type="tel"
+                    name="primaryPhone"
+                    class="regular-text"
+                    value="<?php echo esc_attr($primary_phone ?? ''); ?>">
+            </div>
 
-        <label for="secondaryPhone">Secondary Phone:</label>
-        <input id="secondaryPhone" type="text" name="secondaryPhone" value="<?php echo $customer->phone_secondary; ?>">
+            <!-- Secondary Phone -->
+            <div class="form-group">
+                <label for="secondaryPhone" class="form-label">Secondary Phone</label>
+                <input
+                    id="secondaryPhone"
+                    type="tel"
+                    name="secondaryPhone"
+                    class="regular-text"
+                    value="<?php echo esc_attr($secondary_phone ?? ''); ?>">
+            </div>
 
-        <label>Email:</label>
-        <input id="email" type="email" name="email" value="<?php echo $customer->email; ?>">
+            <!-- Email -->
+            <div class="form-group">
+                <label for="email" class="form-label">Email</label>
+                <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    class="regular-text"
+                    value="<?php echo esc_attr($customer->email ?? ''); ?>">
+            </div>
 
-        <label for="address">Street Address:</label>
-        <input id="address" id="address" type="text" name="address"
-            value="<?php echo $customer->street_address; ?>"></input>
+            <!-- Street Address -->
+            <div class="form-group full-width">
+                <label for="address" class="form-label">Street Address</label>
+                <input
+                    id="address"
+                    type="text"
+                    name="address"
+                    class="regular-text"
+                    value="<?php echo esc_attr($customer->street_address ?? ''); ?>">
+            </div>
 
-        <label for="city">City:</label>
-        <input id="city" type="text" name="city" value="<?php echo $customer->city; ?>"></input>
+            <!-- City -->
+            <div class="form-group">
+                <label for="city" class="form-label">City</label>
+                <input
+                    id="city"
+                    type="text"
+                    name="city"
+                    class="regular-text"
+                    value="<?php echo esc_attr($customer->city ?? ''); ?>">
+            </div>
 
-        <label for="province">Province:</label>
-        <input id="province" type="text" name="province" value="<?php echo $customer->province; ?>"></input>
+            <!-- Province -->
+            <div class="form-group">
+                <label for="province" class="form-label">Province</label>
+                <input
+                    id="province"
+                    type="text"
+                    name="province"
+                    class="regular-text"
+                    value="<?php echo esc_attr($customer->province ?? ''); ?>">
+            </div>
 
-        <label for="postalCode">Postal Code:</label>
-        <input id="postalCode" type="text" name="postalCode" value="<?php echo $customer->postal_code; ?>"></input>
+            <!-- Postal Code -->
+            <div class="form-group">
+                <label for="postalCode" class="form-label">Postal Code</label>
+                <input
+                    id="postalCode"
+                    type="text"
+                    name="postalCode"
+                    class="regular-text"
+                    value="<?php echo esc_attr($customer->postal_code ?? ''); ?>">
+            </div>
 
-        <label for="country">Country:</label>
-        <?php countrySelector($customer->country); ?>
+            <!-- Country -->
+            <div class="form-group full-width">
+                <label for="country" class="form-label">Country</label>
+                <?php countrySelector(esc_html($customer->country ?? 'Canada')); ?>
+            </div>
 
-        <button id="customer_cta" class="button button-primary">Update Customer</button>
+            <!-- Notes -->
+            <div class="form-group full-width">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea
+                    id="notes"
+                    name="notes"
+                    rows="3"
+                    class="large-text"><?php echo esc_textarea($customer->notes ?? ''); ?></textarea>
+            </div>
+        </div>
+
+        <?php submit_button('Update Customer', 'primary', 'customer_cta', false); ?>
     </form>
 <?php
+
 }
 
 function view_customer_page()
@@ -481,20 +757,33 @@ function view_customer_page()
     $customer_id = intval($_GET['id']);
 
     $customers_table = $wpdb->prefix . 'mji_customers';
+    $phones_table = $wpdb->prefix . 'mji_customer_phones';
     $orders_table = $wpdb->prefix . 'mji_orders';
     $order_items = $wpdb->prefix . 'mji_order_items';
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
     $product_inventory_units = $wpdb->prefix . 'mji_product_inventory_units';
 
-    // Fetch customer info
-    $customer = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM $customers_table WHERE id = %d",
-        $customer_id
-    ));
+    $customer = $wpdb->get_row(
+        $wpdb->prepare("
+            SELECT c.*, GROUP_CONCAT(p.phone ORDER BY p.phone ASC SEPARATOR ',') AS phones
+            FROM $customers_table c
+            LEFT JOIN $phones_table p ON c.id = p.customer_id
+            WHERE c.id = %d
+            GROUP BY c.id
+        ", $customer_id)
+    );
 
     if (!$customer) {
         echo '<div class="notice notice-error"><p>Customer not found.</p></div>';
         return;
+    }
+
+    $primary_phone = '';
+    $secondary_phone = '';
+    if (!empty($customer->phones)) {
+        $phone_numbers = explode(',', $customer->phones);
+        $primary_phone   = $phone_numbers[0] ?? '';
+        $secondary_phone = $phone_numbers[1] ?? '';
     }
 
     $sql = "
@@ -570,8 +859,8 @@ function view_customer_page()
         <div style="background:#fff; padding:15px; border:1px solid #ddd; margin-bottom:20px;">
             <h2><?php echo esc_html($customer->first_name . ' ' . $customer->last_name); ?></h2>
             <p><strong>Email:</strong> <?php echo esc_html($customer->email); ?></p>
-            <p><strong>Priamry Phone:</strong> <?php echo esc_html($customer->phone_primary); ?></p>
-            <p><strong>Secondary Phone:</strong> <?php echo esc_html($customer->phone_secondary); ?></p>
+            <p><strong>Priamry Phone:</strong> <?php echo esc_html($primary_phone); ?></p>
+            <p><strong>Secondary Phone:</strong> <?php echo esc_html($secondary_phone); ?></p>
             <p><strong>Address:</strong>
                 <?php echo esc_html($customer->street_address . ', ' . $customer->city . ' ' . $customer->province . ', ' . $customer->postal_code); ?>
             </p>
@@ -629,7 +918,7 @@ function view_customer_page()
         </div>
 
         <div id="tab-notes" class="tab-content" style="display:none;">
-            <textarea style="width:100%; height:100px;" placeholder="Enter notes about this customer..."></textarea>
+            <textarea style="width:100%; height:100px;" placeholder="Enter notes about this customer..."><?= $customer->notes ?></textarea>
             <p><button class="button button-primary">Save Notes</button></p>
         </div>
     </div>
@@ -642,8 +931,31 @@ function normalize_phone($raw_phone)
     // Remove everything except digits
     $digits = preg_replace('/\D+/', '', $raw_phone);
 
-    // Optional: ensure final length is now 11 digits (North America)
     return $digits;
+}
+
+function validate_phone($digits)
+{
+    if (empty($digits)) return '';
+
+    if (strlen($digits) === 10) {
+        return $digits;
+    }
+
+    if (strlen($digits) === 11 && $digits[0] === '1') {
+        return substr($digits, 1);
+    }
+
+    return false;
+}
+
+function format_phone($phone)
+{
+    $area = substr($phone, 0, 3);
+    $part1 = substr($phone, 3, 3);
+    $part2 = substr($phone, 6, 4);
+    $phone = "($area) $part1-$part2";
+    return $phone;
 }
 
 function validate_postal_code($postalCode)
