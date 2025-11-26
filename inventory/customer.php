@@ -1,6 +1,5 @@
 <?php
 
-
 function customer_page()
 {
     if (isset($_GET['added']) && $_GET['added'] === '1') {
@@ -302,27 +301,21 @@ function add_customer_form()
             $errors[] = 'First name is required';
         if (empty($lastName))
             $errors[] = 'Last name is required';
-        if (empty($city))
-            $errors[] = 'City is required';
-        if (empty($province))
-            $errors[] = 'Province is required';
-        if (empty($postalCode))
-            $errors[] = 'Postal code is required';
-        if (empty($country))
-            $errors[] = 'Country is required';
 
         // Validate email if provided
         if (!empty($email) && !is_email($email)) {
             $errors[] = 'Please enter a valid email address or leave the field blank';
         }
 
-        $validated_postal_code = validate_postal_code($postalCode);
-        if (!$validated_postal_code['valid']) {
-            $errors[] = 'Invalid Canadian postal code format';
-        } else {
-            // Format postal code with space only if valid
-            if (strlen($postalCode) === 6) {
-                $postalCode = substr($postalCode, 0, 3) . ' ' . substr($postalCode, 3);
+        if (empty($postalCode)) {
+            $validated_postal_code = validate_postal_code($postalCode);
+            if (!$validated_postal_code['valid']) {
+                $errors[] = 'Invalid Canadian postal code format';
+            } else {
+                // Format postal code with space only if valid
+                if (strlen($postalCode) === 6) {
+                    $postalCode = substr($postalCode, 0, 3) . ' ' . substr($postalCode, 3);
+                }
             }
         }
 
@@ -390,7 +383,7 @@ function add_customer_form()
                 return;
             }
         }
-        
+
         $redirect_url = add_query_arg(
             ['page' => 'customer-management', 'added' => '1'],
             admin_url('admin.php')
@@ -469,27 +462,21 @@ function edit_customer_form()
             $errors[] = 'First name is required';
         if (empty($lastName))
             $errors[] = 'Last name is required';
-        if (empty($city))
-            $errors[] = 'City is required';
-        if (empty($province))
-            $errors[] = 'Province is required';
-        if (empty($postalCode))
-            $errors[] = 'Postal code is required';
-        if (empty($country))
-            $errors[] = 'Country is required';
 
         // Validate email if provided
         if (!empty($email) && !is_email($email)) {
             $errors[] = 'Please enter a valid email address or leave the field blank';
         }
 
-        $validated_postal_code = validate_postal_code($postalCode);
-        if (!$validated_postal_code['valid']) {
-            $errors[] = 'Invalid Canadian postal code format';
-        } else {
-            // Format postal code with space only if valid
-            if (strlen($postalCode) === 6) {
-                $postalCode = substr($postalCode, 0, 3) . ' ' . substr($postalCode, 3);
+        if (empty($postalCode)) {
+            $validated_postal_code = validate_postal_code($postalCode);
+            if (!$validated_postal_code['valid']) {
+                $errors[] = 'Invalid Canadian postal code format';
+            } else {
+                // Format postal code with space only if valid
+                if (strlen($postalCode) === 6) {
+                    $postalCode = substr($postalCode, 0, 3) . ' ' . substr($postalCode, 3);
+                }
             }
         }
 

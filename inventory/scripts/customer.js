@@ -12,15 +12,7 @@ const country = customerForm?.querySelector("#country");
 const customerCta = customerForm?.querySelector("#customer_cta");
 
 function checkFormValidity() {
-  return (
-    firstName.value.trim() !== "" &&
-    lastName.value.trim() !== "" &&
-    address.value.trim() !== "" &&
-    city.value.trim() !== "" &&
-    province.value.trim() !== "" &&
-    postalCode.value.trim() !== "" &&
-    country.value.trim() !== ""
-  );
+  return firstName.value.trim() !== "" && lastName.value.trim() !== "";
 }
 
 function checkPostalCodeValidity() {
