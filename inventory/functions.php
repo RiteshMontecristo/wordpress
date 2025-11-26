@@ -13,6 +13,7 @@ function mji_create_all_tables()
     // Define table creation order — PARENTS FIRST, CHILDREN LAST
     $tables = [
         'customers' => 'create_customers_table',
+        'customer_phones' => 'create_customer_phones_table',
         'salespeople' => 'create_salespeople_table',
         'locations' => 'create_locations_table',
         'brands' => 'create_brands_table',
@@ -50,8 +51,6 @@ function create_customers_table()
 {
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_customers';
-
-    // Define character set and collation
     $charset_collate = $wpdb->get_charset_collate();
 
     $sql = "CREATE TABLE $table_name (
@@ -59,19 +58,41 @@ function create_customers_table()
         first_name VARCHAR(255) NOT NULL,
         last_name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE,
-        phone_primary VARCHAR(15) NULL,
-        phone_secondary VARCHAR(15) NULL,
         street_address VARCHAR(255),
         city VARCHAR(100),
         province VARCHAR(100),
         postal_code CHAR(7),
         country VARCHAR(100),
+        notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FULLTEXT (
             first_name, last_name,
-            phone_primary, phone_secondary,
             street_address, city, province, postal_code, country
         )
+    ) $charset_collate;";
+
+    $result = $wpdb->query($sql);
+
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
+
+function create_customer_phones_table()
+{
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mji_customer_phones';
+    $charset_collate = $wpdb->get_charset_collate();
+    $customers_table = $wpdb->prefix . 'mji_customers';
+
+    $sql = "CREATE TABLE $table_name (
+        phone VARCHAR(15) NOT NULL,
+        customer_id BIGINT NOT NULL,
+        PRIMARY KEY (phone),
+        FOREIGN KEY (customer_id) REFERENCES $customers_table(id)
+            ON DELETE CASCADE ON UPDATE CASCADE
     ) $charset_collate;";
 
     $result = $wpdb->query($sql);
