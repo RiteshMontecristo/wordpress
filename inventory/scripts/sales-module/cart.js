@@ -108,6 +108,7 @@ export const CartSelector = {
       const unitId = productItem.dataset.unitid;
       if (button.textContent === "Remove from cart") {
         this.removeFromCart(unitId);
+        this.displayCart();
       } else if (button.textContent === "Edit") {
         this.openEditModal(unitId);
       }
