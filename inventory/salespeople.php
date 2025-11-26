@@ -55,7 +55,7 @@ function fetch_salespeople($search_query = '')
     $table_name = $wpdb->prefix . 'mji_salespeople';
 
     $search_clause = '';
-    if (!empty($_GET['search'])) { 
+    if (!empty($_GET['search'])) {
         $search_term = '%' . $wpdb->esc_like($_GET['search']) . '%';
         $search_clause = $wpdb->prepare(
             " WHERE first_name LIKE %s OR last_name LIKE %s",
@@ -71,7 +71,7 @@ function fetch_salespeople($search_query = '')
         echo '<div class="notice notice-info is-dismissible"><p>No salesperson found!</p></div>';
         return ob_get_clean();
     }
-    
+
     echo '<table class="wp-list-table widefat fixed striped">';
     echo '<thead>
             <tr>
@@ -110,7 +110,6 @@ function add_salesperson_form()
             <label for="lastName">Last Name:</label>
             <input id="lastName" type="text" name="lastName" required>
 
-
             <button id="add_salespeople" class="button button-primary">Save</button>
         </form>
     <?php
@@ -136,7 +135,6 @@ function add_salesperson_form()
             return;
         }
 
-
         $inserted = $wpdb->insert($table_name, [
             'first_name' => $firstName,
             'last_name' => $lastName
@@ -144,6 +142,7 @@ function add_salesperson_form()
 
         if ($inserted) {
             echo '<div class="updated"><p>Customer added successfully!</p></div>';
+            delete_transient('mji_salespeople');
         } else {
             echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
         }
