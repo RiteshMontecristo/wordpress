@@ -45,6 +45,7 @@ export const ProductSelector = {
               const {
                 image_url,
                 sku,
+                status,
                 location_id,
                 price,
                 title,
@@ -54,10 +55,14 @@ export const ProductSelector = {
                 product_variant_id,
               } = res.data;
 
-              const ctaBtn =
+              let ctaBtn =
                 location_id === AppState.location.id
                   ? `<button class="add-to-cart">Add to Cart</button>`
                   : `<span>Item in different store</span>`;
+              ctaBtn =
+                status == "in_stock"
+                  ? ctaBtn
+                  : "<span>Item not in stock</span>";
 
               this.searchResult.innerHTML = `
             <div class="product-item">
