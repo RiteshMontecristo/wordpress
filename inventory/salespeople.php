@@ -141,7 +141,7 @@ function add_salesperson_form()
         ]);
 
         if ($inserted) {
-            echo '<div class="updated"><p>Customer added successfully!</p></div>';
+            echo '<div class="updated"><p>Salesperson added successfully!</p></div>';
             delete_transient('mji_salespeople');
         } else {
             echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
