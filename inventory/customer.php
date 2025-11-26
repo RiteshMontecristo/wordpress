@@ -75,6 +75,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
         $join
         $where
         GROUP BY c.id
+        ORDER BY c.created_at DESC
         LIMIT %d OFFSET %d
     ", $per_page, $offset);
 
@@ -122,13 +123,13 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
             $primary_phone   = !is_empty($primary_digits) ? format_phone($primary_digits) : '';
             $secondary_phone   = !is_empty($secondary_digits) ? format_phone($secondary_digits) : '';
         }
+        $address = $customer->street_address . "<br />" . $customer->city . " " . $customer->province . " " . "<br />" . $customer->postal_code;
 
         if ($context === "customer") {
             $actionMethod = "
         <td>
             <a href='?page=customer-management&action=view&id={$customer->id}' class='button'>View</a>
             <a href='?page=customer-management&action=edit&id={$customer->id}' class='button'>Edit</a>
-            <a href='?page=customer-management&action=delete&id={$customer->id}' class='button' onclick='return confirm(\"Are you sure?\");'>Delete</a>
         </td>";
         } else {
             $actionMethod = '
@@ -144,7 +145,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                 <td id='primaryPhone'>{$primary_phone}</td>
                 <td id='secondaryPhone'>{$secondary_phone}</td>
                 <td id='email'>{$customer->email}</td>
-                <td id='address'>{$customer->street_address},<br /> {$customer->city} {$customer->province}, <br /> {$customer->postal_code}</td>
+                <td id='address'>$address</td>
                 $actionMethod
               </tr>";
     }
@@ -280,8 +281,8 @@ function add_customer_form()
 
         $table_name = $wpdb->prefix . 'mji_customers';
         $phones_table = $wpdb->prefix . 'mji_customer_phones';
-        $firstName = sanitize_text_field($_POST['firstName']);
-        $lastName = sanitize_text_field($_POST['lastName']);
+        $firstName = sanitize_text_field(stripslashes($_POST['firstName']));
+        $lastName = sanitize_text_field(stripslashes($_POST['lastName']));
         $email = sanitize_email($_POST['email']);
         $primary_phone = sanitize_text_field($_POST['primaryPhone']);
         $secondary_phone = sanitize_text_field($_POST['secondaryPhone']);
@@ -307,7 +308,7 @@ function add_customer_form()
             $errors[] = 'Please enter a valid email address or leave the field blank';
         }
 
-        if (empty($postalCode)) {
+        if (!empty($postalCode)) {
             $validated_postal_code = validate_postal_code($postalCode);
             if (!$validated_postal_code['valid']) {
                 $errors[] = 'Invalid Canadian postal code format';
@@ -441,8 +442,8 @@ function edit_customer_form()
         }
         global $wpdb;
 
-        $firstName = sanitize_text_field($_POST['firstName']);
-        $lastName = sanitize_text_field($_POST['lastName']);
+        $firstName = sanitize_text_field(stripslashes($_POST['firstName']));
+        $lastName = sanitize_text_field(stripslashes($_POST['lastName']));
         $email = sanitize_email($_POST['email']);
         $primary_phone = sanitize_text_field($_POST['primaryPhone']);
         $secondary_phone = sanitize_text_field($_POST['secondaryPhone']);
@@ -468,7 +469,7 @@ function edit_customer_form()
             $errors[] = 'Please enter a valid email address or leave the field blank';
         }
 
-        if (empty($postalCode)) {
+        if (!empty($postalCode)) {
             $validated_postal_code = validate_postal_code($postalCode);
             if (!$validated_postal_code['valid']) {
                 $errors[] = 'Invalid Canadian postal code format';

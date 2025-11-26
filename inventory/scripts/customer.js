@@ -31,10 +31,6 @@ customerForm?.addEventListener("submit", (e) => {
 
   if (!checkFormValidity()) {
     alert("Please fill in all required fields");
-  } else if (!checkPostalCodeValidity()) {
-    alert(
-      "Postal code is not valid. Please enter a valid Canadian postal code."
-    );
   } else {
     customerCta.disabled = true;
     customerCta.textContent = "Submitting...";
