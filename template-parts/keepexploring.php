@@ -33,8 +33,8 @@ $keepExpoloringArr = array(
         "url" => "/rolex/servicing"
     ),
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1726006312/rolex/discover-rolex-page-assets-landscape/rolex-keep-exploring-hub-world-of-rolex-wim23ac_17669_landscape.jpg",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1726006385/rolex/discover-rolex-page-assets-portrait/rolex-keep-exploring-hub-world-of-rolex-wim23ac_17669_portrait.jpg",
+        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1764276841/rolex/rolex-servicing-page-assets-landscape/keep-exploring-landscape/rolex-keep-exploring-hub-world-of-rolex-jb1_2564_070525_landscape.jpg",
+        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1764276702/rolex/rolex-servicing-page-assets-portrait/keep-exploring-portrait/rolex-keep-exploring-hub-world-of-rolex-jb1_2564_070525_portrait.jpg",
         "title" => "World of Rolex",
         "url" => "/rolex/world-of-rolex"
     ),
