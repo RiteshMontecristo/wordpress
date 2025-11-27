@@ -589,13 +589,15 @@ function searchProducts()
 
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_product_inventory_units';
+    $sku_history_table =  $wpdb->prefix . 'mji_product_sku_history';
 
     $query = $wpdb->prepare("
-            SELECT id, wc_product_id, wc_product_variant_id, sku, retail_price, location_id
-            FROM {$table_name}
-            WHERE sku LIKE %s
-            AND status = 'in_stock'
-            ", $search_query);
+            SELECT u.id, u.wc_product_id, u.wc_product_variant_id, u.sku, u.retail_price, u.location_id, u.status
+            FROM {$table_name} AS u
+            LEFT JOIN {$sku_history_table} AS h
+            ON h.unit_id = u.id
+            WHERE (u.sku LIKE %s OR h.old_sku LIKE %s)
+            ", $search_query, $search_query);
     $result = $wpdb->get_row($query);
 
     if (!empty($result)) {
@@ -604,6 +606,7 @@ function searchProducts()
         $product_id = $result->wc_product_id;
         $product_variant_id = $result->wc_product_variant_id;
         $sku = $result->sku;
+        $status = $result->status;
         $variation_detail = "";
 
         $product = wc_get_product($product_id);
@@ -630,6 +633,7 @@ function searchProducts()
             'title' => get_the_title($product_id),
             'image_url' => esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($product_id), 'thumbnail')),
             'sku' => $sku,
+            'status' => $status,
             'variation_detail' => $variation_detail,
             'price' => $price
         );
@@ -680,7 +684,7 @@ function validate_sale_input($post_data)
 function calculate_sale_totals($items_data, $services_data, $exclude_gst = false, $exclude_pst = false)
 {
     define('GST_RATE', 0.05);
-    define('PST_RATE', 0.08);
+    define('PST_RATE', 0.07);
     define('FLOAT_COMPARE_EPSILON', 0.01);
 
     $subtotal = 0;
@@ -698,7 +702,7 @@ function calculate_sale_totals($items_data, $services_data, $exclude_gst = false
     return compact('subtotal', 'gst', 'pst', 'total');
 }
 
-function get_payments($post_data, $expected_total)
+function get_payments($post_data, $expected_total, $customer_id, $location_id)
 {
     $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay', 'layaway'];
     $payments = [];
@@ -706,6 +710,14 @@ function get_payments($post_data, $expected_total)
 
     foreach ($payment_methods as $method) {
         $amount = floatval($post_data[$method] ?? 0);
+
+        if ($method === "layaway" && $amount > 0) {
+            $total_layaway = get_layaway_sum($customer_id, $location_id);
+
+            if ($total_layaway < $amount) {
+                wp_send_json_error(['message' => 'Layaway payment is greater than the amount customer has']);
+            }
+        }
         if ($amount > 0) {
             $payments[] = ['method' => $method, 'amount' => $amount];
             $payment_total += $amount;
@@ -724,6 +736,8 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 {
     global $wpdb;
     $wpdb->query('START TRANSACTION');
+    $deducted_stock = [];
+
     try {
         // Insert order
         $success = $wpdb->insert($wpdb->prefix . 'mji_orders', $order_data);
@@ -789,9 +803,34 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     ['id' => $item->unit_id]
                 );
 
-                if ($success === false) { // note: update returns 0 if nothing changed, false on error
+                if ($success === false) {
                     throw new RuntimeException("Failed to update inventory for {$item->title}: " . $wpdb->last_error);
                 }
+
+                // UPDATE WOOCOMMERCE STOCK 
+                $product_id = $item->product_variant_id ?: $item->product_id;
+                $product = wc_get_product($product_id);
+
+                if (!$product) {
+                    throw new RuntimeException("WooCommerce product not found for {$item->title}");
+                }
+
+                $current_stock = $product->get_stock_quantity();
+
+                if ($current_stock === null) {
+                    throw new RuntimeException("WooCommerce stock is not managed for {$item->title}");
+                }
+
+                if ($current_stock <= 0) {
+                    throw new RuntimeException("WooCommerce stock is already 0 for {$item->title}");
+                }
+
+                $qty_to_deduct =  1;
+                $result = wc_update_product_stock($product_id, $qty_to_deduct, 'decrease');
+                if ($result === false) {
+                    throw new RuntimeException("Failed to decrease WooCommerce stock for {$item->title} (ID: {$product_id}).");
+                }
+                $deducted_stock[] = $product_id;
             } else {
                 throw new RuntimeException("Item {$item->title} is already sold or is reserved.");
             }
@@ -815,6 +854,15 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 
         $wpdb->query('COMMIT');
     } catch (Exception $e) {
+
+        // restore WooCommerce stock
+        foreach ($deducted_stock as $product_id) {
+            $product = wc_get_product($product_id);
+            if ($product) {
+                $product->set_stock_quantity($product->get_stock_quantity() + 1);
+                $product->save();
+            }
+        }
         custom_log($e->getMessage());
         $wpdb->query('ROLLBACK');
         wp_send_json_error(['message' => $e->getMessage()]);
@@ -823,16 +871,15 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 
 function finalizeSale()
 {
-    [$items_data, $services_data] = validate_sale_input($_POST);
-    $totals = calculate_sale_totals($items_data, $services_data, !empty($_POST['exclude_gst']), !empty($_POST['exclude_pst']));
-    $payments = get_payments($_POST, $totals['total']);
-
-    // clean and prepare data
     $customer_id = intval($_POST['customer_id']);
     $salesperson_id = intval($_POST['salesperson']);
     $location_id = intval($_POST['location']);
     $reference_num = sanitize_text_field($_POST['reference']);
     $created_at = sanitize_text_field($_POST['date']);
+
+    [$items_data, $services_data] = validate_sale_input($_POST);
+    $totals = calculate_sale_totals($items_data, $services_data, !empty($_POST['exclude_gst']), !empty($_POST['exclude_pst']));
+    $payments = get_payments($_POST, $totals['total'], $customer_id, $location_id);
 
     $order_data = [
         'customer_id' => $customer_id,
