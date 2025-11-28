@@ -120,7 +120,7 @@ export const ProductSelector = {
   },
 
   addToCart(product) {
-    if (AppState.cart.find((item) => item.unit_id === unit_id)) {
+    if (AppState.cart.find((item) => item.unit_id === product.unit_id)) {
       alert("This product is already in the cart.");
       return;
     }

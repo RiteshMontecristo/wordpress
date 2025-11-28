@@ -124,7 +124,7 @@ export const CartSelector = {
     const index = AppState.cart.findIndex((item) => item.unit_id == unitId);
     if (index > -1) {
       AppState.cart.splice(index, 1);
-      displayCart();
+      this.displayCart();
     }
   },
 
