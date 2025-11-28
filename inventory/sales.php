@@ -11,7 +11,7 @@ function inventory_page()
             <button id="change-store-btn">Change</button>
         </div>
 
-        <div id="store-modal" class="modal">
+        <div id="store-modal" class="modal" style="display: none;">
             <div class="modal-content">
 
                 <h2>Select Store:</h2>
