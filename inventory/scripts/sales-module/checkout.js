@@ -43,7 +43,9 @@ export const CheckoutSelector = {
 
     this.excludeGst.addEventListener("change", this.calculateTotal.bind(this));
     this.excludePst.addEventListener("change", this.calculateTotal.bind(this));
-    this.salesPrintReceipt?.addEventListener("click", () => printReceipt());
+    this.salesPrintReceipt?.addEventListener("click", () =>
+      this.printReceipt()
+    );
 
     this.finalizeSale.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -291,7 +293,7 @@ export const CheckoutSelector = {
               <link rel="stylesheet" href="${cssPath}" onload="window.__cssLoaded = true;" />
             </head>
             <body>
-              ${DOM.receipts.content.outerHTML}
+              ${this.receiptContent.outerHTML}
             </body>
         </html>
     `);
