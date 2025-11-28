@@ -530,7 +530,7 @@ function create_inventory_menu()
 {
     add_menu_page(
         'Inventory Management', // Page Title
-        'Inventory', // Menu Title
+        'Sales', // Menu Title
         'manage_options', // Capability
         'inventory-management', // Menu Slug
         'inventory_page', // Callback Function
