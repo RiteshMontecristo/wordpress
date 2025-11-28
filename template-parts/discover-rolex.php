@@ -2,12 +2,12 @@
 
 $discoverArr = array(
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1762283843/rolex/discover-rolex-page-assets-landscape/M126729VTNR-0001_2501stojan_001_RVB-V2_2000x920.webp",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1762283923/rolex/discover-rolex-page-assets-portrait/M126729VTNR-0001_2501stojan_001_RVB-V2_780x1050.webp",
+        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1764347844/rolex/discover-rolex-page-assets-landscape/m278288rbr-0041_2511stj_001_rvb-banner-generator_2000x920.webp",
+        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1764347909/rolex/discover-rolex-page-assets-portrait/m278288rbr-0041_2511stj_001_rvb-banner-generator_780x1050.webp",
         "title" => "Rolex",
-        "subtitle" => "GMT-Master II",
-        "url" => "/rolex/gmt-master-ii",
-        "text_color" => "white"
+        "subtitle" => "Time to shine bright",
+        "url" => "/rolex/datejust",
+        "text_color" => "black"
     ),
     array(
         "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1756914319/rolex/discover-rolex-page-assets-landscape/RBA_SailGP_Website_Banner_FD1_3997-r_2000x920.webp",
