@@ -40,7 +40,7 @@ wp_footer();
 
         <div class="footer-three">
             <a href="/contact" class="btn boot">Contact Us</a>
-            <a href="/customize-your-jewellery" class="btn boot">Customize it</a>
+            <a href="/customize-your-jewellery" class="btn boot">Customize Your Dream Jewellery</a>
         </div>
 
         <div class="footer-four">
