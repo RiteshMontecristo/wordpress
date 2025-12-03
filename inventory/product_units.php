@@ -225,7 +225,7 @@ function render_inventory_units_meta_box($post)
         </form>
     </div>
 
-<?php
+    <?php
 }
 
 function generate_variation_dropdown($product, &$variation_name_by_id)
@@ -768,3 +768,23 @@ function watch_variation_retail_price($variation_id, $i)
         mji_log_admin_error("Failed to update model name for model ID $model_id: " . $wpdb->last_error);
     }
 }
+
+// Change SKU label to Model in WooCommerce admin
+add_action('admin_footer', function () {
+    global $pagenow, $post_type;
+
+    // Only run on product edit pages
+    if ($pagenow === 'post.php' || $pagenow === 'post-new.php') {
+        if ($post_type === 'product') {
+    ?>
+            <script type="text/javascript">
+                jQuery(document).ready(function($) {
+                    // Change the SKU label text
+                    $('label[for="_sku"] abbr').text('Model');
+                    $('label[for="_sku"] abbr').attr('title', 'Model'); // optional: change tooltip too
+                });
+            </script>
+<?php
+        }
+    }
+});
