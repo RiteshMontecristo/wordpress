@@ -592,19 +592,21 @@ function custom_woocommerce_admin_search($where, $wp_query)
         $custom_table = $wpdb->prefix . 'mji_product_inventory_units';
         $history_table = $wpdb->prefix . 'mji_product_sku_history';
 
-        $where .= " OR EXISTS (
-            SELECT 1 FROM $custom_table
-            WHERE $custom_table.wc_product_id = {$wpdb->posts}.ID
-            AND (
-                $custom_table.sku = '$search_term'
-                OR $custom_table.serial = '$search_term'
-                OR EXISTS (
-                    SELECT 1 FROM $history_table
-                    WHERE $history_table.unit_id = $custom_table.id
-                    AND $history_table.old_sku = '$search_term'
+        $where .= $wpdb->prepare("
+            OR EXISTS (
+                SELECT 1 FROM $custom_table
+                WHERE $custom_table.wc_product_id = {$wpdb->posts}.ID
+                AND (
+                    $custom_table.sku = %s
+                    OR $custom_table.serial = %s
+                    OR EXISTS (
+                        SELECT 1 FROM $history_table
+                        WHERE $history_table.unit_id = $custom_table.id
+                        AND $history_table.old_sku = %s
+                    )
                 )
             )
-        )";
+        ", $search_term, $search_term, $search_term);
     }
 
     return $where;
