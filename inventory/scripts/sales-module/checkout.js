@@ -21,7 +21,9 @@ export const CheckoutSelector = {
       travelCheque: document.querySelector("#cart #travel_cheque"),
       cup: document.querySelector("#cart #cup"),
       alipay: document.querySelector("#cart #alipay"),
+      wire: document.querySelector("#cart #wire"),
       layaway: document.querySelector("#cart #layaway"),
+      credit: document.querySelector("#cart #credit"),
     };
     this.location = document.querySelector("#cart #location");
     this.subtotal = document.querySelector("#cart #subtotal");
@@ -39,6 +41,9 @@ export const CheckoutSelector = {
   bindEvents() {
     document.addEventListener("checkout:updateLayaway", () => {
       this.payment.layaway.value = AppState.layawayTotal;
+      this.payment.layaway.max = AppState.layawayTotal;
+      this.payment.credit.value = AppState.creditTotal;
+      this.payment.credit.max = AppState.creditTotal;
     });
 
     this.excludeGst.addEventListener("change", this.calculateTotal.bind(this));

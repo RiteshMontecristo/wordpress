@@ -95,10 +95,11 @@ export const CustomerSelector = {
     )
       .then((response) => response.json())
       .then((res) => {
-        if (res.data > 0) {
-          AppState.layawayTotal = Number(res.data);
+        if (res.data) {
+          AppState.layawayTotal = Number(res.data.layaway);
+          AppState.creditTotal = Number(res.data.credit);
           this.layawaySum.textContent = `Layaway Total: ${formatCurrency(
-            res.data
+            res.data.layaway
           )} CAD`;
         }
       });

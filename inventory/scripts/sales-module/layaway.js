@@ -85,6 +85,8 @@ export const LayawaySelector = {
         this.layawayForm.querySelector("#travel_cheque").value;
       const cup = this.layawayForm.querySelector("#cup").value;
       const alipay = this.layawayForm.querySelector("#alipay").value;
+      const wire = this.layawayForm.querySelector("#wire").value;
+      const trade_in = this.layawayForm.querySelector("#trade_in").value;
       const layawayReference =
         this.layawayForm.querySelector("#layaway-reference").value;
       const salesperson = this.layawayForm.querySelector("#salesperson").value;
@@ -113,7 +115,9 @@ export const LayawaySelector = {
         discover === "" &&
         travel_cheque === "" &&
         cup === "" &&
-        alipay === ""
+        alipay === "" &&
+        wire === "" &&
+        trade_in === ""
       ) {
         alert("Please enter at least one payment method.");
         return;
@@ -150,8 +154,12 @@ export const LayawaySelector = {
               .map((payment) => `${payment.method}`)
               .join("<br>");
 
-            layawayTotalDiv.innerHTML = formatCurrency(result.data.layaway_sum);
-            AppState.layawayTotal = result.data.layaway_sum;
+            layawayTotalDiv.innerHTML =
+              formatCurrency(result.data.layaway_sum.layaway) +
+              ", " +
+              formatCurrency(result.data.layaway_sum.credit);
+            AppState.layawayTotal = result.data.layaway_sum.layaway;
+            AppState.creditTotal = result.data.layaway_sum.credit;
             receiptDate.innerHTML = result.data.payment_date;
             salesmanName.innerHTML = result.data.salesperson;
 

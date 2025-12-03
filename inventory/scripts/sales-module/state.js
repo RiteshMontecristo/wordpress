@@ -18,13 +18,13 @@
 //  * @property {number} price
 //  * @property {number} quantity
 
-
-// @property {CartItems][]} cart 
+// @property {CartItems][]} cart
 /**
  * @typedef {Object} AppState
- * @property {Array<Object>} cart 
+ * @property {Array<Object>} cart
  * @property {CustomerState} customer
  * @property {number} layawayTotal
+ * @property {number} creditTotalTotal
  * @property {Array<Object>} services
  * @property {StoreState} location
  */
@@ -34,6 +34,7 @@ export const AppState = {
   cart: [],
   customer: { id: null, firstName: "", lastName: "", address: "" },
   layawayTotal: 0,
+  creditTotal: 0,
   services: [],
   location: { id: null, name: null },
 };

@@ -79,7 +79,7 @@ function inventory_page()
 
         <div class="add-layaway hidden" id="addLayawayForm">
 
-            <h2>Add Layaway</h2>
+            <h2>Add Layaway/Credit</h2>
             <form name="add-layaway" method="post">
 
                 <div class="payment-methods">
@@ -134,6 +134,16 @@ function inventory_page()
                         <input type="number" step="0.01" id="alipay" name="alipay">
                     </div>
 
+                    <div>
+                        <label for="wire">Wire:</label>
+                        <input type="number" step="0.01" id="wire" name="wire">
+                    </div>
+
+                    <div>
+                        <label for="trade_in">Trade-In:</label>
+                        <input type="number" step="0.01" id="trade_in" name="trade_in">
+                    </div>
+
                 </div>
 
                 <div>
@@ -153,6 +163,14 @@ function inventory_page()
                         <label for="layaway-date">Date:</label>
                         <input type="date" id="layaway-date" name="layaway_date" value="<?php echo date('Y-m-d'); ?>">
                     </div>
+                    <div>
+                        <label for="transaction_type">Deposit:</label>
+                        <select name="transaction_type" id="transaction_type">
+                            <option value="layaway_deposit">Layaway</option>
+                            <option value="credit_deposit">Credit</option>
+                        </select>
+                    </div>
+
                 </div>
 
                 <button type="submit" id="submit-layaway">Submit Payment</button>
@@ -175,7 +193,7 @@ function inventory_page()
 
                 <div>
                     <p>Your Layaway as of today:</p>
-                    <p>Layaway Total: <span id="layawayTotal"></span></p>
+                    <p>Layaway and Credit Total: <span id="layawayTotal"></span></p>
                     <p>Amount of Last payment made:<span id="paymentAmount"></span></p>
                     <p>Last payment mode:<span id="paymentMode"></span></p>
                     <p>Payment Date: <span id="receiptDate"></span></p>
@@ -333,8 +351,18 @@ function inventory_page()
                     </div>
 
                     <div>
+                        <label for="wire">Wire:</label>
+                        <input type="number" min="0" step="0.01" id="wire" name="wire">
+                    </div>
+
+                    <div>
                         <label for="layaway">Layaway:</label>
                         <input type="number" min="0" step="0.01" id="layaway" name="layaway">
+                    </div>
+
+                    <div>
+                        <label for="credit">Credit:</label>
+                        <input type="number" min="0" step="0.01" id="credit" name="credit">
                     </div>
 
                 </div>
@@ -445,7 +473,34 @@ function get_layaway_sum($customer_id = null, $location_id = null)
     ", $customer, $location);
 
     $result = $wpdb->get_row($query);
-    $balance = !is_null($result->net_layaway_balance) ? (float) $result->net_layaway_balance : 0.0;
+    $layaway_balance = !is_null($result->net_layaway_balance) ? (float) $result->net_layaway_balance : 0.0;
+
+    $query = $wpdb->prepare("
+    SELECT
+        (
+            SUM(CASE
+                WHEN transaction_type = 'credit_deposit' THEN amount
+                ELSE 0
+            END)
+            -
+            SUM(CASE
+                WHEN transaction_type = 'credit_redemption' THEN amount
+                ELSE 0
+            END)
+        ) AS net_layaway_balance
+    FROM {$table_name}
+    WHERE transaction_type IN ('credit_deposit', 'credit_redemption')
+    AND customer_id = %d
+    AND location_id = %d
+    ", $customer, $location);
+
+    $result = $wpdb->get_row($query);
+    $credit_balance = !is_null($result->net_layaway_balance) ? (float) $result->net_layaway_balance : 0.0;
+
+    $balance = [
+        "layaway" => $layaway_balance,
+        "credit" => $credit_balance
+    ];
 
     if ($customer_id && $location_id) return $balance;
     return wp_send_json_success($balance);
@@ -476,7 +531,7 @@ function get_layaway()
     $query = $wpdb->prepare("
         SELECT *
         FROM {$table_name}
-        WHERE (transaction_type = 'layaway_deposit' OR transaction_type = 'layaway_redemption')
+        WHERE (transaction_type = 'layaway_deposit' OR transaction_type = 'layaway_redemption' OR transaction_type = 'credit_deposit' OR transaction_type = 'credit_redemption')
         AND customer_id = %d
         AND location_id = %d
     ", $customer_id, $location_id);
@@ -495,7 +550,7 @@ add_action('wp_ajax_getLayaway', 'get_layaway');
 function add_layaway()
 {
     global $wpdb;
-    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay'];
+    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay', 'wire', 'trade_in'];
     $payments = [];
     $table_name = $wpdb->prefix . 'mji_payments';
 
@@ -517,20 +572,20 @@ function add_layaway()
     $reference_num = sanitize_text_field($_POST['layaway_reference']);
     $salesperson_id = sanitize_text_field($_POST['salesperson']);
     $payment_date = sanitize_text_field($_POST['layaway_date']);
+    $salesperson_id = sanitize_text_field($_POST['salesperson']);
     $notes = sanitize_textarea_field($_POST['layaway_notes']);
+    $transaction_type = sanitize_text_field($_POST['transaction_type']);
     $customer_id = intval($_POST['customer_id']);
     $location_id = intval($_POST['location_id']);
 
-    if (empty($reference_num) || empty($salesperson_id) || empty($payment_date) || empty($customer_id) || empty($location_id)) {
-        wp_send_json_error(['message' => 'Reference number, salesperson, payment date, Location ID and customer ID are required.']);
+    if (empty($reference_num) || empty($salesperson_id) || empty($payment_date) || empty($customer_id) || empty($location_id) || empty($transaction_type)) {
+        wp_send_json_error(['message' => 'Reference number, salesperson, payment date, Location ID, customer ID and deposit type are required.']);
         wp_die();
     }
 
-    // Start transaction
     $wpdb->query('START TRANSACTION');
 
     try {
-
 
         foreach ($payments as $payment) {
 
@@ -539,21 +594,20 @@ function add_layaway()
                 'salesperson_id' => $salesperson_id,
                 'method' => $payment['method'],
                 'amount' => $payment['amount'],
-                'transaction_type' => 'layaway_deposit',
+                'transaction_type' => $transaction_type,
                 'payment_date' => $payment_date,
                 'notes' => $notes,
                 'customer_id' => $customer_id,
                 'location_id' => $location_id
             ];
 
-            $format = array('%s', '%d', '%s', '%f', '%s', '%s', '%s', '%d');
+            $format = array('%s', '%d', '%s', '%f', '%s', '%s', '%s', '%d', '%d');
 
             $success = $wpdb->insert($table_name, $layaway_data, $format);
             if (!$success) {
                 throw new Exception("Failed to insert payment: " . $wpdb->last_error);
             }
         }
-
 
         $salespeople_arr = mji_get_salespeople();
         $salesperson = array_find($salespeople_arr, function ($value) use ($salesperson_id) {
@@ -565,7 +619,8 @@ function add_layaway()
             'reference_num' => $reference_num,
             'payment_date' => $payment_date,
             'payments' => $payments,
-            'layaway_sum' => $layaway_sum
+            'layaway_sum' => $layaway_sum,
+            'transaction_type' => $transaction_type
         ];
 
         $wpdb->query('COMMIT');
@@ -704,7 +759,7 @@ function calculate_sale_totals($items_data, $services_data, $exclude_gst = false
 
 function get_payments($post_data, $expected_total, $customer_id, $location_id)
 {
-    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay', 'layaway'];
+    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay', 'wire', 'layaway',  'credit'];
     $payments = [];
     $payment_total = 0;
 
@@ -760,7 +815,11 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                 'payment_date' => $order_data["created_at"],
                 'customer_id' => $order_data["customer_id"],
                 'salesperson_id' => $order_data["salesperson_id"],
-                'transaction_type' => $payment['method'] === 'layaway' ? 'layaway_redemption' : 'purchase',
+                'transaction_type' => match ($payment['method']) {
+                    'layaway' => 'layaway_redemption',
+                    'credit'  => 'credit_redemption',
+                    default   => 'purchase',
+                },
                 'reference_num' => $order_data['reference_num'],
                 'location_id' => $location_id
             ]);
