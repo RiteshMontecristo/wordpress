@@ -6,51 +6,51 @@ function mc_register_repeatable_group_field_metabox()
 	/**
 	 * Repeatable Field Groups
 	 */
-	$cmb_group = new_cmb2_box(array(
-		'id'           => 'sku_metabox',
-		'title'        => esc_html__('Enter SKU values', 'cmb2'),
-		'object_types' => array('product'), // can be page or posts or product or CPT
-		'context'      => 'normal',  // 'side' for side metabox, or 'advanced'
-		'priority'     => 'high',    // Metabox display priority, needs to be high or will be replaced by woocommerce
-	));
+	// $cmb_group = new_cmb2_box(array(
+	// 	'id'           => 'sku_metabox',
+	// 	'title'        => esc_html__('Enter SKU values', 'cmb2'),
+	// 	'object_types' => array('product'), // can be page or posts or product or CPT
+	// 	'context'      => 'normal',  // 'side' for side metabox, or 'advanced'
+	// 	'priority'     => 'high',    // Metabox display priority, needs to be high or will be replaced by woocommerce
+	// ));
 
-	/**
-	 * Group fields works the same, except ids only need
-	 * to be unique to the group. Prefix is not needed.
-	 *
-	 * The parent field's id needs to be passed as the first argument.
-	 */
-	$group_field_id = $cmb_group->add_field(array(
-		'name'       => esc_html__('SKU Entries', 'cmb2'),
-		'id'         => 'new_repeatable_sku_field',
-		'type'       => 'group',
-		'repeatable' => true, // This makes the text field repeatable
-		'options'     => array(
-			'group_title'   => __('SKU Set {#}', 'textdomain'),
-			'add_button'    => __('Add Another SKU Set', 'textdomain'),
-			'remove_button' => __('Remove SKU Set', 'textdomain'),
-		),
-	));
-
-
-	// Add a text field for the SKU
-	$cmb_group->add_group_field($group_field_id, array(
-		'id'   => 'sku_text',
-		'type' => 'text',
-		'name' => __('SKU Text', 'textdomain'),
-		'sanitize_cb' => 'validate_sku_text',
-	));
+	// /**
+	//  * Group fields works the same, except ids only need
+	//  * to be unique to the group. Prefix is not needed.
+	//  *
+	//  * The parent field's id needs to be passed as the first argument.
+	//  */
+	// $group_field_id = $cmb_group->add_field(array(
+	// 	'name'       => esc_html__('SKU Entries', 'cmb2'),
+	// 	'id'         => 'new_repeatable_sku_field',
+	// 	'type'       => 'group',
+	// 	'repeatable' => true, // This makes the text field repeatable
+	// 	'options'     => array(
+	// 		'group_title'   => __('SKU Set {#}', 'textdomain'),
+	// 		'add_button'    => __('Add Another SKU Set', 'textdomain'),
+	// 		'remove_button' => __('Remove SKU Set', 'textdomain'),
+	// 	),
+	// ));
 
 
-	// Add a select field for variations
-	$cmb_group->add_group_field($group_field_id, array(
-		'id'      => 'sku_variation',
-		'type'    => 'select',
-		'name'    => __('Variation', 'textdomain'),
-		'options_cb' => 'get_product_variation_options', // Callback for dynamic options
-		'show_on_cb' => 'show_sku_field_if_variations_exist', // Custom display callback
-		'validate' => array('required' => true)
-	));
+	// // Add a text field for the SKU
+	// $cmb_group->add_group_field($group_field_id, array(
+	// 	'id'   => 'sku_text',
+	// 	'type' => 'text',
+	// 	'name' => __('SKU Text', 'textdomain'),
+	// 	'sanitize_cb' => 'validate_sku_text',
+	// ));
+
+
+	// // Add a select field for variations
+	// $cmb_group->add_group_field($group_field_id, array(
+	// 	'id'      => 'sku_variation',
+	// 	'type'    => 'select',
+	// 	'name'    => __('Variation', 'textdomain'),
+	// 	'options_cb' => 'get_product_variation_options', // Callback for dynamic options
+	// 	'show_on_cb' => 'show_sku_field_if_variations_exist', // Custom display callback
+	// 	'validate' => array('required' => true)
+	// ));
 
 
 	// HOME PAGE
