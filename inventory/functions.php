@@ -597,6 +597,7 @@ function custom_woocommerce_admin_search($where, $wp_query)
             WHERE $custom_table.wc_product_id = {$wpdb->posts}.ID
             AND (
                 $custom_table.sku = '$search_term'
+                OR $custom_table.serial = '$search_term'
                 OR EXISTS (
                     SELECT 1 FROM $history_table
                     WHERE $history_table.unit_id = $custom_table.id
