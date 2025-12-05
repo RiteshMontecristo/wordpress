@@ -48,7 +48,6 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     global $wpdb;
     ob_start();
     $table_name = $wpdb->prefix . 'mji_customers';
-    $phones_table = $wpdb->prefix . 'mji_customer_phones';
 
     // Pagination settings
     $offset = ($current_page - 1) * $per_page;
@@ -57,20 +56,17 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     // Handle search
     if (!empty($search_query)) {
         $search = $search_query;
-        $search_digits = normalize_phone($search);
-        $search_escaped = $wpdb->esc_like($search_digits);
 
         $where .= " AND (
-                        MATCH(c.first_name, c.last_name, c.street_address, c.city, c.province, c.postal_code, c.country)
+                        MATCH(first_name, last_name, street_address, city, province, postal_code, country, primary_phone, secondary_phone)
                         AGAINST('" . esc_sql($search) . "' IN NATURAL LANGUAGE MODE)
-                        OR p.phone LIKE '" . esc_sql($search_escaped) . "'
                     )";
     }
 
     // Main query with join and pagination
     $query = $wpdb->prepare("
         SELECT *
-        FROM $table_name c
+        FROM $table_name
         $where
         ORDER BY created_at DESC
         LIMIT %d OFFSET %d
@@ -122,9 +118,6 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                 $primary_phone =  $customer->primary_phone;
                 $secondary_phone =  $customer->secondary_phone;
 
-                // $primary_phone   = !is_empty($primary_phone) ? format_phone($primary_phone) : '';
-                // $secondary_phone   = !is_empty($secondary_phone) ? format_phone($secondary_phone) : '';
-
                 $address = $customer->street_address . "<br />" . $customer->city . " " . $customer->province . " " . "<br />" . $customer->postal_code;
                 $salesperson = current(array_filter($salespeople_array, function ($sp) use ($salesperson_id) {
                     return $sp->id === $salesperson_id;
@@ -138,10 +131,11 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                 <a href='?page=customer-management&action=edit&id={$customer_id}' class='button'>Edit</a>
             </td>";
                 } else {
-                    // $layaway_credit = get_layaway_sum($customer_id, $location_id);
-                    // custom_log($layaway_credit);
+                    $layaway_credit = get_layaway_sum($customer_id, $location_id);
+                    $layaway = $layaway_credit["layaway"] ? "Layaway: " . $layaway_credit["layaway"] : '';
+                    $credit = $layaway_credit["credit"] ? "<br />Credit: " . $layaway_credit["credit"] : '';
                     $actionMethod = '
-                            <td></td>
+                            <td>' . $layaway  . $credit . '</td>
                             <td>
                                 <button class="select-customer button" data-customerid="' . $customer_id . '">Select</button>
                             </td>
@@ -584,7 +578,6 @@ function edit_customer_form()
         <?php submit_button('Update Customer', 'primary', 'customer_cta', false); ?>
     </form>
 <?php
-
 }
 
 function view_customer_page()
