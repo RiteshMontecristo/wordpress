@@ -134,6 +134,7 @@ function reports_get_sales_results()
     $order_items = $wpdb->prefix . 'mji_order_items';
     $inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
+    $customers_table = $wpdb->prefix . 'mji_customers';
     $service_table = $wpdb->prefix . 'mji_services';
 
     $where1 = ["o.created_at BETWEEN %s AND %s"];
@@ -151,8 +152,12 @@ function reports_get_sales_results()
 
     $query1 = "
                 SELECT 
+                    o.reference_num AS invoice,
+                    o.created_at AS sold_date,
                     s.first_name AS salesperson_first_name,
                     s.last_name AS salesperson_last_name, 
+                    c.first_name AS customer_first_name,
+                    c.last_name AS customer_last_name, 
                     pi.wc_product_id AS product_id,
                     pi.wc_product_variant_id AS product_variant_id,
                     pi.sku AS sku,
@@ -166,6 +171,7 @@ function reports_get_sales_results()
                 INNER JOIN $order_items oi ON o.id = oi.order_id
                 INNER JOIN $inventory_table pi ON oi.product_inventory_unit_id = pi.id
                 INNER JOIN $salespeople_table s ON o.salesperson_id = s.id
+                INNER JOIN $customers_table c ON o.customer_id = c.id
                 WHERE " . implode(" AND ", $where1) . "
             ";
 
@@ -184,8 +190,12 @@ function reports_get_sales_results()
 
     $query2 = "
                 SELECT 
+                    o.reference_num AS invoice,
+                    o.created_at AS sold_date,
                     s.first_name AS salesperson_first_name,
                     s.last_name AS salesperson_last_name, 
+                    c.first_name AS customer_first_name,
+                    c.last_name AS customer_last_name, 
                     NULL AS product_id,
                     NULL AS product_variant_id,
                     category AS sku,
@@ -198,11 +208,17 @@ function reports_get_sales_results()
                 FROM $orders_table o
                 INNER JOIN $service_table si ON si.order_id = o.id
                 INNER JOIN $salespeople_table s ON o.salesperson_id = s.id
+                INNER JOIN $customers_table c ON o.customer_id = c.id
                 WHERE " . implode(" AND ", $where2) . "
             ";
 
+    $query = "
+        ($query1)
+        UNION ALL
+        ($query2)
+        ORDER BY sold_date ASC
+    ";
 
-    $query = $query1 . " UNION ALL " . $query2;
     $params = array_merge($params1, $params2);
     $results = $wpdb->get_results($wpdb->prepare($query, ...$params));
 
@@ -230,6 +246,8 @@ function reports_render_sales_report($results)
                 </header>
                 <table id="inventoryTable" class="widefat striped"><thead>
                     <tr>
+                        <th>Invoice</th>
+                        <th>Date</th>
                         <th>Item</th>
                         <th>SKU</th>
                         <th>Cost</th>
@@ -240,6 +258,7 @@ function reports_render_sales_report($results)
                         <th>Profit</th>
                         <th>Margin(%)</th>
                         <th>Salesperson</th>
+                        <th>Customer</th>
                     </tr>
                 </thead><tbody>';
 
@@ -252,9 +271,13 @@ function reports_render_sales_report($results)
             $margin_percent = $row->retail_paid ? ($profit / $row->retail_paid) * 100 : 0;
             $desc = $row->description ? ' - ' . $row->description : '';
             $name = format_label($row->sku) . $desc;
+            $dt = new DateTime($row->sold_date);
+            $date = $dt->format('Y-m-d');
 
             if (!$product) {
                 echo '<tr>';
+                echo '<td>' .  $row->invoice . '</td>';
+                echo '<td>' .  $date . '</td>';
                 echo '<td>' .  $name . '</td>';
                 echo '<td>Service</td>';
                 echo '<td>' . number_format($row->cost_price, 2) . '</td>';
@@ -265,6 +288,7 @@ function reports_render_sales_report($results)
                 echo '<td>' . number_format($profit, 2) . '</td>';
                 echo '<td>' . number_format($margin_percent, 2) . '%</td>';
                 echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
+                echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
                 echo '</tr>';
                 continue; // Skip invalid products
             }
@@ -289,6 +313,8 @@ function reports_render_sales_report($results)
             $total_profit += $profit;
 
             echo '<tr>';
+            echo '<td>' .  $row->invoice . '</td>';
+            echo '<td>' .  $date . '</td>';
             echo '<td>' . $name . '</td>';
             echo '<td>' . $row->sku . '</td>';
             echo '<td>' . number_format($row->cost_price, 2) . '</td>';
@@ -299,6 +325,7 @@ function reports_render_sales_report($results)
             echo '<td>' . number_format($profit, 2) . '</td>';
             echo '<td>' . number_format($margin_percent, 2) . '%</td>';
             echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
+            echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
             echo '</tr>';
         }
 
