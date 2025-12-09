@@ -143,38 +143,6 @@ require get_stylesheet_directory() . '/woocommerce/function.php';
 
 require get_stylesheet_directory() . '/inventory/functions.php';
 
-// Hook into theme activation
-add_action('after_switch_theme', 'create_image_metadata_table');
-
-// Creating iamge metadata table to store the height and width of cloudinary images
-function create_image_metadata_table()
-{
-    global $wpdb;
-
-    $table_name = 'mji_image_metadata';
-
-    // Check if the table already exists
-    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
-
-        $charset_collate = $wpdb->get_charset_collate();
-
-        $sql = "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            image_url VARCHAR(255) NOT NULL UNIQUE,
-            width INT NOT NULL,
-            height INT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id)
-        ) $charset_collate;";
-
-        // Include the WordPress dbDelta function
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-
-        // Create the table
-        dbDelta($sql);
-    }
-}
-
 // Remove breadcrumb for the rolex pages
 function remove_breadcrumb_for_cpt()
 {
@@ -201,44 +169,61 @@ add_action('init', 'rolex_register_menus');
 // grabbign the height and width of cloudinary iamges
 function get_image_sizes($image_url)
 {
-    global $wpdb;
 
-    // Define the table name
-    $table_name = 'mji_image_metadata';
+    $transient_key = 'img_size_' . md5($image_url);
 
-    // Check if the image URL exists in the database
-    $result = $wpdb->get_row(
-        $wpdb->prepare("SELECT width, height FROM $table_name WHERE image_url = %s", $image_url)
-    );
-
-    if ($result) {
-        return ['width' => $result->width, 'height' => $result->height];
-    } else {
-
-        $headers = @get_headers($image_url);
-        if ($headers && strpos($headers[0], '200') !== false) {
-            $image_info = @getimagesize($image_url);
-            if ($image_info) {
-                $width = $image_info[0];
-                $height = $image_info[1];
-
-                // Insert the new record into the database
-                $wpdb->insert(
-                    $table_name,
-                    [
-                        'image_url' => $image_url,
-                        'width'     => $width,
-                        'height'    => $height,
-                    ]
-                );
-                return ['width' => $width, 'height' => $height];
-            } else {
-                custom_log("Failed to retrieve image dimensions.");
-            }
-        } else {
-            custom_log("Image not found or inaccessible " . $image_url);
-        }
+    $cached = get_transient($transient_key);
+    if ($cached && isset($cached['width']) && isset($cached['height'])) {
+        return $cached;
     }
+
+    $image_path = '';
+    $image_info = false;
+
+    // if this is a relative URL (starts with "/")
+    if (strpos($image_url, '/') === 0 && !preg_match('#^https?://#i', $image_url)) {
+        $image_path = wp_normalize_path(ABSPATH . ltrim($image_url, '/'));
+
+        if (file_exists($image_path)) {
+            $image_info = @getimagesize($image_path);
+        } else {
+            custom_log("Image not found locally: " . $image_path);
+            return [
+                'width'  => null,
+                'height' => null
+            ];
+        }
+    } else {
+        //    Absolute URL (remote URL)
+        $headers = @get_headers($image_url);
+        if (!$headers || strpos($headers[0], '200') === false) {
+            custom_log("Remote image not accessible: " . $image_url);
+            return [
+                'width'  => null,
+                'height' => null
+            ];
+        }
+        $image_info = @getimagesize($image_url);
+    }
+
+    // Validate image data
+    if (!$image_info) {
+        custom_log("Failed to retrieve image dimensions for: " . $image_url);
+        return [
+            'width'  => null,
+            'height' => null
+        ];
+    }
+
+    $sizes = [
+        'width'  => $image_info[0],
+        'height' => $image_info[1],
+    ];
+
+    // Store in transient (5 years)  Practically permanent but still self-cleaning if unused.
+    set_transient($transient_key, $sizes, YEAR_IN_SECONDS * 5);
+
+    return $sizes;
 }
 
 // SHORTCODES
@@ -270,10 +255,11 @@ function responsive_image_shortcode($atts)
     $link_class    = esc_attr($atts['classname']);
     $url = esc_url($atts['url']);
 
-    if (!str_contains($image_src, "mapbox")) $dimensions = get_image_sizes($image_src);
-    $width    = $dimensions['width'] ?? 2400;
-    $height   = $dimensions['height'] ?? 920;
-
+    if (!str_contains($image_src, "mapbox")) {
+        $dimensions = get_image_sizes($image_src);
+        $width    = $dimensions['width'] ?? 2400;
+        $height   = $dimensions['height'] ?? 920;
+    }
     if (!empty($link_class) && empty($url)) {
         $picture = '<picture class="' . $link_class . '">';
     } else {
