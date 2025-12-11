@@ -15,7 +15,6 @@ get_template_part('template-parts/rolex-header');
 
 global $post;
 
-
 // Get the categories of the current post by ID
 $categories = wp_get_post_terms($post->ID, 'rolex_category');
 $family = '';
@@ -31,10 +30,16 @@ if (has_term('world-of-rolex', 'rolex_category')) {
 	$family = 'data-pagetype="article"';
 }
 
+$is_accessories_class = "";
+
+if (has_term('accessories', 'rolex_category')) {
+	$is_accessories_class = 'f9-background-container rolex-accessories';
+	$family = 'data-pagetype="Product"';
+}
 
 ?>
 
-<main id="rolex-page" <?php echo $family ?> class="site-main rolex-main" role="main">
+<main id="rolex-page" <?= $family ?> class="site-main rolex-main <?= $is_accessories_class ?>" role="main">
 
 	<?php
 
@@ -47,30 +52,35 @@ if (has_term('world-of-rolex', 'rolex_category')) {
 		echo '<article class="f9-background-container">';
 	}
 
+	if (has_term('accessories', 'rolex_category')) {
+		get_template_part('template-parts/rolex-accessories');
+	}
 
 	// Check if ACF is installed and active
 	if (function_exists('get_field')) {
 
 		// THIS IS FOR ROLEX BLOG PAGES
-		$heading = get_field('heading');
-		$description = get_field('description');
-		$description_light = get_field('description_light');
-		$published = get_field('published');
-		$article_excerpt = get_field('article_excerpt');
+		if (has_term('world-of-rolex', 'rolex_category')) {
+			$heading = get_field('heading');
+			$description = get_field('description');
+			$description_light = get_field('description_light');
+			$published = get_field('published');
+			$article_excerpt = get_field('article_excerpt');
 
-		if ($heading && $description && $published) {
+			if ($heading && $description && $published) {
 
-			// Display the field value
-			echo '<div class="grid-nospace"><div class="article-intro"><h1 class="headline50">' . $heading . '</h1>';
-			if ($article_excerpt) {
-				echo '<p><span class="body20Bold">' . $article_excerpt . '</span>';
-			} else {
-				echo '<p><span class="body20Bold">' . $description . '</span>';
-				if ($description_light) {
-					echo '<span class="body20Light">' . $description_light . '</span>';
+				// Display the field value
+				echo '<div class="grid-nospace"><div class="article-intro"><h1 class="headline50">' . $heading . '</h1>';
+				if ($article_excerpt) {
+					echo '<p><span class="body20Bold">' . $article_excerpt . '</span>';
+				} else {
+					echo '<p><span class="body20Bold">' . $description . '</span>';
+					if ($description_light) {
+						echo '<span class="body20Light">' . $description_light . '</span>';
+					}
 				}
+				echo '</p><p class="body20Bold">' . $published . '</p></div></div>';
 			}
-			echo '</p><p class="body20Bold">' . $published . '</p></div></div>';
 		}
 	}
 	?>
@@ -87,10 +97,7 @@ if (has_term('world-of-rolex', 'rolex_category')) {
 	if (has_term('world-of-rolex', 'rolex_category')) {
 		echo '</article>';
 	}
-
-
 	?>
-
 
 </main><!-- #main -->
 
