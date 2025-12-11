@@ -367,6 +367,7 @@
                                             <li><a href="/rolex">Discover Rolex</a></li>
                                             <li><a href="/rolex/watches">Rolex Watches</a></li>
                                             <li><a href="/rolex/new-watches">New Watches 2025</a></li>
+                                            <li><a href="/rolex/accessories">Rolex Accessories</a></li>
                                             <li><a href="/rolex/watchmaking">Watchmaking</a></li>
                                             <li><a href="/rolex/servicing">Servicing</a></li>
                                             <li><a href="/rolex/world-of-rolex">World of Rolex</a></li>
