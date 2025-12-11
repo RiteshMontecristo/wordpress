@@ -383,10 +383,16 @@ function responsive_storehours_shortcode($atts)
 }
 add_shortcode('responsive_storehours', 'responsive_storehours_shortcode');
 
+function accessories_grid_shortcode()
+{
+    ob_start(); // Start output buffering
+    include_once get_stylesheet_directory() . '/template-parts/accessories-grid.php';
+    return ob_get_clean(); // Return the buffered content
+}
+add_shortcode('accessories_grid', 'accessories_grid_shortcode');
 
 function watch_grid_shortcode()
 {
-
     ob_start(); // Start output buffering
     include_once get_stylesheet_directory() . '/template-parts/watch-grid.php';
     return ob_get_clean(); // Return the buffered content
