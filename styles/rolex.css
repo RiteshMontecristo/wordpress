@@ -135,8 +135,13 @@ a:focus {
 .rolex-main a {
   overflow: hidden;
 }
+.rolex-main a:focus,
+.rolex-main button:focus {
+  outline: none;
+}
 
-.rolex-main a:focus-visible {
+.rolex-main a:focus-visible,
+.rolex-main button:focus-visible {
   outline: 2px solid #127749;
   outline-offset: 2px;
 }
@@ -426,6 +431,11 @@ button {
   background: linear-gradient(90deg, #0b3e27, #197149);
   font-family: var(--rolex-font-family);
   position: relative;
+}
+
+.rolex-header a:focus,
+.rolex-header button:focus {
+  outline: none;
 }
 
 .rolex-header a:focus-visible,
@@ -2612,6 +2622,7 @@ button.accordion-text:hover {
   color: var(--color-rolex-green);
   justify-content: flex-start;
   gap: 6px;
+  width: fit-content;
 }
 
 [data-pagetype="Product"] .secondary-cta:hover {
