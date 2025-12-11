@@ -244,6 +244,13 @@ document.addEventListener("DOMContentLoaded", function () {
         },
       },
     });
+    splide.on("mounted", () => {
+      // Make pagination buttons focusable
+      document
+        .querySelectorAll("#keepExploring .splide__pagination button")
+        .forEach((btn) => btn.removeAttribute("tabindex"));
+    });
+
     splide.mount();
   }
 
@@ -255,6 +262,13 @@ document.addEventListener("DOMContentLoaded", function () {
       lazyLoad: "false",
       drag: isMobile,
     });
+
+    splide.on("mounted", () => {
+      document
+        .querySelectorAll("#discover .splide__pagination button")
+        .forEach((btn) => btn.removeAttribute("tabindex"));
+    });
+
     splide.mount();
 
     window.addEventListener("resize", () => {
@@ -268,6 +282,13 @@ document.addEventListener("DOMContentLoaded", function () {
         lazyLoad: "false",
         drag: isMobile,
       });
+
+      splide.on("mounted", () => {
+        document
+          .querySelectorAll("#discover .splide__pagination button")
+          .forEach((btn) => btn.removeAttribute("tabindex"));
+      });
+
       splide.mount();
     });
   }
