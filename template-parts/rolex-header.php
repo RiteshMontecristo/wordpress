@@ -1,5 +1,5 @@
 <header class="rolex-header">
-
+    <a class="skip-link screen-reader-text" href="#rolex-page">Skip to content</a>
     <nav class="rolex-nav grid">
         <a class="rolex-plaque-link" href="/rolex">
             <img width="120" height="60" class="rolex-plaque" title="rolex-plaque" src="https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716309798/rolex/official_retailer_plaques_and_rolex_logos/Rolex-retailer-plaque-240x120_en_zr3emo.jpg" alt="Rolex plaque" />
@@ -35,7 +35,6 @@
             'container_class' => 'mobile-menu-container menu-hide'
         ));
     } ?>
-
 
     <!-- Breadcrumbs -->
     <?php
@@ -129,7 +128,7 @@
                     } ?>
 
                     <!-- Current Page Title -->
-                    <a href="#" class="active fixed14"><?php the_field("current_title") ?></a>
+                    <span class="active fixed14"><?php the_field("current_title") ?></span>
                     <?php
                     $itemList[] = [
                         "@type" => "ListItem",
@@ -138,7 +137,6 @@
                     ];
                     ?>
                 </div>
-
 
                 <!-- MOBILE BREADCRUMBS -->
                 <div class="breadcrumb-inner-container mobile">
@@ -172,7 +170,6 @@
                         <a href="/rolex" class="fixed14">Rolex</a>
                     <?php
                     } ?>
-
 
                 </div>
 
