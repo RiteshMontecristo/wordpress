@@ -1,6 +1,6 @@
 <?php
 if (function_exists('get_field')) {
-    $rmc_number = strtoupper(get_field('rmc'));
+    $rmc_number = get_field('rmc');
     $model_name = get_field('model_name');
     $ranking = get_field('ranking');
     $spec_material1 = get_field('spec_material1');
@@ -159,7 +159,7 @@ if (function_exists('get_field')) {
         <div class="spec-column">
             <div class="spec-item">
                 <p class="body20Bold brown">RMC</p>
-                <p class="body20Light black"><?= esc_html($rmc_number); ?></p>
+                <p class="body20Light black"><?= strtoupper($rmc_number); ?></p>
             </div>
             <div class="spec-item">
                 <p class="body20Bold brown">Material</p>
