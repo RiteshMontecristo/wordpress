@@ -21,92 +21,92 @@ get_template_part('template-parts/rolex-header');
 		"air-king" => array(
 			"title" => "Rolex Air-King",
 			"subtitle" => "Take to the skies",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716575919/rolex/rolex-collection-pages-assets/rolex-collection-page-air-king/rolex-collection-page-air-king-assets-landscape/rolex-air-king-cover-m126900-0001_2210jva_001-landscape_zhikir.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246761/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-air-king-m126900-0001_2210jva_001-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-air-king-cover-m126900-0001_2210jva_001-landscape_zhikir.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-air-king-cover-m126900-0001_2210jva_001_portrait_dp9hen.webp",
 		),
 		"cosmograph daytona" => array(
 			"title" => "The Rolex Cosmograph Daytona collection",
 			"subtitle" => "The triumph of endurance",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716575913/rolex/rolex-collection-pages-assets/rolex-collection-page-cosmograph-daytona/rolex-collection-page-cosmograph-daytona-assets-landscape/rolex-cosmograph-daytona-cover-m126506-0001_2301jva_002-landscape_t6plzn.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246762/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-cosmograph-daytona-m126509-0001_2402jva_001-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-cosmograph-daytona-cover-m126508-0008_2503stojan_001-landscape.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-cosmograph-daytona-cover-m126508-0008_2503stojan_001-portrait.webp",
 		),
 		"datejust" => array(
 			"title" => "The Rolex Datejust collection",
 			"subtitle" => "Make a date of a day",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716575922/rolex/rolex-collection-pages-assets/rolex-collection-page-datejust/rolex-collection-page-datejust-assets-landscape/rolex-datejust-M126234-0051_2210jva_001-landscape_p9c9e5.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246763/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-datejust-m126234-0051_2210jva_001-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-datejust-M126234-0051_2210jva_001-landscape_p9c9e5.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-datejust-M126234-0051_2210jva_001_portrait_jcws4r.webp",
 		),
 		"deepsea" => array(
 			"title" => "The Rolex Deepsea collection",
 			"subtitle" => "Extreme divers’ watches",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1721246760/rolex/rolex-model-page-editorial-assets-landscape/rolex-collection_banner-rolex-deepsea-m136668lb-0001_2312jva_001_rvb.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246764/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-rolex-deepsea-m136668lb-0001_2312jva_001_rvb-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-deepsea-cover-m136668LB-0001_2312jva_001_rvb-landscape_jfw1o9.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-deepsea-cover-m136668LB-0001_2312jva_001_rvb_portrait_ekisoa.webp",
 		),
 		"day-date" => array(
 			"title" => "The Rolex Day-Date collection",
 			"subtitle" => "Ideal accomplishments",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716575968/rolex/rolex-collection-pages-assets/rolex-collection-page-day-date/rolex-collection-page-day-date-assets-landscape/rolex-day-date-cover-m228235-0055_2402jva_001-landscape_kgcj9g.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246762/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-day-date-m228235-0055_2402jva_001-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-day-date-cover-m228235-0055_2402jva_001-landscape_kgcj9g.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-day-date-cover-m228235-0055_2402jva_001_portrait_orxufs.webp",
 		),
 		"explorer" => array(
 			"title" => "The Rolex Explorer Collection",
 			"subtitle" => "Adventure on a grand scale",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1721246760/rolex/rolex-model-page-editorial-assets-landscape/rolex-collection_banner-rolex-deepsea-m136668lb-0001_2312jva_001_rvb.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246762/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-explorer-m124273-0001_2210jva_001-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-explorer-cover-m226570-0001_2210jva_001_r-landscape.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-explorer-cover-m226570-0001_2210jva_001_r-portrait.webp",
 		),
 		"lady-datejust" => array(
 			"title" => "The Rolex Lady-Datejust collection",
 			"subtitle" => "Graceful elegance",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716577964/rolex/rolex-collection-pages-assets/rolex-collection-page-lady-datejust/rolex-collection-page-lady-datejust-assets-landscape/rolex-lady-datejust-cover-m279135RBR-0001_2301jva_001-landscape_g1n3be.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246763/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-lady-datejust-m279135rbr-0001_2301jva_001-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-lady-datejust-cover-m279135RBR-0001_2301jva_001-landscape_g1n3be.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-lady-datejust-cover-m279135RBR-0001_2301jva_001_portrait_aiffim.webp",
 		),
 		"land-dweller" => array(
 			"title" => "The Rolex Land-Dweller collection",
 			"subtitle" => "Opening new horizons",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744300910/rolex/rolex-model-page-editorial-assets-landscape/rolex-collection_banner-land-dweller-m127334-0001_2503-landscape-landscape.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744301116/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-land-dweller-m127334-0001_2503-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-the-land-dweller-cover_m127334-0001_2503stojan_001-landscape.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-the-land-dweller-cover_m127334-0001_2503stojan_001-portrait.webp",
 		),
 		"oyster perpetual" => array(
 			"title" => "The Rolex Oyster Perpetual collection",
 			"subtitle" => "Make the world your Oyster",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716577858/rolex/rolex-collection-pages-assets/rolex-collection-page-oyster-perpetual/rolex-collection-page-oyster-perpetual-assets-landscape/rolex-oyster-perpetual-cover-m124300-0001_2210jva_001-landscape_js0xuo.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246762/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-oyster-perpetual-m124300-0001_2210jva_001-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-oyster-perpetual-cover-m134300-0006_2503stojan_001-landscape.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-oyster-perpetual-cover-m134300-0006_2503stojan_001-portrait.webp",
 		),
 		"sea-dweller" => array(
 			"title" => "The Rolex Sea-Dweller collection",
 			"subtitle" => "Citizen of the deep",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716577973/rolex/rolex-collection-pages-assets/rolex-collection-page-sea-dweller/rolex-collection-page-sea-dweller-assets-landscape/rolex-seadweller-cover-m124060-0001-0002_2210jva_001-landscape_wfvjei.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246762/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-sea-dweller-m126603-0001_2210jva_0011-portrait_1.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-seadweller-cover-m124060-0001-0002_2210jva_001-landscape_wfvjei.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-seadweller-cover-m124060-0001-0002_2210jva_001-portrait_eynwyo.webp",
 		),
 		"sky-dweller" => array(
 			"title" => "The Rolex Sky-Dweller collection",
 			"subtitle" => "High-flying",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716577967/rolex/rolex-collection-pages-assets/rolex-collection-page-sky-dweller/rolex-collection-page-sea-dweller-assets-landscape/rolex-sky-dweller-cover-m336935-0008_2312jva_001-landscape_cmvt7q.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246762/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-sky-dweller-m336935-0008_2312jva_001_rvb-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-sky-dweller-cover-m336935-0008_2312jva_001-landscape_cmvt7q%20.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-sky-dweller-cover-m336935-0008_2312jva_001_portrait_oxnxr2.webp",
 		),
 		"submariner" => array(
 			"title" => "The Rolex Submariner collection",
 			"subtitle" => "Deep confidence",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716577980/rolex/rolex-collection-pages-assets/rolex-collection-page-submariner/rolex-collection-page-submariner-assets-landscape/rolex-submariner-cover-m124060-0001-0002_2210jva_001-landscape_d0zfx7.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246761/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-submariner-m124060-0001-0002_2210jva_001-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-submariner-cover-m124060-0001-0002_2210jva_001-landscape_d0zfx7.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-submariner-cover-m124060-0001-0002_2210jva_001-portrait_fgw9wv.webp",
 		),
 		"yacht-master" => array(
 			"title" => "The Rolex Yacht-Master collection",
 			"subtitle" => "Marine character",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716575911/rolex/rolex-collection-pages-assets/rolex-collection-page-yacht-master/rolex-collection-page-yacht-master-assets-landscape/rolex-yacht-master-cover-M226627-0001_2301jva_001-landscape_foa08d.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246765/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-yacht-master-m226627-0001_2301jva_001-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-yacht-master-cover-M226627-0001_2301jva_001-landscape_foa08d.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-yacht-master-cover-M226627-0001_2301jva_001_portrait_d6t9h7.webp",
 		),
 		"gmt-master ii" => array(
 			"title" => "The Rolex GMT-Master II collection",
 			"subtitle" => "Keep track of ties",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716577973/rolex/rolex-collection-pages-assets/rolex-collection-page-gmt-master-II/rolex-collection-page-gmt-master-ii-assets-landscape/rolex-gmt-master-II-cover-m126710GRNR-0003_2312jva_001-landscape_xmoiyu.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246764/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-gmt-master-2-m126710grnr-0003_2312jva_001_rvb-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-gmt-master-II-cover-m126710GRNR-0003_2312jva_001-landscape_xmoiyu.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-gmt-master-II-cover-m126710GRNR-0003_2312jva_001_portrait_wtpmdg.webp",
 		),
 		"1908" => array(
 			"title" => "The Rolex Perpetual 1908 collection",
 			"subtitle" => "Cutting-edge classicism",
-			"desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1716575898/rolex/rolex-collection-pages-assets/rolex-collection-page-1908/rolex-collection-page-1908-assets-landscape/rolex-perpetual-1908-m52506-0002_2312jva_001-landscape_ygtwas.jpg",
-			"mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1721246761/rolex/rolex-model-page-editorial-assets-portrait/rolex-collection_banner-1908-push-m52506-0002_2312jva_001_rvb-portrait.jpg",
+			"desktop_url" => "/wp-content/uploads/rolex/watches-model/push_landscape/rolex-perpetual-1908-cover-m52508-0008_2501stojan_001_rvb-landscape.webp",
+			"mobile_url" => "/wp-content/uploads/rolex/watches-model/push_portrait/rolex-perpetual-1908-cover-m52508-0008_2501stojan_001_rvb_portrait.webp",
 		)
 	);
 	// Check if ACF plugin is active
@@ -143,20 +143,20 @@ get_template_part('template-parts/rolex-header');
 		$family_handle_data = strtolower(str_replace(' ', '-', $family_handle));
 		$watch_gallery = array(
 			array(
-				'desktop' => "https://res.cloudinary.com/drfo99te6/f_auto,q_auto/v1/rolex/model-gallery/slide1-landscape/" . $rmc_number . ".webp",
-				'mobile' => "https://res.cloudinary.com/drfo99te6/f_auto,q_auto/v1/rolex/model-gallery/slide1-portrait/" . $rmc_number . ".webp"
+				'desktop' => "/wp-content/uploads/rolex/watches-model/model_gallery_assets_landscape/Slide1_landscape/" . strtolower($rmc_number) . ".webp",
+				'mobile' => "/wp-content/uploads/rolex/watches-model/model_gallery_assets_portrait/Slide1_portrait/" . strtolower($rmc_number) . ".webp"
 			),
 			array(
-				'desktop' => "https://res.cloudinary.com/drfo99te6/f_auto,q_auto/v1/rolex/model-gallery/slide2-landscape/" . $rmc_number . ".webp",
-				'mobile' => "https://res.cloudinary.com/drfo99te6/f_auto,q_auto/v1/rolex/model-gallery/slide2-potrait/" . $rmc_number . ".webp"
+				'desktop' => "/wp-content/uploads/rolex/watches-model/model_gallery_assets_landscape/Slide2_landscape/" . strtolower($rmc_number) . ".webp",
+				'mobile' => "/wp-content/uploads/rolex/watches-model/model_gallery_assets_portrait/Slide2_portrait/" . strtolower($rmc_number) . ".webp"
 			),
 			array(
-				'desktop' => "https://res.cloudinary.com/drfo99te6/f_auto,q_auto/v1/rolex/model-gallery/slide3-landscape/" . $rmc_number . ".webp",
-				'mobile' => "https://res.cloudinary.com/drfo99te6/f_auto,q_auto/v1/rolex/model-gallery/slide3-portrait/" . $rmc_number . ".webp"
+				'desktop' => "/wp-content/uploads/rolex/watches-model/model_gallery_assets_landscape/Slide3_landscape/" . strtolower($rmc_number) . ".webp",
+				'mobile' => "/wp-content/uploads/rolex/watches-model/model_gallery_assets_portrait/Slide3_portrait/" . strtolower($rmc_number) . ".webp"
 			),
 			array(
-				'desktop' => "https://res.cloudinary.com/drfo99te6/f_auto,q_auto/v1/rolex/model-gallery/slide4-landscape/" . $rmc_number . ".webp",
-				'mobile' => "https://res.cloudinary.com/drfo99te6/f_auto,q_auto/v1/rolex/model-gallery/slide4-portrait/" . $rmc_number . ".webp"
+				'desktop' => "/wp-content/uploads/rolex/watches-model/model_gallery_assets_landscape/Slide4_landscape/" . strtolower($rmc_number) . ".webp",
+				'mobile' => "/wp-content/uploads/rolex/watches-model/model_gallery_assets_portrait/Slide4_portrait/" . strtolower($rmc_number) . ".webp"
 			)
 		);
 		$arr = $arr = preg_split('/\r\n|\r|\n/', $model_heading);
@@ -240,8 +240,8 @@ get_template_part('template-parts/rolex-header');
 		<!-- Watch Cover -->
 		<section class="grid-nospace watch-cover">
 			<?php echo do_shortcode('[responsive_image 
-				desktop_image_url="https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1/rolex/upright_watches_assets/upright_watch_assets/' . $rmc_number . '.webp" 
-				mobile_image_url="https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1/rolex/upright_watches_assets/upright_watch_assets_portrait/' . $rmc_number . '.webp" 
+				desktop_image_url="/wp-content/uploads/rolex/watches-model/upright_watch_assets_landscape/' . strtolower($rmc_number) . '.webp" 
+				mobile_image_url="/wp-content/uploads/rolex/watches-model/upright_watch_assets_portrait/' . strtolower($rmc_number) . '.webp" 
 				alt_text="' . $alt . '" loading="eager"]');
 			?>
 			<div id="watch-cover-splide" class="splide">
@@ -250,9 +250,9 @@ get_template_part('template-parts/rolex-header');
 						<?php
 						echo '<li class="splide__slide">';
 						echo do_shortcode('[responsive_image 
-  desktop_image_url="https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1/rolex/upright_watches_assets/upright_watch_assets/' . $rmc_number . '.webp" 
-  mobile_image_url="https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1/rolex/upright_watches_assets/upright_watch_assets_portrait/' . $rmc_number . '.webp" 
-  alt_text="' . $alt . '" loading="eager"]');
+								desktop_image_url="/wp-content/uploads/rolex/watches-model/upright_watch_assets_landscape/' . strtolower($rmc_number) . '.webp" 
+								mobile_image_url="/wp-content/uploads/rolex/watches-model/upright_watch_assets_portrait/' . strtolower($rmc_number) . '.webp" 
+								alt_text="' . $alt . '" loading="eager"]');
 						echo '</li>';
 
 
@@ -394,7 +394,7 @@ get_template_part('template-parts/rolex-header');
 					'content' => 'Every Rolex is delivered in a beautiful green presentation box that is both protector and keeper of the jewel that nests inside it. As the presentation box is also a symbol of giving, it is important, if you are purchasing a gift, that the recipient’s first contact with their Rolex sets the stage for revealing what lies within.'
 				),
 			);
-			echo do_shortcode('[responsive_image desktop_image_url="https://res.cloudinary.com/drfo99te6/image/upload/v1743695898/rolex/model-gallery/rolex_guarantee_desktop.jpg" mobile_image_url="https://res.cloudinary.com/drfo99te6/image/upload/v1743695898/rolex/model-gallery/rolex_guarantee_mobile.jpg" alt_text="Rolex International Warranty"]')
+			echo do_shortcode('[responsive_image desktop_image_url="/wp-content/uploads/rolex/watches-model/rolex-guarantee_landscape.webp" mobile_image_url="/wp-content/uploads/rolex/watches-model/rolex-guarantee_mobile.webp" alt_text="Rolex International Warranty"]')
 			?>
 			<div class="accordion" role="region" aria-label="Key Selling Points">
 
@@ -504,7 +504,7 @@ get_template_part('template-parts/rolex-header');
 
 			foreach ($features as $index => $feature) {
 
-				$image_path = 'https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717174410/rolex/specs_assets/';
+				$image_path = '/wp-content/uploads/rolex/watches-model/';
 				$desktop_image_url = $image_path . explode(",", $feature['asset'])[0] . '.webp';
 				$mobile_image_url = $image_path . trim(explode(",", $feature['asset'])[1]) . '.webp';
 			?>
@@ -725,11 +725,11 @@ get_template_part('template-parts/rolex-header');
 
 			<?php echo do_shortcode(
 				'[rolex_form 
-					desktop_image_url="https://res.cloudinary.com/drfo99te6/image/upload/q_auto,f_auto/v1723245312/rolex/discover-rolex-page-assets-landscape/rolex-message-cover-landscape.jpg" 
-					mobile_image_url="https://res.cloudinary.com/drfo99te6/image/upload/q_auto,f_auto/v1723057881/rolex/rolex-contact-page-assets-portrait/rolex-message-cover-portrait.jpg" 
+					desktop_image_url="/wp-content/uploads/rolex/watches-model/rolex-message-cover-landscape.webp" 
+					mobile_image_url="/wp-content/uploads/rolex/watches-model/rolex-message-cover-portrait.webp" 
 					alt_text="contact form montecristo jewellers - rolex watches official retailer" 
 		            message="I\'m interested in ' . $product['title'] . ', reference ' . $rmc_number . '"
-					success_img_url = "https://res.cloudinary.com/drfo99te6/image/upload/v1717530586/rolex/rolex-contact-module-message-assets-landscape/rolex-message-thank-you-landscape.jpg" success_alt="contact-form done" 
+					success_img_url = "/wp-content/uploads/rolex/watches-model/rolex-message-thank-you-landscape.webp" success_alt="contact-form done" 
 					is_modal_page="true"]'
 			) ?>
 

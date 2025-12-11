@@ -52,8 +52,8 @@ if ($rolex_product->have_posts()) {
                     <div class="height-container">
 
                         <?php
-                        $desktop_image_url = 'https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1/rolex/upright_watches_assets/upright_watch_assets/' . $rmc_number . '.webp';
-                        $mobile_image_url = 'https://res.cloudinary.com/drfo99te6/q_auto,f_auto/v1/rolex/upright_watches_assets/upright_watch_assets/' . $rmc_number . '.webp';
+                        $desktop_image_url = '/wp-content/uploads/rolex/watches-model/upright_watch_assets_landscape/' . strtolower($rmc_number) . '.webp';
+                        $mobile_image_url = '/wp-content/uploads/rolex/watches-model/upright_watch_assets_portrait/' . strtolower($rmc_number) . '.webp';
                         $alt_text = $alt;
                         echo do_shortcode('[responsive_image desktop_image_url="' . esc_url($desktop_image_url) . '" mobile_image_url="' . esc_url($mobile_image_url) . '" alt_text="' . esc_attr($alt_text) . '"]');
                         ?>
