@@ -1,46 +1,51 @@
 <?php
 
-
 $keepExpoloringArr = array(
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717451405/rolex/rolex-servicing-page-assets-landscape/keep-exploring-landscape/rolex-keep-exploring-discover-rolex-shoot_shop_geneva_retail_campaign_logo_pub-2-iso_01-landscape.jpg",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717451407/rolex/rolex-servicing-page-assets-portrait/keep-exploring-portrait/rolex-keep-exploring-discover-rolex-shoot_shop_geneva_retail_campaign_logo_pub-2-iso_01_portrait.jpg",
+        "desktop_url" => "/wp-content/uploads/rolex/keep-exploring/landscape/rolex-keep-exploring-discover-rolex-shoot_shop_geneva_retail_campaign_logo_pub-2-iso_01_landscape.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/keep-exploring/portrait/rolex-keep-exploring-discover-rolex-shoot_shop_geneva_retail_campaign_logo_pub-2-iso_01-portrait.webp",
         "title" => "Discover Rolex",
         "url" => "/rolex"
     ),
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717451405/rolex/rolex-servicing-page-assets-landscape/keep-exploring-landscape/rolex-keep-exploring-rolex-watches-1945_oyster_perpetual_datejust_1802jva_m126333_0010_1802jva_002-landscape.jpg",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717451406/rolex/rolex-servicing-page-assets-portrait/keep-exploring-portrait/rolex-keep-exploring-rolex-watches-1945_oyster_perpetual_datejust_1802jva_m126333_0010_1802jva_002-portrait.jpg",
+        "desktop_url" => "/wp-content/uploads/rolex/keep-exploring/landscape/rolex-keep-exploring-rolex-watches-1945_oyster_perpetual_datejust_1802jva_m126333_0010_1802jva_002-landscape.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/keep-exploring/portrait/rolex-keep-exploring-rolex-watches-1945_oyster_perpetual_datejust_1802jva_m126333_0010_1802jva_002-portrait.webp",
         "title" => "Rolex Watches",
         "url" => "/rolex/watches"
     ),
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1743531629/rolex/rolex-servicing-page-assets-landscape/keep-exploring-landscape/keep-exploring-new-watches-landscape.jpg",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1743531968/rolex/rolex-servicing-page-assets-portrait/keep-exploring-portrait/keep-exploring-new-watches-portrait.jpg",
+        "desktop_url" => "/wp-content/uploads/rolex/keep-exploring/landscape/rolex-keep-exploring-new-watches-2025_m127334-0001_2501fj_003-landscape.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/keep-exploring/portrait/rolex-keep-exploring-new-watches-2025_m127334-0001_2501fj_003-portrait.webp",
         "title" => "New Watches 2025",
         "url" => "/rolex/new-watches"
     ),
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717451403/rolex/rolex-servicing-page-assets-landscape/keep-exploring-landscape/rolex-keep-exploring-watchmaking-2023_watchmaking_features_manifesto_still_digital_master_rgb-landscape.jpg",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717451406/rolex/rolex-servicing-page-assets-portrait/keep-exploring-portrait/rolex-keep-exploring-watchmaking-2023_watchmaking_features_manifesto_still_digital_master_rgb-portrait.jpg",
+        "desktop_url" => "/wp-content/uploads/rolex/keep-exploring/landscape/rolex-keep-exploring-rolex-accessories-rolexcufflinks_2403jva_001-landscape.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/keep-exploring/portrait/rolex-keep-exploring-rolex-accessories-rolexcufflinks_2403jva_001-portrait.webp",
+        "title" => "Rolex Accessories",
+        "url" => "/rolex/accessories"
+    ),
+    array(
+        "desktop_url" => "/wp-content/uploads/rolex/keep-exploring/landscape/rolex-keep-exploring-watchmaking-2023%20watchmaking%20features%20manifesto%20still_digital_master_rgb-landscape.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/keep-exploring/portrait/rolex-keep-exploring-watchmaking-2023%20watchmaking%20features%20manifesto%20still_digital_master_rgb-portrait.webp",
         "title" => "Watchmaking",
         "url" => "/rolex/watchmaking"
     ),
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717451404/rolex/rolex-servicing-page-assets-landscape/keep-exploring-landscape/rolex-keep-exploring-servicing-2234_rolex-sav_retailers_176_controle-final_mise_heure_v2-landscape.jpg",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717451407/rolex/rolex-servicing-page-assets-portrait/keep-exploring-portrait/rolex-keep-exploring-servicing-2234_rolex-sav_retailers_176_controle-final_mise_heure_v2-portrait.jpg",
+        "desktop_url" => "/wp-content/uploads/rolex/keep-exploring/landscape/rolex-keep-exploring-servicing-2234_rolex-sav_retailers_176_controle-final_mise_heure_v2-landscape.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/keep-exploring/portrait/rolex-keep-exploring-servicing-2234_rolex-sav_retailers_176_controle-final_mise_heure_v2-portrait.webp",
         "title" => "Servicing",
         "url" => "/rolex/servicing"
     ),
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1764276841/rolex/rolex-servicing-page-assets-landscape/keep-exploring-landscape/rolex-keep-exploring-hub-world-of-rolex-jb1_2564_070525_landscape.jpg",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1764276702/rolex/rolex-servicing-page-assets-portrait/keep-exploring-portrait/rolex-keep-exploring-hub-world-of-rolex-jb1_2564_070525_portrait.jpg",
+        "desktop_url" => "/wp-content/uploads/rolex/keep-exploring/landscape/rolex-keep-exploring-hub-world-of-rolex-jb1_2564_070525_landscape.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/keep-exploring/portrait/rolex-keep-exploring-hub-world-of-rolex-jb1_2564_070525_portrait.webp",
         "title" => "World of Rolex",
         "url" => "/rolex/world-of-rolex"
     ),
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717451404/rolex/rolex-servicing-page-assets-landscape/keep-exploring-landscape/rolex-keep-exploring-contact-us-A7404109-landscape.jpg",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1717451407/rolex/rolex-servicing-page-assets-portrait/keep-exploring-portrait/rolex-keep-exploring-contact-us-A7404109-portrait.jpg",
+        "desktop_url" => "/wp-content/uploads/rolex/keep-exploring/landscape/rolex-keep-exploring-contact-us-A7404109-landscape.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/keep-exploring/portrait/rolex-keep-exploring-contact-us-A7404109-portrait.webp",
         "title" => "Contact us",
         "url" => "/rolex/contact-richmond"
     )
@@ -70,92 +75,92 @@ if ($taxonomies) {
         if ($taxonomy->slug == "watches") {
             $keepExpoloringArr = array(
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744220175/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-land-dweller-landscape.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744220212/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-land-dweller-portrait.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-land-dweller-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-land-dweller-portrait.webp",
                     "title" => "Land-Dweller",
                     "url" => "/rolex/land-dweller"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575900/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-day-date-landscape_wyrnjs.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575907/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-day-date-portrait_bhgo5i.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-day-date-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-day-date-portrait.webp",
                     "title" => "Day-Date",
                     "url" => "/rolex/day-date"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575903/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-sky-dweller-landscape_mqdgw1.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575907/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-sky-dweller-portrait_crdgvm.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-sky-dweller-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-sky-dweller-portrait.webp",
                     "title" => "Sky-Dweller",
                     "url" => "/rolex/sky-dweller"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575903/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-lady-datejust-landscape_ai3kpf.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575908/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-lady-datejust-portrait_totv2m.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-lady-datejust-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-lady-datejust-portrait.webp",
                     "title" => "Lady-Datejust",
                     "url" => "/rolex/lady-datejust"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575903/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-datejust-landscape_kgocys.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575904/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-datejust-portrait_wfrvrs.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-datejust-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-datejust-portrait.webp",
                     "title" => "Datejust",
                     "url" => "/rolex/datejust"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744220173/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-oyster-perpetual-landscape.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744220209/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-oyster-perpetual-portrait.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-oyster-perpetual-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-oyster-perpetual-portrait.webp",
                     "title" => "Oyster Perpetual",
                     "url" => "/rolex/oyster-perpetual"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744220172/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-cosmograph-daytona-landscape.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744220214/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-cosmograph-daytona-portrait.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-cosmograph-daytona-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-cosmograph-daytona-portrait.webp",
                     "title" => "Cosmograph Daytona",
                     "url" => "/rolex/cosmograph-daytona"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575902/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-submariner-landscape_f0pily.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575908/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-submariner-portrait_fpze98.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-submariner-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-submariner-portrait.webp",
                     "title" => "Submariner",
                     "url" => "/rolex/submariner"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575899/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-sea-dweller-landscape_qxdgh2.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575904/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-sea-dweller-portrait_iu5914.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-sea-dweller-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-sea-dweller-portrait.webp",
                     "title" => "Sea-Dweller",
                     "url" => "/rolex/sea-dweller"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575900/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-deepsea-landscape_dkhfq1.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575906/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-deepsea-portrait_emj5fp.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-deepsea-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-deepsea-portrait.webp",
                     "title" => "Deepsea",
                     "url" => "/rolex/deepsea"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575902/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-gmt-master-II-landscape_mwwu4a.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575905/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-gmt-master-II-portrait_wlk0za.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-gmt-master-II-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-gmt-master-II-portrait.webp",
                     "title" => "GMT-Master II",
                     "url" => "/rolex/gmt-master-ii"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575902/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-yacht-master-landscape_rqvyui.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575905/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-yacht-master-portrait_cdflae.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-yacht-master-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-yacht-master-portrait.webp",
                     "title" => "Yacht-Master",
                     "url" => "/rolex/yacht-master"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744220174/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-explorer-landscape.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744220211/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-explorer-portrait.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-explorer-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-explorer-portrait.webp",
                     "title" => "Explorer",
                     "url" => "/rolex/explorer"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575901/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-air-king-landscape_k5qfm3.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716575905/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-air-king-portrait_ekczow.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-air-king-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-air-king-portrait.webp",
                     "title" => "Air-King",
                     "url" => "/rolex/air-king"
                 ),
                 array(
-                    "desktop_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744220176/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-landscape/rolex-collections-keep-exploring-1908-landscape.jpg",
-                    "mobile_url" => "https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1744220208/rolex/rolex-collection-pages-assets/rolex-keep-exploring/keep-exploring-assets-portrait/rolex-collections-keep-exploring-1908-portrait.jpg",
+                    "desktop_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/landscape/rolex-collections-keep-exploring-1908-landscape.webp",
+                    "mobile_url" => "/wp-content/uploads/rolex/watches-collection-pages/keep-exploring/portrait/rolex-collections-keep-exploring-1908-portrait.webp",
                     "title" => "1908",
                     "url" => "/rolex/1908"
                 )

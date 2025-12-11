@@ -6,13 +6,16 @@ const path = window.location.pathname;
 
 if (path.includes("blog")) {
   import("./functionality/blogs.js");
-} else if (path.includes("contact") || path.includes("customize-your-jewellery")) {
+} else if (
+  path.includes("contact") ||
+  path.includes("customize-your-jewellery")
+) {
   import("./functionality/contact.js");
 } else if (path.includes("my-account")) {
   import("./functionality/favourite.js");
 }
 
-if ('requestIdleCallback' in window) {
+if ("requestIdleCallback" in window) {
   requestIdleCallback(() => {
     import("./functionality/cookie.js");
   });
@@ -24,7 +27,6 @@ if ('requestIdleCallback' in window) {
 
 // Youtube video player
 document.addEventListener("DOMContentLoaded", () => {
-
   const videoContainer = document.querySelectorAll("#youtubeVideo");
 
   if (videoContainer) {

@@ -31,7 +31,7 @@
   /* Colors */
   --color-rolex-rolex-green: rgb(0, 96, 57); /* #006039 */
   --color-rolex-green: rgb(18, 119, 73); /* #127749 */
-  --color-rolex-ocean-green: rgb(97, 189, 147); /* #61BD93 */
+  --color-rolex-ocean-green: rgb(155, 249, 206); /* #9BF9CE */
   --color-rolex-brown: rgb(69, 44, 30); /* #452C1E */
   --color-rolex-black: rgb(33, 33, 33); /* #212121 */
   --color-rolex-dark-grey: rgb(118, 118, 118); /* #767676 */
@@ -134,6 +134,11 @@ a:focus {
 
 .rolex-main a {
   overflow: hidden;
+}
+
+.rolex-main a:focus-visible {
+  outline: 2px solid #127749;
+  outline-offset: 2px;
 }
 
 #rolex-page a img {
@@ -299,12 +304,6 @@ button {
   outline: none;
 }
 
-/* Remove the outline when the element is clicked */
-a:focus:not(:focus-visible),
-button:focus:not(:focus-visible) {
-  outline: none;
-}
-
 .primary-cta {
   background-color: var(--color-rolex-green) !important;
   color: white !important;
@@ -321,6 +320,11 @@ button:focus:not(:focus-visible) {
 
 .primary-cta:hover {
   background-color: var(--color-rolex-rolex-green) !important;
+}
+
+.primary-cta:focus-visible {
+  outline: 2px solid #127749;
+  outline-offset: 2px;
 }
 
 .primary-cta svg {
@@ -341,8 +345,9 @@ button:focus:not(:focus-visible) {
   font-weight: var(--font-weight-bold);
 }
 
-.secondary-cta:focus {
-  outline: none;
+.secondary-cta:focus-visible {
+  outline: 2px solid #9bf9ce;
+  outline-offset: 2px;
 }
 
 .secondary-cta:hover {
@@ -420,6 +425,13 @@ button:focus:not(:focus-visible) {
 .rolex-header {
   background: linear-gradient(90deg, #0b3e27, #197149);
   font-family: var(--rolex-font-family);
+  position: relative;
+}
+
+.rolex-header a:focus-visible,
+.rolex-header button:focus-visible {
+  outline: 2px solid #9bf9ce;
+  outline-offset: 2px;
 }
 
 .rolex-nav {
@@ -429,6 +441,7 @@ button:focus:not(:focus-visible) {
 
 .rolex-plaque-link {
   grid-column: span 2;
+  width: fit-content;
 }
 
 .rolex-plaque {
@@ -450,10 +463,8 @@ button:focus:not(:focus-visible) {
   color: white;
   background: transparent;
   font-size: var(--fixed16-size);
-}
-
-.menu-button:focus {
-  outline: none;
+  width: fit-content;
+  justify-self: end;
 }
 
 .menu-button:hover {
@@ -479,12 +490,13 @@ button:focus:not(:focus-visible) {
   right: 0;
   transition: all 0.5s;
   overflow: hidden;
-  height: 100%;
-  z-index: 100;
+  height: 100vh;
+  z-index: 99;
 }
 
 .menu-hide {
   height: 0;
+  display: none;
 }
 
 .rolex-menu-class {
@@ -552,7 +564,7 @@ button:focus:not(:focus-visible) {
   color: var(--color-rolex-ocean-green);
 }
 
-.breadcrumb a.active {
+.breadcrumb span.active {
   color: var(--color-rolex-ocean-green);
 }
 
@@ -590,7 +602,7 @@ button:focus:not(:focus-visible) {
   }
 }
 
-@media (min-width: 1655px) {
+@media (min-width: 1925px) {
   .menu-button,
   .rolex-mobile {
     display: none;
@@ -1225,6 +1237,11 @@ footer.rolex-footer {
 
 .youtube-video-container button:hover {
   background-color: #ffffff;
+}
+
+.youtube-video-container button:focus-visible {
+  outline: 2px solid #127749;
+  outline-offset: 2px;
 }
 
 .youtube-video-container button svg {
@@ -2033,6 +2050,10 @@ svg.svg-error {
 .watch-cover > picture {
   grid-column: span 6;
   display: none;
+}
+
+.rolex-accessories .watch-cover > picture {
+  display: block;
 }
 
 .watch-cover picture img {
@@ -2897,6 +2918,11 @@ button.accordion-text:hover {
   padding: 0;
 }
 
+.keep-exploring .splide__arrow:focus-visible {
+  outline: 2px solid #127749;
+  outline-offset: 2px;
+}
+
 .keep-exploring .splide__arrow:disabled {
   display: none;
 }
@@ -2930,6 +2956,15 @@ button.accordion-text:hover {
   margin-right: 6px;
 }
 
+.keep-exploring .splide__list a:focus {
+  outline: none;
+}
+
+.keep-exploring .splide__list a:focus-visible p {
+  outline: 2px solid #127749;
+  outline-offset: 2px;
+}
+
 .keep-exploring .splide__list a .img-cover {
   overflow: hidden;
 }
@@ -2946,7 +2981,7 @@ button.accordion-text:hover {
 }
 
 .keep-exploring .splide__list p {
-  margin: 10px 20px 40px 0;
+  margin: 10px 20px 40px 2px;
 }
 
 .keep-exploring .splide__pagination {
@@ -2954,17 +2989,43 @@ button.accordion-text:hover {
   gap: 12px;
 }
 
+.keep-exploring .splide__pagination button:focus-visible {
+  outline-offset: 2px;
+  outline: 2px solid #127749;
+}
+
 .keep-exploring .splide__pagination button {
-  height: 4px;
-  width: 20px;
+  width: 24px;
+  height: 24px;
   padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  border-radius: 0;
+}
+
+/* Visually show only a 4px tall bar centered vertically */
+.keep-exploring .splide__pagination button::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #eeeeee; /* ← change to your desired color */
   border-radius: 20px;
+  transform: translateY(-50%);
 }
 
 .keep-exploring .splide__pagination button[aria-selected="true"] {
   width: 50px;
+}
+
+.keep-exploring .splide__pagination button[aria-selected="true"]::before {
   background-color: var(--color-rolex-green);
   transition: all 0.2s;
+  outline: none;
 }
 
 @media (min-width: 768px) {
@@ -3017,6 +3078,11 @@ button.accordion-text:hover {
   cursor: pointer;
   z-index: 10;
   background-color: rgba(118, 118, 118, 0.5);
+}
+
+.discover .splide__arrow:focus-visible {
+  outline: 2px solid #127749;
+  outline-offset: 2px;
 }
 
 .discover .splide__arrow:disabled {
@@ -3078,17 +3144,43 @@ button.accordion-text:hover {
   gap: 12px;
 }
 
+.discover .splide__pagination button:focus-visible {
+  outline-offset: 2px;
+  outline: 2px solid #127749;
+}
+
 .discover .splide__pagination button {
-  height: 4px;
-  width: 20px;
+  width: 24px;
+  height: 24px;
   padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  border-radius: 0;
+}
+
+/* Visually show only a 4px tall bar centered vertically */
+.discover .splide__pagination button::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #eeeeee; /* ← change to your desired color */
   border-radius: 20px;
+  transform: translateY(-50%);
 }
 
 .discover .splide__pagination button[aria-selected="true"] {
   width: 50px;
+}
+
+.discover .splide__pagination button[aria-selected="true"]::before {
   background-color: var(--color-rolex-green);
   transition: all 0.2s;
+  outline: none;
 }
 
 @media (min-width: 500px) {
