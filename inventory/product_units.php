@@ -339,6 +339,9 @@ function create_inventory_units()
     // Grab the model number
     if ($variation) {
         $model = $variation->get_sku();
+        if (empty($model)) {
+            $model = $product->get_sku();
+        }
     } else {
         $model = $product->get_sku();
     }
@@ -512,6 +515,7 @@ function get_brand_model_id($table_name, $value)
 
     $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
+    if(is_empty($value)) return null;
     // Create a unique transient key for this table and value
     $transient_key = 'brand_model_' . md5($table_name . '|' . $value);
 
@@ -608,6 +612,11 @@ function watch_simple_product_changes($post_id, $post, $update)
 {
     if (!$update || wp_is_post_autosave($post_id) || wp_is_post_revision($post_id)) return;
 
+    // RANK MATH is not setting the primary category after the plugin update so created our own save as we need it to determine the brands
+    if (isset($_POST['rank_math_primary_product_cat'])) {
+        $primary_cat_id = $_POST['rank_math_primary_product_cat'];
+        update_post_meta($post_id, 'rank_math_primary_product_cat', $primary_cat_id);
+    }
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_product_inventory_units';
 
