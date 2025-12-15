@@ -25,11 +25,9 @@ export const CustomerSelector = {
 
       if (searchValue) {
         fetch(
-          `${
-            ajax_inventory.ajax_url
-          }?action=search_customer&search_value=${encodeURIComponent(
-            searchValue
-          )}`,
+          `${ajax_inventory.ajax_url}?action=search_customer&location_id=${
+            AppState.location.id
+          }&search_value=${encodeURIComponent(searchValue)}`,
           {
             method: "GET",
           }

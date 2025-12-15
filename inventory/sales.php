@@ -425,12 +425,12 @@ function inventory_page()
 
 function search_customer()
 {
-    if (!isset($_GET['search_value'])) {
-        return wp_send_json_error('Search value is required');
+    if (!isset($_GET['search_value']) && !isset($_GET['location_id'])) {
+        return wp_send_json_error('Search and Location value is required');
     }
     $search = sanitize_text_field($_GET['search_value']);
-
-    $result = customer_table("inventory", $search, 50);
+    $location_id = $_GET['search_value'];
+    $result = customer_table("inventory", $search, 50, 1, $location_id);
     wp_send_json_success($result);
     wp_die(); // this is required to terminate immediately and return a proper response
 }
@@ -510,7 +510,7 @@ function get_layaway_sum($customer_id = null, $location_id = null)
 
 add_action('wp_ajax_getLayawaySum', 'get_layaway_sum');
 
-function get_layaway()
+function get_layaway_list()
 {
 
     if (!isset($_GET['customer_id'])) {
@@ -545,7 +545,7 @@ function get_layaway()
     return wp_send_json_success($layaway_items);
 }
 
-add_action('wp_ajax_getLayaway', 'get_layaway');
+add_action('wp_ajax_getLayaway', 'get_layaway_list');
 
 function add_layaway()
 {
