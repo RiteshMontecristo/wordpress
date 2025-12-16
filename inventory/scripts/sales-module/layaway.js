@@ -81,8 +81,8 @@ export const LayawaySelector = {
       const master_card = this.layawayForm.querySelector("#master_card").value;
       const amex = this.layawayForm.querySelector("#amex").value;
       const discover = this.layawayForm.querySelector("#discover").value;
-      const travel_cheque =
-        this.layawayForm.querySelector("#travel_cheque").value;
+      const bank_draft =
+        this.layawayForm.querySelector("#bank_draft").value;
       const cup = this.layawayForm.querySelector("#cup").value;
       const alipay = this.layawayForm.querySelector("#alipay").value;
       const wire = this.layawayForm.querySelector("#wire").value;
@@ -113,7 +113,7 @@ export const LayawaySelector = {
         master_card === "" &&
         amex === "" &&
         discover === "" &&
-        travel_cheque === "" &&
+        bank_draft === "" &&
         cup === "" &&
         alipay === "" &&
         wire === "" &&

@@ -95,7 +95,7 @@ function inventory_page()
                     </div>
 
                     <div>
-                        <label for="debit">Debit:</label>
+                        <label for="debit">Debit/Interac:</label>
                         <input type="number" step="0.01" id="debit" name="debit">
                     </div>
 
@@ -120,8 +120,8 @@ function inventory_page()
                     </div>
 
                     <div>
-                        <label for="travel_cheque">Travel Cheque:</label>
-                        <input type="number" step="0.01" id="travel_cheque" name="travel_cheque">
+                        <label for="bank_draft">Bank Draft:</label>
+                        <input type="number" step="0.01" id="bank_draft" name="bank_draft">
                     </div>
 
                     <div>
@@ -311,7 +311,7 @@ function inventory_page()
                     </div>
 
                     <div>
-                        <label for="debit">Debit:</label>
+                        <label for="debit">Debit/Interac:</label>
                         <input type="number" min="0" step="0.01" id="debit" name="debit">
                     </div>
 
@@ -336,8 +336,8 @@ function inventory_page()
                     </div>
 
                     <div>
-                        <label for="travel_cheque">Travel Cheque:</label>
-                        <input type="number" min="0" step="0.01" id="travel_cheque" name="travel_cheque">
+                        <label for="bank_draft">Bank Draft:</label>
+                        <input type="number" min="0" step="0.01" id="bank_draft" name="bank_draft">
                     </div>
 
                     <div>
@@ -550,7 +550,7 @@ add_action('wp_ajax_getLayaway', 'get_layaway_list');
 function add_layaway()
 {
     global $wpdb;
-    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay', 'wire', 'trade_in'];
+    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'bank_draft', 'cup', 'alipay', 'wire', 'trade_in'];
     $payments = [];
     $table_name = $wpdb->prefix . 'mji_payments';
 
@@ -759,7 +759,7 @@ function calculate_sale_totals($items_data, $services_data, $exclude_gst = false
 
 function get_payments($post_data, $expected_total, $customer_id, $location_id)
 {
-    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay', 'wire', 'layaway',  'credit'];
+    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'bank_draft', 'cup', 'alipay', 'wire', 'layaway',  'credit'];
     $payments = [];
     $payment_total = 0;
 
