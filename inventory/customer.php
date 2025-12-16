@@ -53,16 +53,46 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     $offset = ($current_page - 1) * $per_page;
     $where = 'WHERE 1=1';
 
-    // Handle search
+    // ONLY USE THIS IF WE HAVE OVER 50K CUSTOMERS
+    // if (!empty($search_query)) {
+    //     $search = $search_query;
+
+    //     $where .= " AND (
+    //                     MATCH(first_name, last_name, street_address, city, province, postal_code, country, primary_phone, secondary_phone)
+    //                     AGAINST('" . esc_sql($search) . "' IN NATURAL LANGUAGE MODE)
+    //                 )";
+    // }
     if (!empty($search_query)) {
-        $search = $search_query;
+        $search = trim($search_query);
+        $like = '%' . $wpdb->esc_like($search) . '%';
 
-        $where .= " AND (
-                        MATCH(first_name, last_name, street_address, city, province, postal_code, country, primary_phone, secondary_phone)
-                        AGAINST('" . esc_sql($search) . "' IN NATURAL LANGUAGE MODE)
-                    )";
+        $where .= $wpdb->prepare(
+            " AND (
+            first_name LIKE %s OR
+            last_name LIKE %s OR
+            CONCAT(first_name, ' ', last_name) LIKE %s OR
+            CONCAT(last_name, ' ', first_name) LIKE %s OR
+            street_address LIKE %s OR
+            city LIKE %s OR
+            province LIKE %s OR
+            postal_code LIKE %s OR
+            country LIKE %s OR
+            primary_phone LIKE %s OR
+            secondary_phone LIKE %s
+        )",
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like
+        );
     }
-
     // Main query with join and pagination
     $query = $wpdb->prepare("
         SELECT *
