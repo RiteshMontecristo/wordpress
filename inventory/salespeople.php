@@ -283,6 +283,13 @@ function delete_salesperson()
         echo "<div>Salesperson needs to be selected in order to be deleted. </div>";
     }
 
+    $salesperson = $wpdb->get_row("SELECT * FROM $table_name WHERE id = $salesperson_id");
+
+    if (!$salesperson) {
+        echo '<div class="notice notice-error is-dismissible"><p>Salesperson not found!</p></div>';
+        return;
+    }
+
     $orders_count = $wpdb->get_var($wpdb->prepare(
         "SELECT COUNT(*) FROM {$orders_table} WHERE salesperson_id = %d",
         $salesperson_id
