@@ -136,6 +136,7 @@ function reports_get_sales_results()
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
     $customers_table = $wpdb->prefix . 'mji_customers';
     $service_table = $wpdb->prefix . 'mji_services';
+    $models_table = $wpdb->prefix . 'mji_models';
 
     $where1 = ["o.created_at BETWEEN %s AND %s"];
     $params1 = [$start_date, $end_date];
@@ -161,6 +162,8 @@ function reports_get_sales_results()
                     pi.wc_product_id AS product_id,
                     pi.wc_product_variant_id AS product_variant_id,
                     pi.sku AS sku,
+                    pi.serial AS serial,
+                    m.name AS model_name,
                     pi.location_id,
                     COALESCE(oi.sale_price, 0) AS retail_paid,
                     COALESCE(oi.discount_amount, 0) AS discount_amount,
@@ -172,6 +175,7 @@ function reports_get_sales_results()
                 INNER JOIN $inventory_table pi ON oi.product_inventory_unit_id = pi.id
                 INNER JOIN $salespeople_table s ON o.salesperson_id = s.id
                 INNER JOIN $customers_table c ON o.customer_id = c.id
+                INNER JOIN $models_table m on m.id = pi.model_id
                 WHERE " . implode(" AND ", $where1) . "
             ";
 
@@ -199,7 +203,9 @@ function reports_get_sales_results()
                     NULL AS product_id,
                     NULL AS product_variant_id,
                     category AS sku,
-                    NULL AS location_id,
+                    NULL AS serial,
+                    NULL AS sku,
+                    NULL AS model_name,
                     COALESCE(si.sold_price, 0) as retail_paid,
                     COALESCE(0, 0) as discount_amount,
                     COALESCE(si.cost_price, 0) as cost_price,
@@ -246,6 +252,7 @@ function reports_render_sales_report($results)
                 </header>
                 <table id="inventoryTable" class="widefat striped"><thead>
                     <tr>
+                        <th>Image</th>
                         <th>Invoice</th>
                         <th>Date</th>
                         <th>Item</th>
@@ -273,9 +280,10 @@ function reports_render_sales_report($results)
             $name = format_label($row->sku) . $desc;
             $dt = new DateTime($row->sold_date);
             $date = $dt->format('Y-m-d');
-
+            $placeholder_image = wc_placeholder_img([50, 50]);
             if (!$product) {
                 echo '<tr>';
+                echo '<td>' . $placeholder_image . '</td>';
                 echo '<td>' .  $row->invoice . '</td>';
                 echo '<td>' .  $date . '</td>';
                 echo '<td>' .  $name . '</td>';
@@ -305,6 +313,7 @@ function reports_render_sales_report($results)
             $discount_percent = $row->retail_price ? ($row->discount_amount / $row->retail_price) * 100 : 0;
             $profit = $row->retail_paid - $row->cost_price;
             $margin_percent = $row->retail_paid ? ($profit / $row->retail_paid) * 100 : 0;
+            $image = $product->get_image([50, 50]);
 
             // Calculate totals
             $total_cost += $row->cost_price;
@@ -313,10 +322,11 @@ function reports_render_sales_report($results)
             $total_profit += $profit;
 
             echo '<tr>';
+            echo '<td>' . $image . '</td>';
             echo '<td>' .  $row->invoice . '</td>';
             echo '<td>' .  $date . '</td>';
             echo '<td>' . $name . '</td>';
-            echo '<td>' . $row->sku . '</td>';
+            echo '<td>' . $row->sku . '<br/>' . $row->model_name . '<br />' . $row->serial . '</td>';
             echo '<td>' . number_format($row->cost_price, 2) . '</td>';
             echo '<td>' . number_format($row->retail_price, 2) . '</td>';
             echo '<td>' . number_format($row->retail_paid, 2) . '</td>';
@@ -397,13 +407,28 @@ function reports_render_inventory_filters()
             <tr>
                 <th scope="row"><label for="location">Store</label></th>
                 <td>
-                    <?= mji_store_dropdown(true, $location) ?>
+                    <?= mji_store_dropdown(false, $location) ?>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><label for="brands">Brands</label></th>
                 <td>
                     <?= mji_brands_dropdown(false, $brands) ?>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="status">Status</label></th>
+                <td>
+                    <select name="status" id="status">
+                        <option value="in_stock">In stock</option>
+                        <option value="out_of_stock">Out of stock</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="search">Search</label></th>
+                <td>
+                    <input type="text" id="search" name="search" placeholder="Search..." />
                 </td>
             </tr>
         </table>
@@ -418,11 +443,12 @@ function reports_get_inventory_result()
 {
     global $wpdb;
 
-
     $start_raw = !empty($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
     $end_raw = !empty($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
     $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
     $brands =  !empty($_GET['brands']) ? intval($_GET['brands']) : null;
+    $status =  !empty($_GET['status']) ? $_GET['status'] : "in_stock";
+    $search_text = !empty($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
 
     $start_ts = strtotime($start_raw);
     $end_ts   = strtotime($end_raw);
@@ -432,37 +458,76 @@ function reports_get_inventory_result()
         return;
     }
 
-    $start_date = date('Y-m-d H:i:s', $start_ts);
-    $end_date   = date('Y-m-d H:i:s', $end_ts);
+    $start_date = date('Y-m-d', $start_ts);
+    $end_date   = date('Y-m-d', $end_ts);
 
-    if (!$location || !$start_date || !$end_date) {
-        echo '<p style="color:red">Please provide store location</p>';
+    if (!$start_date || !$end_date) {
+        echo '<p style="color:red">Please provide start and end date!!</p>';
         return;
     }
 
     $inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
+    $models = $wpdb->prefix . 'mji_models';
 
+    $where = [];
+    $params = [];
+
+    // Base relevance filter: existed by end, not sold before start
+    $where[] = "i.created_date <= %s";
+    $params[] = $end_date;
+
+    $where[] = "(i.sold_date IS NULL OR i.sold_date >= %s)";
+    $params[] = $start_date;
+
+    if ($location) {
+        $where[] = "i.location_id = %d";
+        $params[] = $location;
+    }
+
+    if ($brands) {
+        $where[] = "i.brand_id = %d";
+        $params[] = $brands;
+    }
+
+    if ($status === 'in_stock') {
+        $where[] = "i.status = 'in_stock'";
+    } else {
+        $where[] = "i.status NOT IN ('in_stock')";
+    }
+
+    // Search: SKU, Serial, Model Name
+    if (!empty($search_text)) {
+        $like = '%' . $wpdb->esc_like($search_text) . '%';
+        $where[] = "(i.sku LIKE %s OR i.serial LIKE %s OR m.name LIKE %s)";
+        $params[] = $like;
+        $params[] = $like;
+        $params[] = $like;
+    }
+
+    $where_clause = implode(' AND ', $where);
+
+    // We can join with wpdb->posts to speed up 
     $query = "
             SELECT 
                 i.wc_product_id AS product_id,
                 i.wc_product_variant_id AS product_variant_id,
                 i.sku AS sku,
+                i.serial,
+                m.name, 
+                i.status,
+                i.sold_date,
                 COALESCE(i.cost_price, 0) as cost_price,
                 COALESCE(i.retail_price, 0) as retail_price
             FROM $inventory_table i
-            WHERE i.location_id = %d
-            AND i.created_date <= %s
-            AND (i.sold_date IS NULL OR i.sold_date >= %s)
+            LEFT JOIN $models m 
+            ON m.id = i.model_id
+            WHERE {$where_clause}
         ";
 
-    $params = [$location, $end_date, $start_date];
-
-    if ($brands) {
-        $query .= " AND i.brand_id = %d";
-        $params[] = $brands;
-    }
-
     $results = $wpdb->get_results($wpdb->prepare($query, ...$params));
+    $results['start_date'] = $start_date;
+    $results['end_date'] = $end_date;
+    $results['status'] = $status;
     return $results;
 }
 
@@ -470,12 +535,17 @@ function reports_render_inventory_report($results)
 {
     if ($results) {
 
+        $missing_count = 0;
         $total_count = 0;
         $total_cost_price = 0;
         $total_retail_price = 0;
         $get_store_locations = mji_get_locations();
         $location_obj = array_find($get_store_locations, fn($loc) => $loc->id == intval($_GET['location']));
-        $location_name = $location_obj ? $location_obj->name : 'Unknown Location';
+        $location_name = $location_obj ? $location_obj->name : 'All Location';
+        $start_date = $results['start_date'];
+        $end_date = $results['end_date'];
+        $status = $results['status'];
+        $header = $status == "in_stock" ? "" : "<th>Sold Date</th>";
 
         echo '<div style="max-height:700px; overflow-y:auto; position:relative;">';
         echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
@@ -483,26 +553,33 @@ function reports_render_inventory_report($results)
         echo '<div id="report">
                             <header>
                                     <h2>Inventory Report for ' . $location_name .  '- Montecristo Jewellers</h2>
-                                    <p>Date: ' . date("Y/m/d") . '</p>
+                                    <p>From ' . $start_date . ' to ' . $end_date . '</p>
                             </header>
                             <table id="inventoryTable" class="widefat striped">
                             <thead>
                                 <tr>
                                     <th>Image</th>
                                     <th>Product</th>
-                                    <th>SKU</th>
+                                    <th>SKU / Model / Serial</th>
+                                    <th>Status</th>
                                     <th>Cost Price</th>
                                     <th>Retail Price</th>
+                                    ' . $header . '
                                 </tr>
                             </thead>
                             <tbody>';
 
         foreach ($results as $row) {
+
+            if (!is_object($row)) {
+                continue;
+            }
             // If variant get variant else base product
             $product_id = $row->product_variant_id ?: $row->product_id;
             $product = wc_get_product($product_id);
 
             if (!$product) {
+                $missing_count++;
                 continue; // Skip invalid products
             }
 
@@ -517,32 +594,48 @@ function reports_render_inventory_report($results)
 
             $image = $product->get_image([50, 50]);
             $sku = $row->sku;
+            $model = $row->name ?: '';
+            $serial = $row->serial ?: '';
+            $status = $row->status ?: '';
             $cost_price = (float) $row->cost_price;
             $retail_price = (float) $row->retail_price;
 
             $total_count++;
             $total_cost_price += $cost_price;
             $total_retail_price += $retail_price;
+            $sold_date = strtotime($row->sold_date);
+
+            $sold_date = $status == "in_stock" ? "" : "<td>" . date('Y-m-d', $sold_date) . "</td>";
 
             echo '<tr>';
             echo '<td>' . $image . '</td>';
             echo '<td>' . esc_html($name) . '</td>';
-            echo '<td>' . esc_html($sku) . '</td>';
+            echo '<td>' . esc_html($sku) . ' <br />' . esc_html($model) .  '<br />' . esc_html($serial) . '</td>';
+            echo '<td>' . $status . '</td>';
             echo '<td>' . number_format($cost_price, 2) . '</td>';
             echo '<td>' . number_format($retail_price, 2) . '</td>';
+            echo $sold_date;
             echo '</tr>';
         }
 
+        $colspan = $status == "in_stock" ? "3" : "4";
         echo '</tbody>
                                 <tfoot>
                                     <tr style="font-weight:bold; position:sticky; bottom:0; background:#fff; box-shadow:0 -2px 5px rgba(0,0,0,0.1);">
-                                        <td colspan="2">Total (' . $total_count . ' items)</td>
+                                        <td colspan="' . $colspan . '">Total (' . $total_count . ' items)</td>
                                         <td></td>
                                         <td>' . number_format($total_cost_price, 2) . '</td>
                                         <td>' . number_format($total_retail_price, 2) . '</td>
                                     </tr>
                                 </tfoot>';
         echo '</table></div>';
+
+        if ($missing_count > 0) {
+            echo '
+                <div class="notice notice-error">
+                    <p>Missing ' . $missing_count . ' products. Need to investigate!</p>
+                </div>';
+        }
     } else {
         echo '<p>No inventory reports found for this store.</p>';
     }
