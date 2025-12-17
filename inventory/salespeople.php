@@ -7,26 +7,15 @@ function salespeople_page()
         <h1>Salespeople Management</h1>
 
         <?php
-        // $action_map = [
-        //     'add' => 'add_customer_form',
-        //     'edit' => 'edit_customer_form',
-        //     'delete' => 'delete_customer_form'
-        // ];
-        // // Handle actions
-        // if (isset($_GET['action']) && isset($action_map[$_GET['action']])) {
-        //     call_user_func($action_map[$_GET['action']]);
-        // } else {
-        //     $search_query = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
-        //     $per_page = isset($_GET['per_page']) ? intval($_GET['per_page']) : 20;
-        //     $current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
-        //     $output = customer_table("customer", $search_query, $per_page, $current_page);
-        //     echo $output;
-        // }
-
-        if (isset($_GET['action']) && $_GET['action'] === 'add') {
-            add_salesperson_form();
-        } else if (isset($_GET['action']) && $_GET['action'] === 'view') {
-            view_salesperson_form();
+        $action_map = [
+            'add' => 'add_salesperson_form',
+            'view' => 'view_salesperson_form',
+            // 'edit' => 'edit_customer_form',
+            'delete' => 'delete_salesperson'
+        ];
+        // Handle actions
+        if (isset($_GET['action']) && isset($action_map[$_GET['action']])) {
+            call_user_func($action_map[$_GET['action']]);
         } else {
         ?>
             <!-- Search Form -->
@@ -85,12 +74,17 @@ function fetch_salespeople($search_query = '')
     foreach ($salespeople as $salespeople) {
 
         echo "<tr>
-                <td id='firstName'>{$salespeople->first_name}</td>
-                <td id='lastName'>{$salespeople->last_name}</td>
-                <td>
-                    <a href='?page=salespeople-management&action=view&id={$salespeople->id}' class='button'>View</a>
-                </td>
-              </tr>";
+            <td id='firstName'>{$salespeople->first_name}</td>
+            <td id='lastName'>{$salespeople->last_name}</td>
+            <td>
+                <a href='?page=salespeople-management&action=view&id={$salespeople->id}' class='button'>View</a>
+                <a href='?page=salespeople-management&action=delete&id={$salespeople->id}'
+                class='button'
+                onclick=\"return confirm('Are you sure you want to delete this salesperson?');\">
+                Delete
+                </a>
+            </td>
+        </tr>";
     }
 
     echo '</tbody></table>';
@@ -275,4 +269,37 @@ function view_salesperson_form()
         </div>
     </section>
 <?php
+}
+
+function delete_salesperson()
+{
+    global $wpdb;
+    $salesperson_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+
+    $table_name = $wpdb->prefix . 'mji_salespeople';
+    $orders_table = $wpdb->prefix . 'mji_orders';
+
+    if ($salesperson_id === 0) {
+        echo "<div>Salesperson needs to be selected in order to be deleted. </div>";
+    }
+
+    $orders_count = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$orders_table} WHERE salesperson_id = %d",
+        $salesperson_id
+    ));
+
+    if ($orders_count > 0) {
+        echo '<div class="notice notice-error"><p>Salesperson can not be deleted as salesperson has sold items in order.</p></div>';
+    } else {
+        $deleted = $wpdb->delete($table_name, [
+            'id' => $salesperson_id
+        ]);
+
+        if ($deleted) {
+            echo '<div class="updated"><p>Salesperson deleted successfully!</p></div>';
+            delete_transient('mji_salespeople');
+        } else {
+            echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+        }
+    }
 }
