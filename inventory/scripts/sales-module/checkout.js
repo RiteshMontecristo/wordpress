@@ -116,8 +116,8 @@ export const CheckoutSelector = {
     const gstRate = this.excludeGst?.checked ? 0 : this.TAX_RATES.GST;
     const pstRate = this.excludePst?.checked ? 0 : this.TAX_RATES.PST;
 
-    const gst = subtotal * gstRate;
-    const pst = subtotal * pstRate;
+    const gst = Number((subtotal * gstRate).toFixed(2));
+    const pst = Number((subtotal * pstRate).toFixed(2));
     const total = subtotal + gst + pst;
 
     return {
