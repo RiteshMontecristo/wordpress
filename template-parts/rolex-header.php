@@ -2,7 +2,7 @@
     <a class="skip-link screen-reader-text" href="#rolex-page">Skip to content</a>
     <nav class="rolex-nav grid">
         <a class="rolex-plaque-link" href="/rolex">
-            <img width="120" height="60" class="rolex-plaque" title="rolex-plaque" src="https://res.cloudinary.com/drfo99te6/q_auto/f_auto/v1716309798/rolex/official_retailer_plaques_and_rolex_logos/Rolex-retailer-plaque-240x120_en_zr3emo.jpg" alt="Rolex plaque" />
+            <img width="120" height="60" class="rolex-plaque" title="rolex-plaque" src="/wp-content/uploads/rolex/Rolex-retailer-plaque-120x60_en_i9uvq9.webp" alt="Rolex plaque" />
         </a>
 
 
