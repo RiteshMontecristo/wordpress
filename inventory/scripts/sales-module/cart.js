@@ -207,7 +207,7 @@ export const CartSelector = {
     const onSaveClick = () => {
       const updatedAmt = Number(discountAmtEl.value) || 0;
       const updatedPct = Number(discountPctEl.value) || 0;
-      const updatedPrice = Number(priceAfterDiscountEl.value) || basePrice;
+      const updatedPrice = Number(priceAfterDiscountEl.value);
       item.discount_amount = updatedAmt.toFixed(2);
       item.discount_percent = updatedPct.toFixed(2);
       item.price_after_discount = updatedPrice.toFixed(2);

@@ -268,7 +268,14 @@ export const CheckoutSelector = {
                     </tbody>
                     <tfoot>
                       <tr>
-                        <td>Paid by ${paymentLines} <br /> Thank you for shopping at Montecristo Jewellers</td>
+                        <td>
+                        ${
+                          data.payments.length == 0
+                            ? "<p>This is a gift!!</p>"
+                            : "<p>Paid by ${paymentLines} </p>"
+                        }
+                          <p>Thank you for shopping at Montecristo Jewellers</p>
+                        </td>
                         <td>
                           <strong>Subtotal: $${formatCurrency(
                             data.totals.subtotal

@@ -763,6 +763,8 @@ function get_payments($post_data, $expected_total, $customer_id, $location_id)
     $payments = [];
     $payment_total = 0;
 
+    // If gift then no payments.
+    if ($expected_total == 0) return $payments;
     foreach ($payment_methods as $method) {
         $amount = floatval($post_data[$method] ?? 0);
 
@@ -806,25 +808,28 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 
         $order_id = $wpdb->insert_id;
 
-        // Insert payments
-        foreach ($payments as $payment) {
-            $success = $wpdb->insert($wpdb->prefix . 'mji_payments', [
-                'order_id' => $order_id,
-                'amount' => $payment['amount'],
-                'method' => $payment['method'],
-                'payment_date' => $order_data["created_at"],
-                'customer_id' => $order_data["customer_id"],
-                'salesperson_id' => $order_data["salesperson_id"],
-                'transaction_type' => match ($payment['method']) {
-                    'layaway' => 'layaway_redemption',
-                    'credit'  => 'credit_redemption',
-                    default   => 'purchase',
-                },
-                'reference_num' => $order_data['reference_num'],
-                'location_id' => $location_id
-            ]);
-            if (!$success) {
-                throw new RuntimeException("Failed to insert payment: " . $wpdb->last_error);
+        // If gift then no payments.
+        if (!empty($payments)) {
+            // Insert payments
+            foreach ($payments as $payment) {
+                $success = $wpdb->insert($wpdb->prefix . 'mji_payments', [
+                    'order_id' => $order_id,
+                    'amount' => $payment['amount'],
+                    'method' => $payment['method'],
+                    'payment_date' => $order_data["created_at"],
+                    'customer_id' => $order_data["customer_id"],
+                    'salesperson_id' => $order_data["salesperson_id"],
+                    'transaction_type' => match ($payment['method']) {
+                        'layaway' => 'layaway_redemption',
+                        'credit'  => 'credit_redemption',
+                        default   => 'purchase',
+                    },
+                    'reference_num' => $order_data['reference_num'],
+                    'location_id' => $location_id
+                ]);
+                if (!$success) {
+                    throw new RuntimeException("Failed to insert payment: " . $wpdb->last_error);
+                }
             }
         }
 
