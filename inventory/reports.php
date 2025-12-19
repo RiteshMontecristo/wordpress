@@ -468,6 +468,10 @@ function reports_get_inventory_result()
 
     $inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
     $models = $wpdb->prefix . 'mji_models';
+    $customers_table = $wpdb->prefix . 'mji_customers';
+    $salespeople_table = $wpdb->prefix . 'mji_salespeople';
+    $orders_table = $wpdb->prefix . 'mji_orders';
+    $order_items_table = $wpdb->prefix . 'mji_order_items';
 
     $where = [];
     $params = [];
@@ -517,10 +521,28 @@ function reports_get_inventory_result()
                 i.status,
                 i.sold_date,
                 COALESCE(i.cost_price, 0) as cost_price,
-                COALESCE(i.retail_price, 0) as retail_price
+                COALESCE(i.retail_price, 0) as retail_price,
+                o.reference_num,
+                c.first_name as customer_first_name,
+                c.last_name AS customer_last_name,
+                sp.first_name as salesperson_first_name,
+                sp.last_name AS salesperson_last_name
+
             FROM $inventory_table i
             LEFT JOIN $models m 
             ON m.id = i.model_id
+
+            LEFT JOIN {$order_items_table} oi
+            ON oi.product_inventory_unit_id = i.id
+
+            LEFT JOIN {$orders_table} o
+            ON o.id = oi.order_id
+
+            LEFT JOIN {$customers_table} c
+            ON c.id = o.customer_id
+
+            LEFT JOIN {$salespeople_table} sp
+            ON sp.id = o.salesperson_id
             WHERE {$where_clause}
         ";
 
@@ -545,7 +567,7 @@ function reports_render_inventory_report($results)
         $start_date = $results['start_date'];
         $end_date = $results['end_date'];
         $status = $results['status'];
-        $header = $status == "in_stock" ? "" : "<th>Sold Date</th>";
+        $header = $status == "in_stock" ? "" : "<th>Sold Date</th><th>Invoice</th><th>Customer</th><th>Salesperson</th>";
 
         echo '<div style="max-height:700px; overflow-y:auto; position:relative;">';
         echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
@@ -606,6 +628,9 @@ function reports_render_inventory_report($results)
             $sold_date = strtotime($row->sold_date);
 
             $sold_date = $status == "in_stock" ? "" : "<td>" . date('Y-m-d', $sold_date) . "</td>";
+            $reference_num = $status == "in_stock" ? "" : "<td>" .  $row->reference_num . "</td>";
+            $customer_name = $status == "in_stock" ? "" : "<td>" .  $row->customer_first_name . " ".  $row->customer_last_name . "</td>";
+            $salesperson_name = $status == "in_stock" ? "" : "<td>" .  $row->salesperson_first_name . " ".  $row->salesperson_last_name . "</td>";
 
             echo '<tr>';
             echo '<td>' . $image . '</td>';
@@ -615,10 +640,13 @@ function reports_render_inventory_report($results)
             echo '<td>' . number_format($cost_price, 2) . '</td>';
             echo '<td>' . number_format($retail_price, 2) . '</td>';
             echo $sold_date;
+            echo $reference_num;
+            echo $customer_name;
+            echo $salesperson_name;
             echo '</tr>';
         }
 
-        $colspan = $status == "in_stock" ? "3" : "4";
+        $colspan = $status == "in_stock" ? "3" : "7";
         echo '</tbody>
                                 <tfoot>
                                     <tr style="font-weight:bold; position:sticky; bottom:0; background:#fff; box-shadow:0 -2px 5px rgba(0,0,0,0.1);">
