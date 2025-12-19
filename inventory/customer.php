@@ -159,6 +159,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
             <td>
                 <a href='?page=customer-management&action=view&id={$customer_id}' class='button'>View</a>
                 <a href='?page=customer-management&action=edit&id={$customer_id}' class='button'>Edit</a>
+                <a href='?page=customer-management&action=delete&id={$customer_id}' class='button' onclick=\"return confirm('Are you sure you want to delete this salesperson?');\">Delete</a>
             </td>";
                 } else {
                     $layaway_credit = get_layaway_sum($customer_id, $location_id);
@@ -173,7 +174,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                 }
 
                 echo "<tr>
-                <td id='firstName'>{$customer->first_name}</td>
+                <td id='firstName'>{$customer->prefix} {$customer->first_name}</td>
                 <td id='lastName'>{$customer->last_name}</td>
                 <td id='primaryPhone'>{$primary_phone}</td>
                 <td id='secondaryPhone'>{$secondary_phone}</td>
@@ -225,6 +226,17 @@ function add_customer_form()
         <input type="hidden" name="add_customer" value="1">
 
         <div class="customer-form-grid">
+            <!-- Prefix (Honorific) -->
+            <div class="form-group">
+                <label for="prefix" class="form-label">Prefix</label>
+                <select id="prefix" name="prefix" class="regular-text">
+                    <option value="">—</option>
+                    <option value="Mr.">Mr.</option>
+                    <option value="Mrs.">Mrs.</option>
+                    <option value="Miss">Miss</option>
+                    <option value="Ms.">Ms.</option>
+                </select>
+            </div>
             <!-- First Name -->
             <div class="form-group">
                 <label for="firstName" class="form-label">First Name</label>
@@ -310,6 +322,7 @@ function add_customer_form()
         global $wpdb;
 
         $table_name = $wpdb->prefix . 'mji_customers';
+        $prefix = sanitize_text_field(stripslashes($_POST['prefix']));
         $firstName = sanitize_text_field(stripslashes($_POST['firstName']));
         $lastName = sanitize_text_field(stripslashes($_POST['lastName']));
         $email = sanitize_email($_POST['email']);
@@ -332,6 +345,7 @@ function add_customer_form()
 
         try {
             $inserted = $wpdb->insert($table_name, [
+                'prefix' => $prefix,
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'primary_phone' => $primary_phone,
@@ -347,12 +361,13 @@ function add_customer_form()
             ]);
             if (!$inserted) {
                 echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+            } else {
+                $redirect_url = add_query_arg(
+                    ['page' => 'customer-management', 'added' => '1'],
+                    admin_url('admin.php')
+                );
+                wp_redirect($redirect_url);
             }
-            $redirect_url = add_query_arg(
-                ['page' => 'customer-management', 'added' => '1'],
-                admin_url('admin.php')
-            );
-            wp_redirect($redirect_url);
             exit;
         } catch (Exception $e) {
             custom_log($wpdb->last_error);
@@ -368,6 +383,7 @@ function delete_customer_form()
 
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_customers';
+    $orders_table = $wpdb->prefix . 'mji_orders';
     $customer_id = intval($_GET['id']);
 
     $customer = $wpdb->get_row("SELECT * FROM $table_name WHERE id = $customer_id");
@@ -377,12 +393,22 @@ function delete_customer_form()
         return;
     }
 
-    $deleted = $wpdb->delete($table_name, ['id' => $customer_id]);
+    $orders_count = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$orders_table} WHERE customer_id = %d",
+        $customer_id
+    ));
 
-    if ($deleted) {
-        echo '<div class="updated"><p>Customer deleted successfully!</p></div>';
+    if ($orders_count > 0) {
+        echo '<div class="notice notice-error"><p>Customer has purchased items/services, need to delete those invoices before deleting this customer.</p></div>';
     } else {
-        echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+
+        $deleted = $wpdb->delete($table_name, ['id' => $customer_id]);
+
+        if ($deleted) {
+            echo '<div class="updated"><p>Customer deleted successfully!</p></div>';
+        } else {
+            echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+        }
     }
 
     $result = customer_table();
@@ -408,6 +434,7 @@ function edit_customer_form()
         }
         global $wpdb;
 
+        $prefix = sanitize_text_field(stripslashes($_POST['prefix']));
         $firstName = sanitize_text_field(stripslashes($_POST['firstName']));
         $lastName = sanitize_text_field(stripslashes($_POST['lastName']));
         $email = sanitize_email($_POST['email']);
@@ -437,6 +464,7 @@ function edit_customer_form()
         } else {
 
             $updated = $wpdb->update($table_name, [
+                'prefix' => $prefix,
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'email' => !empty($email) ? $email : null,
@@ -481,6 +509,17 @@ function edit_customer_form()
         <input type="hidden" name="edit_customer" value="1">
 
         <div class="customer-form-grid">
+            <!-- Prefix -->
+            <div class="form-group">
+                <label for="prefix" class="form-label">Prefix</label>
+                <select id="prefix" name="prefix" class="regular-text">
+                    <option value="">—</option>
+                    <option value="Mr." <?= selected('Mr.',  trim($customer->prefix), false); ?>>Mr.</option>
+                    <option value="Mrs." <?= selected('Mrs.', trim($customer->prefix), false); ?>>Mrs.</option>
+                    <option value="Miss." <?= selected('Miss', trim($customer->prefix), false); ?>>Miss</option>
+                    <option value="Ms." <?= selected('Ms.',  trim($customer->prefix), false); ?>>Ms.</option>
+                </select>
+            </div>
             <!-- First Name -->
             <div class="form-group">
                 <label for="firstName" class="form-label">First Name</label>
@@ -619,12 +658,15 @@ function view_customer_page()
 
     global $wpdb;
     $customer_id = intval($_GET['id']);
+    $edit_url = admin_url("admin.php?page=customer-management&action=edit&id={$customer_id}");
 
     $customers_table = $wpdb->prefix . 'mji_customers';
     $orders_table = $wpdb->prefix . 'mji_orders';
     $order_items = $wpdb->prefix . 'mji_order_items';
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
     $product_inventory_units = $wpdb->prefix . 'mji_product_inventory_units';
+    $models_table = $wpdb->prefix . 'mji_models';
+    $services_table = $wpdb->prefix . 'mji_services';
 
     $customer = $wpdb->get_row(
         $wpdb->prepare("
@@ -648,31 +690,64 @@ function view_customer_page()
     o.created_at AS order_date,
     o.salesperson_id,
     o.customer_id,
+    o.notes,
     p.wc_product_id,
     p.wc_product_variant_id,
     p.retail_price,
     p.sku,
+    m.name AS model_name,
+    p.serial,
     c.first_name,
     c.last_name,
     s.first_name AS salesperson_first_name,
     s.last_name AS salesperson_last_name
-    FROM $order_items oi
-    JOIN  $orders_table o 
+    FROM $orders_table o
+    JOIN  $order_items oi 
     ON oi.order_id = o.id
     JOIN $customers_table c
     ON o.customer_id = c.id
-    JOIN $salespeople_table S
+    JOIN $salespeople_table s
     ON s.id = o.salesperson_id
     JOIN $product_inventory_units p
     ON p.id = oi.product_inventory_unit_id
-    WHERE c.id = $customer_id
+    JOIN $models_table m
+    ON m.id = p.model_id
+    WHERE o.customer_id = $customer_id
     ";
 
-    // Fetch orders
-    $orders = $wpdb->get_results($sql);
+    $item_orders = $wpdb->get_results($sql);
 
-    foreach ($orders as $row) {
+    $sql = "
+    SELECT 
+    sv.sold_price AS sale,
+    o.reference_num,
+    o.created_at AS order_date,
+    o.salesperson_id,
+    o.customer_id,
+    sv.cost_price,
+    sv.category,
+    sv.description,
+    c.first_name,
+    c.last_name,
+    s.first_name AS salesperson_first_name,
+    s.last_name AS salesperson_last_name
+    FROM $orders_table o
+    JOIN $services_table sv
+    ON sv.order_id = o.id
+    JOIN $customers_table c
+    ON o.customer_id = c.id
+    JOIN $salespeople_table s
+    ON s.id = o.salesperson_id
+    WHERE o.customer_id = $customer_id
+    ";
 
+    $service_orders = $wpdb->get_results($sql);
+
+    foreach ($item_orders as $row) {
+
+        if (is_empty($row->order_item_id)) {
+            continue;
+        }
         if ($row->wc_product_variant_id) {
             $variation = wc_get_product($row->wc_product_variant_id);
             $parent = wc_get_product($variation->get_parent_id());
@@ -710,7 +785,12 @@ function view_customer_page()
 ?>
 
     <div class="wrap">
-        <h1>Customer Details</h1>
+        <h1>
+            Customer Details
+            <a href="<?= esc_url($edit_url) ?>" class="edit-customer-link" title="Edit Customer">
+                <span class="dashicons dashicons-edit"></span>
+            </a>
+        </h1>
 
         <!-- Customer profile -->
         <div style="background:#fff; padding:15px; border:1px solid #ddd; margin-bottom:20px;">
@@ -737,16 +817,17 @@ function view_customer_page()
                     <tr>
                         <th>Image</th>
                         <th>Date/Inv/Salesman</th>
-                        <th>Name</th>
-                        <th>SKU</th>
+                        <th>Item</th>
+                        <th>SKU/Model/Serial</th>
                         <th>Retail Price</th>
                         <th>Sold Price</th>
                         <th>Discount</th>
+                        <th>Notes</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if ($orders): ?>
-                        <?php foreach ($orders as $order):
+                    <?php if ($item_orders): ?>
+                        <?php foreach ($item_orders as $order):
                             $discount_pct = $order->retail_price > 0 ? number_format(($order->discount / $order->retail_price) * 100, 2)  : 0;
                         ?>
                             <tr>
@@ -757,16 +838,36 @@ function view_customer_page()
                                     <?= $order->salesperson_first_name ?> <?= $order->salesperson_last_name ?>
                                 </td>
                                 <td><?= $order->name ?></td>
-                                <td><?= $order->sku ?></td>
+                                <td><?= $order->sku ?><br /><?= $order->model_name ?><br /><?= $order->serial ?></td>
                                 <td>$<?php echo number_format($order->retail_price, 2); ?></td>
                                 <td>$<?php echo number_format($order->sale, 2); ?></td>
                                 <td>$
                                     <?php echo number_format($order->discount, 2); ?> <br />
                                     <?= $discount_pct; ?> %
                                 </td>
+                                <td></td>
                             </tr>
                         <?php endforeach; ?>
-                    <?php else: ?>
+                    <?php endif; ?>
+                    <?php if ($service_orders): ?>
+                        <?php foreach ($service_orders as $order): ?>
+                            <tr>
+                                <td>No Image found</td>
+                                <td>
+                                    <?= date('M j, Y', strtotime($order->order_date)); ?> <br />
+                                    Inv# <?= $order->reference_num ?> </br>
+                                    <?= $order->salesperson_first_name ?> <?= $order->salesperson_last_name ?>
+                                </td>
+                                <td><?= $order->category ?></td>
+                                <td>Service</td>
+                                <td>$<?php echo number_format($order->cost_price, 2); ?></td>
+                                <td>$<?php echo number_format($order->sale, 2); ?></td>
+                                <td>$ 0.00 <br />0.00 %</td>
+                                <td><?= $order->description ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    <?php if (!$item_orders && !$service_orders): ?>
                         <tr>
                             <td colspan="5">No orders found.</td>
                         </tr>

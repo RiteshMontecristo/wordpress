@@ -30,6 +30,16 @@
   box-sizing: border-box;
 }
 
+.edit-customer-link .dashicons {
+  font-size: 18px;
+  color: #666;
+  vertical-align: middle;
+}
+
+.edit-customer-link:hover .dashicons {
+  color: #0073aa;
+}
+
 /* Responsive: stack on mobile */
 @media (max-width: 782px) {
   .customer-grid-form .customer-form-grid {
