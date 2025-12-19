@@ -690,7 +690,6 @@ function view_customer_page()
     o.created_at AS order_date,
     o.salesperson_id,
     o.customer_id,
-    o.notes,
     p.wc_product_id,
     p.wc_product_variant_id,
     p.retail_price,
