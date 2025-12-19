@@ -4,6 +4,7 @@ require_once get_stylesheet_directory() . '/inventory/sales.php';
 require_once get_stylesheet_directory() . '/inventory/customer.php';
 require_once get_stylesheet_directory() . '/inventory/salespeople.php';
 require_once get_stylesheet_directory() . '/inventory/product_units.php';
+require_once get_stylesheet_directory() . '/inventory/find.php';
 require_once get_stylesheet_directory() . '/inventory/reports.php';
 require_once get_stylesheet_directory() . '/inventory/imports.php';
 
@@ -533,6 +534,16 @@ function create_inventory_menu()
         'manage_options',      // Capability
         'salespeople-management',        // Menu slug
         'salespeople_page' // Callback function
+    );
+
+    // Submenu: Add Find
+    add_submenu_page(
+        'inventory-management', // Parent slug
+        'Find',        // Page title
+        'Find',        // Menu title
+        'manage_options',      // Capability
+        'invoice-management',        // Menu slug
+        'find_page' // Callback function
     );
 
     // Submenu: Reports

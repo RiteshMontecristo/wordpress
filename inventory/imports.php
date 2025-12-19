@@ -43,36 +43,102 @@ function process_uploaded_csv_file($file_path)
                 continue;
             }
 
-            $sku = trim($row[0]);
-            $supplier_sku = trim($row[1]);
-            $description = trim($row[2]);
-            $category = trim(str_replace("TP", "", $row[3]));
-            $brand = trim(strtolower($row[4]));
-            $cost   = preg_replace('/[^\d.-]/', '', trim($row[6]));
-            $retail = preg_replace('/[^\d.-]/', '', trim($row[7]));
-            $location = trim($row[8]);
-            $child_category = trim(preg_replace('/\s*collection[s]?\b/i', '', $row[9]));
+            // $sku = trim($row[0]);
+            // $supplier_sku = trim($row[1]);
+            // $description = trim($row[2]);
+            // $category = trim(str_replace(["TP", "JWL"], "", $row[3]));
+            // $brand = trim(strtolower($row[4]));
+            // $cost   = preg_replace('/[^\d.-]/', '', trim($row[6]));
+            // $retail = preg_replace('/[^\d.-]/', '', trim($row[7]));
+            // $location = trim($row[8]);
+            // $child_category = trim(preg_replace('/\s*collection[s]?\b/i', '', $row[9]));
 
+
+            $sku = trim($row[0]);
+            $supplier_sku = trim($row[7]);
+            $description = trim($row[9]);
+            $category = $row[1];
+            $brand = trim(strtolower($row[2]));
+            $cost   = preg_replace('/[^\d.-]/', '', trim($row[4]));
+            $retail = preg_replace('/[^\d.-]/', '', trim($row[5]));
+            $location = trim($row[3]);
+            $child_category = $row[2];
+            $supplier = $row[8];
+
+            $sql = $wpdb->prepare(
+                "SELECT sku FROM $inventory_units_table WHERE sku = %s LIMIT 1",
+                $sku
+            );
+            $existing_id = $wpdb->get_var($sql);
+
+            if ($existing_id) {
+                custom_log("Skipped as already in inventory: " . $sku);
+                continue;
+            }
             if ($location === "odbcmetrotownNEW") {
                 $location = "Metrotown";
             }
 
-            $product_id = wc_get_product_id_by_sku($supplier_sku);
-            if ($brand === 'watches') {
-                $data = parse_watch_description($description);
-            } else {
-                $data = parse_jewelry_description($description);
-            }
-            $serial = trim($row[5]) ?: $data['serial'] ?? "";
+            // $product_id = wc_get_product_id_by_sku($supplier_sku);
+            $product_id = null;
+            // if ($brand === 'watches') {
+            //     $data = parse_watch_description($description);
+            // } else {
+            $data = parse_jewelry_description($description);
+            // }
+            // $serial = trim($row[5]) ?: $data['serial'] ?? "";
+            $serial = "";
             $variation_id = null;
 
             if (!$product_id) {
 
+                $title = trim(str_replace(['Montecristo Handcrafted', 'Montecristo'], '', $data['title']));
+
+                // $pomellato = [
+                //     'Submariner',
+                //     'Explorer',
+                //     'Oyster Perpetual',
+                //     'Deepsea',
+                //     'Datejust Ladies',
+                //     'Datejust',
+                //     'Cosmograph Daytona',
+                //     'Sea-Dweller',
+                //     'Sky-Dweller',
+                //     'Submariner',
+                //     'Yacht-Master',
+                //     'GMT-Master II',
+                //     'Air-King',
+                //     'Land-Dweller',
+                //     'Day-Date',
+                //     'Pearlmaster',
+                // ];
+
+                // foreach ($pomellato as $p) {
+                //     if (stripos($title, $p) !== false) {
+                //         if ($p == "Datejust Ladies") $p = "Lady-Datejust";
+                //         $child_category = $p;
+                //         break;
+                //     }
+                // }
+
                 $product = new WC_Product();
-                $product->set_name(str_replace($category, '', $data['title']));
+                $product->set_name($title);
                 $product->set_sku($supplier_sku);
                 $product->set_regular_price($retail);
                 $product->set_manage_stock(true);
+                $product->set_stock_quantity(1);
+                // Remove invalid UTF-8 characters
+                $description = iconv('UTF-8', 'UTF-8//IGNORE', $description);
+
+                // Replace triple pipes with line breaks
+                $description = str_replace('|||', '<br>', $description);
+
+                // Clean up extra spaces
+                $description = trim($description);
+
+                // Allow safe HTML
+                $description = wp_kses_post($description);
+                $product->set_short_description($description);
 
                 $attributes = [];
                 $position = 0;
@@ -80,7 +146,6 @@ function process_uploaded_csv_file($file_path)
                     if (empty($value)) continue;
 
                     if ($key == "title" || $key == "serial") continue;
-
 
                     if (is_array($value)) {
                         $value = implode(', ', array_filter($value));
@@ -127,42 +192,42 @@ function process_uploaded_csv_file($file_path)
                     }
 
                     // Jewellery has two categories so need to add it
-                    if ($brand && $brand !== "watches") {
-                        $category_name = "Jewellery";
-                        $jewellery_category = get_term_by('name', $category_name, 'product_cat');
+                    // if ($brand && $brand !== "watches") {
+                    //     $category_name = "Jewellery";
+                    //     $jewellery_category = get_term_by('name', $category_name, 'product_cat');
 
-                        if ($jewellery_category && !is_wp_error($jewellery_category)) {
-                            if ($brand == 'Bangle') $brand = 'Bracelets';
-                            if (
-                                str_contains($brand, 'necklace') ||
-                                str_contains($brand, 'pendant')
-                            ) {
-                                $brand = 'Pendants & Necklaces';
-                            }
-                            if (
-                                str_contains($brand, 'earring')
-                            ) {
-                                $brand = 'Earrings';
-                            }
-                            $sub_category = get_term_by('name', $brand, 'product_cat');
-                            $jewellery_category_id = $jewellery_category->term_id;
+                    //     if ($jewellery_category && !is_wp_error($jewellery_category)) {
+                    //         if (str_contains($brand, 'bangle')) $brand = 'Bracelets';
+                    //         if (
+                    //             str_contains($brand, 'necklace') ||
+                    //             str_contains($brand, 'pendant')
+                    //         ) {
+                    //             $brand = 'Pendants & Necklaces';
+                    //         }
+                    //         if (
+                    //             str_contains($brand, 'earring')
+                    //         ) {
+                    //             $brand = 'Earrings';
+                    //         }
+                    //         $sub_category = get_term_by('name', $brand, 'product_cat');
+                    //         $jewellery_category_id = $jewellery_category->term_id;
 
-                            if ($sub_category && $sub_category->parent == $jewellery_category_id) {
-                                $second_sub_category_id = $sub_category->term_id;
-                            } else {
-                                $new_sub = wp_insert_term(
-                                    $brand,
-                                    'product_cat',
-                                    ['parent' => $jewellery_category_id]
-                                );
-                                if (!is_wp_error($new_sub)) {
-                                    $second_sub_category_id = $new_sub['term_id'];
-                                }
-                            }
-                        } else {
-                            custom_log("The jewellery_category_id was not found for sku " . $supplier_sku);
-                        }
-                    }
+                    //         if ($sub_category && $sub_category->parent == $jewellery_category_id) {
+                    //             $second_sub_category_id = $sub_category->term_id;
+                    //         } else {
+                    //             $new_sub = wp_insert_term(
+                    //                 $brand,
+                    //                 'product_cat',
+                    //                 ['parent' => $jewellery_category_id]
+                    //             );
+                    //             if (!is_wp_error($new_sub)) {
+                    //                 $second_sub_category_id = $new_sub['term_id'];
+                    //             }
+                    //         }
+                    //     } else {
+                    //         custom_log("The jewellery_category_id was not found for sku " . $supplier_sku);
+                    //     }
+                    // }
 
                     $cat_ids = array_filter([
                         $parent_id,
@@ -181,7 +246,7 @@ function process_uploaded_csv_file($file_path)
                 $product_id = $product->save();
 
                 if (!$product_id) {
-                    custom_log("Wasn't able to create the product.");
+                    custom_log("Wasn't able to create the product for SKU " . $sku);
                     continue;
                 }
                 update_post_meta($product_id, 'rank_math_primary_product_cat', $category_id);
@@ -200,6 +265,13 @@ function process_uploaded_csv_file($file_path)
                 }
 
                 update_post_meta($product_id, '_cost_price', $cost);
+
+                // Update stock quantity
+                $current_stock = $product->get_stock_quantity();
+                $new_stock = $current_stock + 1;
+                $product->set_stock_quantity($new_stock);
+                $product->save();
+
                 $category_id = get_post_meta($product_id, 'rank_math_primary_product_cat', true);
 
                 if (!$category_id) {
@@ -212,13 +284,13 @@ function process_uploaded_csv_file($file_path)
                         continue;
                     }
                 }
-                custom_log("Product updated");
+                custom_log("Product updated " . $supplier_sku);
             }
 
             $brand = get_term($category_id, 'product_cat')->name;
-            $model = $supplier_sku;
+            // $model = $supplier_sku;
 
-            $model_id = get_brand_model_id($models_table, $model);
+            // $model_id = get_brand_model_id($models_table, $model);
             $brand_id = get_brand_model_id($brands_table, $brand);
 
             $locations = mji_get_locations();
@@ -233,15 +305,18 @@ function process_uploaded_csv_file($file_path)
             );
             $existing_id = $wpdb->get_var($sql);
 
+            $supplier_id = get_supplier_id("wp_mji_suppliers", $supplier);
             if (!$existing_id) {
                 $data_to_insert = [
                     'wc_product_id'      => $product_id,
                     'wc_product_variant_id'    => $variation_id,
-                    'model_id'        => $model_id,
+                    'model_id'        => null,
                     'brand_id'        => $brand_id,
                     'location_id'     => $location_id,
+                    'supplier_id'     => $supplier_id,
                     'sku'             => $sku,
                     'serial'          => $serial ? $serial : NULL,
+                    'true_cost'      => floatval($cost),
                     'cost_price'      => floatval($cost),
                     'retail_price'    => floatval($retail),
                     'status'          => 'in_stock'
@@ -290,6 +365,7 @@ function parse_jewelry_description($desc)
     $data = [
         'title'      => '',
         'material'   => '',
+        'pearls'     => '',
         'weight'     => '',
         'gemstones'  => [],
         'model'   => '',
@@ -303,7 +379,7 @@ function parse_jewelry_description($desc)
 
     // Title cleanup
     if (!empty($parts[0])) {
-        $cleaned = preg_replace("/''[^']*''/", '', $parts[0]); // Remove internal quoted names
+        $cleaned = preg_replace("/''([^']*)''/", '$1', $parts[0]); // Keep text inside quotes, remove the quotes
         $cleaned = preg_replace('/\s+/', ' ', trim($cleaned)); // Normalize spaces
         $data['title'] = $cleaned;
     }
@@ -323,6 +399,11 @@ function parse_jewelry_description($desc)
         // Gemstones (including sublines)
         elseif (stripos($part, 'Set with') !== false || preg_match('/\d+=\d*\.\d*ct/i', $part)) {
             $data['gemstones'][] = $part;
+        }
+
+        // Pearls
+        elseif (stripos($part, 'pearl') !== false) {
+            $data['pearls'] = $part;
         }
 
         // Ceramic
@@ -477,4 +558,50 @@ function parse_watch_description($desc)
     }
 
     return $data;
+}
+
+function save_product_description() {}
+
+// Grab the brand and model id
+function get_supplier_id($table_name, $value)
+{
+    global $wpdb;
+
+    $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    // Create a unique transient key for this table and value
+    $transient_key = 'supplier' . md5($table_name . '|' . $value);
+
+    $cached_id = get_transient($transient_key);
+    if ($cached_id !== false) {
+        return $cached_id;
+    }
+
+    $sql = $wpdb->prepare(
+        "SELECT id FROM $table_name WHERE name = %s LIMIT 1",
+        $value
+    );
+    $existing_id = $wpdb->get_var($sql);
+
+    if ($existing_id) {
+        $id = $existing_id;
+    } else {
+        $inserted = $wpdb->insert(
+            $table_name,
+            [
+                'name' => $value
+            ]
+        );
+        if ($inserted === false) {
+            custom_log('Database error: ' . $wpdb->last_error);
+            wp_send_json_error($table_name . ' could\'nt be inserted: ' . $wpdb->last_error);
+        } else {
+            $id = $wpdb->insert_id;
+        }
+    }
+
+    // Storing it in transietn for 30 days
+    set_transient($transient_key, $id, DAY_IN_SECONDS * 30);
+
+    return $id;
 }
