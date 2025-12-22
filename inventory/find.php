@@ -60,8 +60,14 @@ function render_search_section()
     } else if (isset($_GET['reference_num'])) {
         $reference_num = $_GET['reference_num'];
         $results = reports_search_sales_results($reference_num, $active_tab);
-        render_invoice($results);
-        return;
+        if (!$results) {
+            echo "<div class='wrap'>";
+            echo "<h2>Invoice " . $reference_num . " not found!!";
+            echo "</div>";
+        } else {
+            render_invoice($results);
+            return;
+        }
     }
 
 ?>
@@ -77,7 +83,7 @@ function render_search_section()
             </tr>
         </table>
 
-        <?php submit_button('Generate Report'); ?>
+        <?php submit_button('Find Invoice'); ?>
     </form>
 <?php
 }
@@ -288,7 +294,7 @@ function delete_invoice($order_id)
 
     $order_id = absint($order_id);
     if (!$order_id) {
-        return;
+        return array("messagge" => "Order id is required to delete.");
     }
 
     global $wpdb;
