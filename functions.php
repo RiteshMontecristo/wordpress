@@ -441,7 +441,12 @@ function rolex_form_shortcode($atts)
         ?>
 
         <form id="multiStepFormRolex" class="multi-step-form rolex-form grid-nospace">
-            <input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce('rolex-nonce'); ?>" />
+            <input
+                type="text"
+                name="company_name"
+                tabindex="-1"
+                autocomplete="off"
+                style="position:absolute; left:-9999px;">
             <!-- First Step -->
             <div class="first-step" id="firstStep">
 
@@ -665,10 +670,12 @@ add_shortcode('rolex_form', 'rolex_form_shortcode');
 // ROLEX CONTACT FORM
 function handle_send_email()
 {
-    if (!isset($_POST['_wpnonce']) || !wp_verify_nonce($_POST['_wpnonce'], 'rolex-nonce')) {
-        wp_send_json_error('Invalid nonce'); // Handle invalid nonce
-        return;
+    if (! empty($_POST['company_name'])) {
+        wp_send_json_success([
+            'message' => 'Thank you! Your message has been sent.'
+        ]);
     }
+
     $missing_fields = array();
     // Check must have fields to see if its empty or not
     if (empty($_POST['firstName'])) {
@@ -797,71 +804,65 @@ add_action('wp_ajax_nopriv_send_email', 'handle_send_email');
 function handle_send_email_nojs()
 {
     if (isset($_POST['rolex-nojs-nonce'])) {
-        if (wp_verify_nonce($_POST['rolex-nojs-nonce'], 'rolex-nojs-nonce')) {
+        $missing_fields = array();
+        // Check must have fields to see if its empty or not
+        if (empty($_POST['firstName'])) {
+            $missing_fields[] = 'firstName';
+        }
+        if (empty($_POST['lastName'])) {
+            $missing_fields[] = 'lastName';
+        }
+        if (empty($_POST['email'])) {
+            $missing_fields[] = 'email';
+        }
 
-            $missing_fields = array();
-            // Check must have fields to see if its empty or not
-            if (empty($_POST['firstName'])) {
-                $missing_fields[] = 'firstName';
-            }
-            if (empty($_POST['lastName'])) {
-                $missing_fields[] = 'lastName';
-            }
-            if (empty($_POST['email'])) {
-                $missing_fields[] = 'email';
-            }
+        if (empty($_POST['terms'])) {
+            $missing_fields[] = 'terms';
+        }
 
-            if (empty($_POST['terms'])) {
-                $missing_fields[] = 'terms';
-            }
+        // If there are missing fields, send an error response with details
+        if (!empty($missing_fields)) {
+            $response = array(
+                'success' => false,
+                'message' => 'The following fields are missing: ' . implode(', ', $missing_fields)
+            );
+            wp_send_json($response);
+            return wp_redirect(home_url('/rolex/contact-form'));;
+        }
 
-            // If there are missing fields, send an error response with details
-            if (!empty($missing_fields)) {
-                $response = array(
-                    'success' => false,
-                    'message' => 'The following fields are missing: ' . implode(', ', $missing_fields)
-                );
-                wp_send_json($response);
-                return wp_redirect(home_url('/rolex/contact-form'));;
-            }
+        // Sanitize and process the data 
+        $message = sanitize_textarea_field($_POST['message']);
+        $firstName = sanitize_text_field($_POST['firstName']);
+        $lastName = sanitize_text_field($_POST['lastName']);
+        $email = sanitize_email($_POST['email']);
+        $code = sanitize_text_field($_POST['code']);
+        $phone = sanitize_text_field($_POST['phone']);
+        $country = sanitize_text_field($_POST['country']);
 
-            // Sanitize and process the data 
-            $message = sanitize_textarea_field($_POST['message']);
-            $firstName = sanitize_text_field($_POST['firstName']);
-            $lastName = sanitize_text_field($_POST['lastName']);
-            $email = sanitize_email($_POST['email']);
-            $code = sanitize_text_field($_POST['code']);
-            $phone = sanitize_text_field($_POST['phone']);
-            $country = sanitize_text_field($_POST['country']);
+        // Prepare email content
+        $to = get_option('custom_sender_email', get_option('admin_email'));
+        $subject = 'New Form Submission';
+        $headers = array('Content-Type: text/plain; charset=UTF-8');
 
-            // Prepare email content
-            $to = get_option('custom_sender_email', get_option('admin_email'));
-            $subject = 'New Form Submission';
-            $headers = array('Content-Type: text/plain; charset=UTF-8');
+        // Email message
+        $email_message =
+            "First Name: $firstName\n" .
+            "Last Name: $lastName\n" .
+            "Email: $email\n" .
+            (!empty($code) ? "Code: $code\n" : '') .
+            (!empty($phone) ? "Phone: $phone\n" : '') .
+            (!empty($country) ? "Country: $country\n" : '') .
+            (!empty($message) ? "Message: $message\n" : '');
 
-            // Email message
-            $email_message =
-                "First Name: $firstName\n" .
-                "Last Name: $lastName\n" .
-                "Email: $email\n" .
-                (!empty($code) ? "Code: $code\n" : '') .
-                (!empty($phone) ? "Phone: $phone\n" : '') .
-                (!empty($country) ? "Country: $country\n" : '') .
-                (!empty($message) ? "Message: $message\n" : '');
-
-            // Send the email
-            $sent = wp_mail($to, $subject, $email_message, $headers);
-            $sent = true;
-            // Prepare JSON response
-            if ($sent) {
-                return wp_redirect(home_url('/rolex/contact-form'));;
-            } else {
-                error_log("The user {$email} tried to reach us in rolex but there was a server error.");
-                return wp_redirect(home_url('/rolex/contact-form'));;
-            }
+        // Send the email
+        $sent = wp_mail($to, $subject, $email_message, $headers);
+        $sent = true;
+        // Prepare JSON response
+        if ($sent) {
+            return wp_redirect(home_url('/rolex/contact-form'));;
         } else {
-            echo 'nonce verification failed';
-            exit;
+            error_log("The user {$email} tried to reach us in rolex but there was a server error.");
+            return wp_redirect(home_url('/rolex/contact-form'));;
         }
     }
 }

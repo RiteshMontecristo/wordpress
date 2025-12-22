@@ -54,7 +54,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const textMessage = document.querySelector("#message");
     const textMessageError = document.querySelector("#messageError");
     const nextButton = document.querySelector("#nextButton");
-    const nonce = document.querySelector('input[name="_wpnonce"]').value;
 
     // Second Step
     const secondStep = document.querySelector("#secondStep");
@@ -171,7 +170,6 @@ document.addEventListener("DOMContentLoaded", () => {
           const formData = new FormData(multiStepForm);
           // letting wordpress know which hooks we need to run, in this case it will run wp_ajax_send_email and wp_ajax_nopriv_send_email for logged in and not logged in users respectively.
           formData.append("action", "send_email");
-          formData.append("_wpnonce", nonce);
           formData.append("g-recaptcha-response", token);
 
           // the ajax_object.ajax_url is comming from the localize script that is hooked in our rolex enqueue script
