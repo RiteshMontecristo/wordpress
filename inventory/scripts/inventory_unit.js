@@ -9,7 +9,6 @@ const cancelModal = inventoryUnitModal?.querySelector("#modal_cancel");
 const unitIdModal = inventoryUnitModal?.querySelector("#modal_unit_id");
 const productIdModal = inventoryUnitModal?.querySelector("#modal_product_id");
 const skuModal = inventoryUnitModal?.querySelector("#modal_sku");
-const statusModal = inventoryUnitModal?.querySelector("#modal_status");
 const variantModal = inventoryUnitModal?.querySelector("#variationID");
 const serialModal = inventoryUnitModal?.querySelector("#modal_serial");
 const locationModal = inventoryUnitModal?.querySelector("#location");
@@ -26,6 +25,21 @@ const retailPriceModal = inventoryUnitModal?.querySelector(
   "#modal_retail_price"
 );
 const notesModal = inventoryUnitModal?.querySelector("#modal_notes");
+
+// Edit status
+const editStatusModal = document?.querySelector("#edit-status-modal");
+const editStatusButtons = inventoryTable?.querySelectorAll(".edit-status");
+const editStatusProductID = editStatusModal?.querySelector("#product-id");
+const editStatusUnitID = editStatusModal?.querySelector("#unit-id");
+const editStatusHeading = editStatusModal?.querySelector("#sku");
+const editStatusEl = editStatusModal?.querySelector("#status");
+const editStatusDate = editStatusModal?.querySelector("#updateDate");
+const editStatusNote = editStatusModal?.querySelector("#notes");
+const editStatusPassword = editStatusModal?.querySelector("#password");
+const editStatusForm = editStatusModal?.querySelector("form#statusForm");
+const editStatusUpdateBtn = editStatusModal?.querySelector("#confirm");
+const editStatusCancelBtn = editStatusModal?.querySelector("#cancel");
+const editStatusError = editStatusModal?.querySelector("#error");
 
 addUnitModal?.addEventListener("click", (e) => {
   e.preventDefault();
@@ -48,7 +62,6 @@ saveModal?.addEventListener("click", (e) => {
   const unitId = unitIdModal?.value || "";
   const productId = productIdModal?.value || "";
   const sku = skuModal?.value || "";
-  const status = statusModal?.value || "";
   const variant = variantModal?.value || "";
   const serial = serialModal?.value || "";
   const location = locationModal?.value || "";
@@ -81,7 +94,6 @@ saveModal?.addEventListener("click", (e) => {
   const formData = new FormData();
   formData.append("product_id", productId);
   formData.append("sku", sku);
-  formData.append("status", status);
   formData.append("location", location);
   formData.append("supplier", supplier);
   formData.append("invoice_number", invoiceNumber);
@@ -105,7 +117,11 @@ saveModal?.addEventListener("click", (e) => {
     .then((response) => response.json())
     .then((res) => {
       if (res.success) {
-        alert("Unit added successfully!");
+        if (unitId) {
+          alert("Unit updated successfully!");
+        } else {
+          alert("Unit added successfully!");
+        }
         window.location.reload();
       } else {
         if (Array.isArray(res.data.errors)) {
@@ -154,7 +170,6 @@ editUnitModal?.forEach((button) => {
       productId: tr.dataset.productId,
       unitId: tr.dataset.unitId,
       sku: tr.dataset.sku,
-      status: tr.dataset.status,
       variant: tr.dataset.variant,
       serial: tr.dataset.serial,
       location: tr.dataset.location,
@@ -171,7 +186,6 @@ editUnitModal?.forEach((button) => {
     unitIdModal.value = unitData.unitId || "";
     productIdModal.value = unitData.productId || "";
     skuModal.value = unitData.sku || "";
-    statusModal.value = unitData.status || "";
     if (variantModal) {
       variantModal.value = unitData.variant || "";
     }
@@ -191,10 +205,66 @@ editUnitModal?.forEach((button) => {
 function resetModal() {
   unitIdModal.value = "";
   skuModal.value = "";
-  statusModal.value = "in_stock";
   serialModal.value = "";
   locationModal.value = "1";
   supplierModal.value = "";
   invoiceNumberModal.value = "";
   notesModal.value = "";
 }
+
+// Edit status
+editStatusButtons?.forEach((button) => {
+  button.addEventListener("click", (e) => {
+    e.preventDefault();
+    const tr = button.closest("tr");
+    const unitId = tr.dataset.unitId;
+    const sku = tr.dataset.sku;
+    const status = tr.dataset.status;
+    const notes = tr.dataset.notes;
+    const product_id = tr.dataset.variant
+      ? tr.dataset.variant
+      : tr.dataset.productId;
+
+    editStatusModal.classList.remove("hidden");
+
+    editStatusProductID.value = product_id;
+    editStatusUnitID.value = unitId;
+    editStatusHeading.textContent = sku;
+    editStatusEl.value = status;
+    editStatusDate.valueAsDate = new Date();
+    editStatusNote.value = notes;
+  });
+});
+
+editStatusCancelBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  editStatusModal.classList.add("hidden");
+});
+
+editStatusForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const formData = new FormData(editStatusForm);
+  editStatusUpdateBtn.setAttribute("disabled", true);
+  editStatusError.classList.add("hidden");
+  try {
+    const data = await fetch(`${ajax_inventory.ajax_url}`, {
+      method: "POST",
+      body: formData,
+    });
+    const resData = await data.json();
+    if (resData.success) {
+      alert("Status updated successfully!");
+      window.location.reload();
+    } else {
+      editStatusError.innerText = resData.data;
+      editStatusError.classList.remove("hidden");
+    }
+    editStatusUpdateBtn.removeAttribute("disabled");
+  } catch (err) {
+    console.log(err);
+    editStatusError.innerText = err;
+    editStatusError.classList.remove("hidden");
+    editStatusUpdateBtn.removeAttribute("disabled");
+  }
+});

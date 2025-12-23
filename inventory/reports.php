@@ -44,7 +44,6 @@ function reports_page()
 <?php
 }
 
-
 // Reports sales Section
 function reports_render_sales_section()
 {
@@ -421,7 +420,8 @@ function reports_render_inventory_filters()
                 <td>
                     <select name="status" id="status">
                         <option value="in_stock">In stock</option>
-                        <option value="out_of_stock">Out of stock</option>
+                        <option value="sold">Sold</option>
+                        <option value="out_of_stock">Returned</option>
                     </select>
                 </td>
             </tr>
@@ -476,13 +476,6 @@ function reports_get_inventory_result()
     $where = [];
     $params = [];
 
-    // Base relevance filter: existed by end, not sold before start
-    $where[] = "i.created_date <= %s";
-    $params[] = $end_date;
-
-    $where[] = "(i.sold_date IS NULL OR i.sold_date >= %s)";
-    $params[] = $start_date;
-
     if ($location) {
         $where[] = "i.location_id = %d";
         $params[] = $location;
@@ -494,9 +487,22 @@ function reports_get_inventory_result()
     }
 
     if ($status === 'in_stock') {
-        $where[] = "i.status = 'in_stock'";
+        $where[] = "i.created_date <= %s";
+        $params[] = $end_date;
+
+        $where[] = "(i.sold_date IS NULL OR i.sold_date > %s)";
+        $params[] = $start_date;
+
+        $where[] = "(i.status_updated_date IS NULL OR i.status_updated_date > %s)";
+        $params[] = $start_date;
+    } else if ($status === 'sold') {
+        $where[] = "i.sold_date BETWEEN %s AND %s";
+        $params[] = $start_date;
+        $params[] = $end_date;
     } else {
-        $where[] = "i.status NOT IN ('in_stock')";
+        $where[] = "(i.status_updated_date BETWEEN %s AND %s)";
+        $params[] = $start_date;
+        $params[] = $end_date;
     }
 
     // Search: SKU, Serial, Model Name
@@ -629,8 +635,8 @@ function reports_render_inventory_report($results)
 
             $sold_date = $status == "in_stock" ? "" : "<td>" . date('Y-m-d', $sold_date) . "</td>";
             $reference_num = $status == "in_stock" ? "" : "<td>" .  $row->reference_num . "</td>";
-            $customer_name = $status == "in_stock" ? "" : "<td>" .  $row->customer_first_name . " ".  $row->customer_last_name . "</td>";
-            $salesperson_name = $status == "in_stock" ? "" : "<td>" .  $row->salesperson_first_name . " ".  $row->salesperson_last_name . "</td>";
+            $customer_name = $status == "in_stock" ? "" : "<td>" .  $row->customer_first_name . " " .  $row->customer_last_name . "</td>";
+            $salesperson_name = $status == "in_stock" ? "" : "<td>" .  $row->salesperson_first_name . " " .  $row->salesperson_last_name . "</td>";
 
             echo '<tr>';
             echo '<td>' . $image . '</td>';
@@ -668,3 +674,36 @@ function reports_render_inventory_report($results)
         echo '<p>No inventory reports found for this store.</p>';
     }
 }
+
+// NEED TO REDO THE REPORTS
+// ALTER TABLE {$inventory_table}
+// ADD COLUMN status_updated_date DATETIME NULL DEFAULT NULL;
+
+// // New: Handle "event-based" statuses differently
+// if ($status === 'in_stock') {
+//     // Snapshot: items that were in stock during the period
+//     $where[] = "i.created_date <= %s";
+//     $params[] = $end_date;
+//     $where[] = "(i.sold_date IS NULL OR i.sold_date > %s)"; // > not >= (not sold *on or before* start)
+//     $params[] = $start_date;
+//     $where[] = "i.status = 'in_stock'";
+
+// } elseif ($status === 'sold') {
+//     // Event: items sold *during* the period
+//     $where[] = "i.sold_date BETWEEN %s AND %s";
+//     $params[] = $start_date;
+//     $params[] = $end_date;
+//     $where[] = "i.status = 'sold'";
+
+// } else {
+//     // Event: items marked as damaged/missing/etc. *during* the period
+//     $where[] = "i.status_updated_date BETWEEN %s AND %s";
+//     $params[] = $start_date;
+//     $params[] = $end_date;
+//     $where[] = "i.status NOT IN ('in_stock', 'sold')";
+// }
+
+// ALTER TABLE {$inventory_table} 
+// ADD INDEX idx_status_updated (status_updated_date),
+// ADD INDEX idx_sold_date (sold_date),
+// ADD INDEX idx_created_date (created_date);

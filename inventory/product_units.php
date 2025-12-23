@@ -24,10 +24,11 @@ function render_inventory_units_meta_box($post)
     $location_name_by_id = [];
     $variation_name_by_id = [];
     $status = [
-        "in_stock" => "In Stock",
-        "reserved" => "Reserved",
         "sold" => "Sold",
+        "in_stock" => "In Stock",
         "damaged" => "Damaged",
+        "missing" => "Missing",
+        "rtv" => "Return to Vendor",
     ];
     $variation_select = '';
     $cost_price = 0;
@@ -59,28 +60,9 @@ function render_inventory_units_meta_box($post)
     wp_nonce_field('save_inventory_units', 'inventory_units_nonce');
 
 ?>
-    <style>
-        #inventory-units-table {
-
-            td,
-            th {
-                border: 1px solid;
-                margin: 0;
-            }
-
-            input {
-                width: 100%;
-                box-sizing: border-box;
-            }
-        }
-
-        #normal-sortables .postbox .submit {
-            float: none;
-        }
-    </style>
 
     <p>Manage individual inventory units for this product.</p>
-    <button id="open_add_modal">Add Unit</button>
+    <button id="open_add_modal button-primary">Add Unit</button>
 
     <table id="inventory-units-table" width="100%">
         <thead>
@@ -129,6 +111,7 @@ function render_inventory_units_meta_box($post)
                         <?= esc_html($location_name_by_id[$unit->location_id]) ?></td>
                     <td>
                         <button class="edit-unit button">Edit</button>
+                        <?= $unit->status != "sold" ? '<button class="edit-status button">Return</button>' : '' ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -149,18 +132,6 @@ function render_inventory_units_meta_box($post)
                 <tr>
                     <th><label for="modal_sku">SKU</label></th>
                     <td><input type="text" id="modal_sku" name="sku" /></td>
-                </tr>
-
-                <tr>
-                    <th><label for="modal_status">Status</label></th>
-                    <td>
-                        <select id="modal_status" name="status">
-                            <option value="in_stock">In Stock</option>
-                            <option value="reserved">Reserved</option>
-                            <option value="sold">Sold</option>
-                            <option value="damaged">Damaged</option>
-                        </select>
-                    </td>
                 </tr>
 
                 <?php if ($is_variation): ?>
@@ -225,6 +196,60 @@ function render_inventory_units_meta_box($post)
         </form>
     </div>
 
+    <div id="edit-status-modal" class="return-container hidden">
+        <div class="return">
+            <h2 class="form-title">Update Item Status for <span id="sku"></span></h2>
+            <form id="statusForm">
+
+                <?php wp_nonce_field('update_unit_status', 'unit_status_nonce'); ?>
+                <input type="hidden" id="unit-id" name="unit-id" value="" />
+                <input type="hidden" name="action" value="update_unit_status" />
+                <input type="hidden" id="product-id" name="product-id" value="" />
+
+                <div class="form-group">
+                    <label for="status">Status:</label>
+                    <select id="status" name="status" required>
+                        <option value="in_stock">In Stock</option>
+                        <option value="damaged">Damaged</option>
+                        <option value="missing">Missing</option>
+                        <option value="rtv">Return to Vendor</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="updateDate">Date of Status Change:</label>
+                    <input
+                        type="date"
+                        id="updateDate"
+                        name="updateDate"
+                        required />
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes:</label>
+                    <textarea
+                        id="notes"
+                        name="notes"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        required
+                        autocomplete="current-password" />
+                </div>
+
+                <p id="error" class="alert hidden">Sorry there was an issue, Please try again later!!</p>
+                <div class="btn-container">
+                    <button id="confirm" class="button-primary" type="submit">Update Status</button>
+                    <button id="cancel" class="button">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <?php
 }
 
@@ -289,7 +314,6 @@ function create_inventory_units()
     $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : null;
     $variation_id = isset($_POST['variationID']) ? intval($_POST['variationID']) : null;
     $sku = isset($_POST['sku']) ? strtoupper(sanitize_text_field($_POST['sku'])) : null;
-    $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : null;
     $serial_number = (isset($_POST['serial']) && !is_empty($_POST['serial'])) ? $_POST['serial'] : null;
     $location_id = isset($_POST['location']) ? intval($_POST['location']) : null;
     $invoice_number = isset($_POST['invoice_number']) ? sanitize_text_field($_POST['invoice_number']) : null;
@@ -305,7 +329,6 @@ function create_inventory_units()
 
     if (!$product_id) $errors[] = "Product ID is required.";
     if (!$sku) $errors[] = "SKU is required.";
-    if (!$status) $errors[] = "Status is required.";
     if (!$location_id) $errors[] = "Location is required.";
     if (!$supplier) $errors[] = "Supplier is required.";
     if (!$invoice_number) $errors[] = "Invoice number is required.";
@@ -372,7 +395,7 @@ function create_inventory_units()
                     'wc_product_variant_id' => $variation_id,
                     'sku' => $sku,
                     'serial' => $serial_number,
-                    'status' => $status,
+                    'status' => "in_stock",
                     'location_id' => $location_id,
                     'invoice_number' => $invoice_number,
                     'created_date' => $invoice_date,
@@ -439,7 +462,7 @@ function create_inventory_units()
                     'wc_product_variant_id' => $variation_id,
                     'sku' => $sku,
                     'serial' => $serial_number,
-                    'status' => $status,
+                    'status' => "in_stock",
                     'location_id' => $location_id,
                     'invoice_number' => $invoice_number,
                     'created_date' => $invoice_date,
@@ -515,14 +538,14 @@ function get_brand_model_id($table_name, $value)
 
     $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-    if(is_empty($value)) return null;
+    if (is_empty($value)) return null;
     // Create a unique transient key for this table and value
-    $transient_key = 'brand_model_' . md5($table_name . '|' . $value);
+    // $transient_key = 'brand_model_' . md5($table_name . '|' . $value);
 
-    $cached_id = get_transient($transient_key);
-    if ($cached_id !== false) {
-        return $cached_id;
-    }
+    // $cached_id = get_transient($transient_key);
+    // if ($cached_id !== false) {
+    //     return $cached_id;
+    // }
 
     $sql = $wpdb->prepare(
         "SELECT id FROM $table_name WHERE name = %s LIMIT 1",
@@ -548,7 +571,7 @@ function get_brand_model_id($table_name, $value)
     }
 
     // Storing it in transietn for 30 days
-    set_transient($transient_key, $id, DAY_IN_SECONDS * 30);
+    // set_transient($transient_key, $id, DAY_IN_SECONDS * 30);
 
     return $id;
 }
@@ -797,3 +820,108 @@ add_action('admin_footer', function () {
         }
     }
 });
+
+function change_status()
+{
+    if (
+        !isset($_POST['unit_status_nonce']) ||
+        !wp_verify_nonce($_POST['unit_status_nonce'], 'update_unit_status')
+    ) {
+        wp_send_json_error('Security check failed.', 403);
+    }
+
+    $product_id = isset($_POST['product-id']) ? sanitize_text_field(wp_unslash($_POST['product-id'])) : '';
+    $unit_id = isset($_POST['unit-id']) ? sanitize_text_field(wp_unslash($_POST['unit-id'])) : '';
+    $status  = isset($_POST['status']) ? sanitize_text_field(wp_unslash($_POST['status'])) : '';
+    $date    = isset($_POST['updateDate']) ? sanitize_text_field(wp_unslash($_POST['updateDate'])) : '';
+    $notes   = isset($_POST['notes']) ? sanitize_textarea_field(wp_unslash($_POST['notes'])) : '';
+    $password = isset($_POST['password']) ? wp_unslash($_POST['password']) : '';
+
+    if (empty($product_id)) {
+        wp_send_json_error('Product ID is required.');
+    }
+
+    if (empty($unit_id)) {
+        wp_send_json_error('Unit ID is required.');
+    }
+
+    $allowed_statuses = ['in_stock', 'damaged', 'missing', 'rtv'];
+    if (!in_array($status, $allowed_statuses, true)) {
+        wp_send_json_error('Invalid status selected.');
+    }
+
+    if (!empty($date) && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        wp_send_json_error('Invalid date format.');
+    }
+
+    $current_user = get_user_by('email', 'rm@montecristo1978.com');
+    if (!wp_check_password($password, $current_user->user_pass, $current_user->ID)) {
+        wp_send_json_error('Incorrect password.');
+    }
+
+    global $wpdb;
+
+    $inventory_unit_table = $wpdb->prefix . "mji_product_inventory_units";
+
+    $existing_unit = $wpdb->get_row($wpdb->prepare(
+        "SELECT id, status FROM {$inventory_unit_table} WHERE id = %d",
+        $unit_id
+    ));
+
+    if (!$existing_unit) {
+        wp_send_json_error('Unit not found.');
+        wp_die();
+    }
+
+    $result = $wpdb->update(
+        $inventory_unit_table,
+        [
+            'status' => $status,
+            'sold_date' => $date,
+            'notes' => $notes,
+        ],
+        [
+            'id' => $unit_id
+        ],
+        [
+            '%s',
+            '%s',
+            '%s'
+        ],
+        [
+            '%d'
+        ]
+    );
+
+    if ($result === false) {
+        wp_send_json_error('Database update failed.' . $wpdb->last_error);
+    } else {
+        $product = wc_get_product($product_id);
+        if ($product) {
+            $old_status = $existing_unit->status;
+            handle_stock_adjustment_based_on_status_change($old_status, $status, $product_id);
+            wp_send_json_success('Status updated successfully.');
+        } else {
+            wp_send_json_error('Products has been updated but need to update the quantity manually');
+        }
+    }
+}
+
+add_action('wp_ajax_update_unit_status', 'change_status');
+
+function is_stock_affecting_status($status)
+{
+    return $status === 'in_stock';
+}
+
+function handle_stock_adjustment_based_on_status_change($old, $new, $product_id)
+{
+    $was_in_stock = is_stock_affecting_status($old);
+    $is_in_stock  = is_stock_affecting_status($new);
+
+    if ($was_in_stock && !$is_in_stock) {
+        wc_update_product_stock($product_id, 1, 'decrease');
+    } elseif (!$was_in_stock && $is_in_stock) {
+        wc_update_product_stock($product_id, 1, 'increase');
+    }
+}

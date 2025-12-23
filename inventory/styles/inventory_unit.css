@@ -1,0 +1,103 @@
+#inventory-units-table {
+
+            td,
+            th {
+                border: 1px solid;
+                margin: 0;
+            }
+
+            input {
+                width: 100%;
+                box-sizing: border-box;
+            }
+        }
+
+        #normal-sortables .postbox .submit {
+            float: none;
+        }
+
+        .return-container {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+
+            .return {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translateX(-50%) translateY(-50%);
+                background-color: white;
+                min-width: 400px;
+                padding: 2rem 1rem;
+                box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+                border-radius: 10px;
+            }
+
+            .return>h2 {
+                font-size: 16px !important;
+                font-weight: 600;
+                padding-left: 0 !important;
+
+            }
+
+            .form-title {
+                text-align: center;
+                margin-bottom: 25px;
+                color: #2c3e50;
+                font-size: 24px;
+                font-weight: 600;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            label {
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 600;
+                color: #34495e;
+            }
+
+            select,
+            input,
+            textarea {
+                width: 100%;
+                padding: 2px 6px;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                font-size: 16px;
+                box-sizing: border-box;
+                transition: border-color 0.3s;
+            }
+
+            textarea {
+                min-height: 80px;
+                resize: vertical;
+            }
+
+            select:focus,
+            input:focus,
+            textarea:focus {
+                outline: none;
+                border-color: #3498db;
+                box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+            }
+
+            .btn-container {
+                display: flex;
+                margin-top: 20px;
+                gap: 1rem;
+            }
+
+            .alert {
+                background: #fef3c7;
+                color: #92400e;
+                padding: 12px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+                text-align: center;
+                font-weight: 500;
+            }
+        }
