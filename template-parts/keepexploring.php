@@ -26,8 +26,8 @@ $keepExpoloringArr = array(
         "url" => "/rolex/accessories"
     ),
     array(
-        "desktop_url" => "/wp-content/uploads/rolex/keep-exploring/landscape/rolex-keep-exploring-watchmaking-2023%20watchmaking%20features%20manifesto%20still_digital_master_rgb-landscape.webp",
-        "mobile_url" => "/wp-content/uploads/rolex/keep-exploring/portrait/rolex-keep-exploring-watchmaking-2023%20watchmaking%20features%20manifesto%20still_digital_master_rgb-portrait.webp",
+        "desktop_url" => "/wp-content/uploads/rolex/keep-exploring/landscape/rolex-keep-exploring-watchmaking-2025-landscape.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/keep-exploring/portrait/rolex-keep-exploring-watchmaking-2025-portrait.webp",
         "title" => "Watchmaking",
         "url" => "/rolex/watchmaking"
     ),
