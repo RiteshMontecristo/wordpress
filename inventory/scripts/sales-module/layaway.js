@@ -15,6 +15,9 @@ export const LayawaySelector = {
     // Add Customer Layaway
     this.layawayFormDiv = document.querySelector("#addLayawayForm");
     this.layawayForm = document.querySelector("form[name='add-layaway']");
+    this.layawayFormSubmitButton = document.querySelector(
+      "form[name='add-layaway'] #submit-layaway"
+    );
 
     // Print the custoemr Layaway
     this.layawayReceipt = document.querySelector("#layawayReceipt");
@@ -74,6 +77,7 @@ export const LayawaySelector = {
 
     this.layawayForm?.addEventListener("submit", (e) => {
       e.preventDefault();
+      this.layawayFormSubmitButton.setAttribute("disabled", true);
       const cash = this.layawayForm.querySelector("#cash").value;
       const cheque = this.layawayForm.querySelector("#cheque").value;
       const debit = this.layawayForm.querySelector("#debit").value;
@@ -81,8 +85,7 @@ export const LayawaySelector = {
       const master_card = this.layawayForm.querySelector("#master_card").value;
       const amex = this.layawayForm.querySelector("#amex").value;
       const discover = this.layawayForm.querySelector("#discover").value;
-      const bank_draft =
-        this.layawayForm.querySelector("#bank_draft").value;
+      const bank_draft = this.layawayForm.querySelector("#bank_draft").value;
       const cup = this.layawayForm.querySelector("#cup").value;
       const alipay = this.layawayForm.querySelector("#alipay").value;
       const wire = this.layawayForm.querySelector("#wire").value;
@@ -172,6 +175,9 @@ export const LayawaySelector = {
         .catch((error) => {
           console.error("Error:", error);
           alert("An error occurred.");
+        })
+        .finally(() => {
+          this.layawayFormSubmitButton.removeAttribute("disabled");
         });
     });
 
