@@ -877,7 +877,7 @@ function change_status()
         $inventory_unit_table,
         [
             'status' => $status,
-            'sold_date' => $date,
+            'status_updated_date' => $date,
             'notes' => $notes,
         ],
         [
