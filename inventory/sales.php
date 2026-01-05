@@ -1004,3 +1004,19 @@ function finalizeSale()
         'date' => $created_at
     ]);
 }
+
+// CREATE TABLE wp_mji_layaways (
+//   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+//   customer_id BIGINT NOT NULL,
+//   location_id BIGINT NOT NULL,
+//   reference_num VARCHAR(50) NOT NULL,
+//   total_amount DECIMAL(10,2) NOT NULL,
+//   remaining_amount DECIMAL(10,2) NOT NULL,
+//   status ENUM('active','redeemed','expired','cancelled') DEFAULT 'active',
+//   created_at DATETIME NOT NULL,
+//   UNIQUE (reference_num, customer_id, location_id)
+// ) ENGINE=InnoDB;
+
+
+// ALTER TABLE wp_mji_payments
+// ADD layaway_id BIGINT NULL AFTER order_id;
