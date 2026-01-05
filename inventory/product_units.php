@@ -62,7 +62,7 @@ function render_inventory_units_meta_box($post)
 ?>
 
     <p>Manage individual inventory units for this product.</p>
-    <button id="open_add_modal button-primary">Add Unit</button>
+    <button id="open_add_modal" class="button-primary">Add Unit</button>
 
     <table id="inventory-units-table" width="100%">
         <thead>
