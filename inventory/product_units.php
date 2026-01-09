@@ -862,48 +862,83 @@ function change_status()
     global $wpdb;
 
     $inventory_unit_table = $wpdb->prefix . "mji_product_inventory_units";
+    $inventory_unit_history_table = $wpdb->prefix . "mji_inventory_status_history";
 
-    $existing_unit = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, status FROM {$inventory_unit_table} WHERE id = %d",
-        $unit_id
-    ));
+    // Start transaction
+    $wpdb->query('START TRANSACTION');
 
-    if (!$existing_unit) {
-        wp_send_json_error('Unit not found.');
-        wp_die();
-    }
+    try {
+        $existing_unit = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, status FROM {$inventory_unit_table} WHERE id = %d",
+            $unit_id
+        ));
 
-    $result = $wpdb->update(
-        $inventory_unit_table,
-        [
-            'status' => $status,
-            'status_updated_date' => $date,
-            'notes' => $notes,
-        ],
-        [
-            'id' => $unit_id
-        ],
-        [
-            '%s',
-            '%s',
-            '%s'
-        ],
-        [
-            '%d'
-        ]
-    );
-
-    if ($result === false) {
-        wp_send_json_error('Database update failed.' . $wpdb->last_error);
-    } else {
-        $product = wc_get_product($product_id);
-        if ($product) {
-            $old_status = $existing_unit->status;
-            handle_stock_adjustment_based_on_status_change($old_status, $status, $product_id);
-            wp_send_json_success('Status updated successfully.');
-        } else {
-            wp_send_json_error('Products has been updated but need to update the quantity manually');
+        if (!$existing_unit) {
+            wp_send_json_error('Unit not found.');
+            wp_die();
         }
+
+        if ($existing_unit->status == $status) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_success('Status did not change.');
+        }
+
+        $history_data = [
+            'inventory_unit_id' => $unit_id,
+            'from_status'       => $existing_unit->status,
+            'to_status'         => $status,
+            'notes'             => $notes ?? null,
+            'created_at'        => $date
+        ];
+
+        $insert_result = $wpdb->insert(
+            $inventory_unit_history_table,
+            $history_data,
+            [
+                '%d',
+                '%s',
+                '%s',
+                '%s',
+                '%s'
+            ]
+        );
+
+        if ($insert_result === false) {
+            throw new Exception('Failed to insert status history: ' . $wpdb->last_error);
+        }
+
+        $updated_result = $wpdb->update(
+            $inventory_unit_table,
+            [
+                'status' => $status
+            ],
+            [
+                'id' => $unit_id
+            ],
+            [
+                '%s'
+            ],
+            [
+                '%d'
+            ]
+        );
+
+        if ($updated_result === false) {
+            throw new Exception('Database update failed.' . $wpdb->last_error);
+        } else {
+            $product = wc_get_product($product_id);
+            if ($product) {
+                $old_status = $existing_unit->status;
+                handle_stock_adjustment_based_on_status_change($old_status, $status, $product_id);
+                $wpdb->query('COMMIT');
+                wp_send_json_success('Status updated successfully.');
+            } else {
+                throw new Exception('Product not found');
+            }
+        }
+    } catch (Exception $e) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error('Error: ' . $e->getMessage());
     }
 }
 
