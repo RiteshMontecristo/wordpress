@@ -2,11 +2,11 @@
 
 $discoverArr = array(
     array(
-        "desktop_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1764347844/rolex/discover-rolex-page-assets-landscape/m278288rbr-0041_2511stj_001_rvb-banner-generator_2000x920.webp",
-        "mobile_url" => "https://res.cloudinary.com/drfo99te6/image/upload/v1764347909/rolex/discover-rolex-page-assets-portrait/m278288rbr-0041_2511stj_001_rvb-banner-generator_780x1050.webp",
+        "desktop_url" => "/wp-content/uploads/rolex/discover-rolex/landscape/brand-centre-banners-day-date_m128239-0063_pk20_2000x920.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/discover-rolex/portrait/brand-centre-banners-day-date_m128239-0063_pk20_780x1050.webp",
         "title" => "Rolex",
-        "subtitle" => "Time to shine bright",
-        "url" => "/rolex/datejust",
+        "subtitle" => "Day-Date",
+        "url" => "/rolex/day-date",
         "text_color" => "black"
     ),
     array(
