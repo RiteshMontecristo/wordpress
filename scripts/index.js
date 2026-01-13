@@ -1,6 +1,7 @@
 import "./functionality/header.js";
 import "./functionality/products.js";
 import "./functionality/homepage.js";
+import "./functionality/cookie.js";
 
 const path = window.location.pathname;
 
@@ -13,16 +14,6 @@ if (path.includes("blog")) {
   import("./functionality/contact.js");
 } else if (path.includes("my-account")) {
   import("./functionality/favourite.js");
-}
-
-if ("requestIdleCallback" in window) {
-  requestIdleCallback(() => {
-    import("./functionality/cookie.js");
-  });
-} else {
-  setTimeout(() => {
-    import("./functionality/cookie.js");
-  }, 2000);
 }
 
 // Youtube video player

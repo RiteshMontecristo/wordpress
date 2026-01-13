@@ -16,23 +16,20 @@
             <div class="preference">
                 <input type="checkbox" name="statistics" id="statistics" />
                 <label for="statistics">Statistics</label>
-                <p>Enables storage (such as cookies) related to analytics e.g. visit duration.</p>
+                <p>Enables storage (such as cookies) related to analytics e.g. visit duration.</br>
+                    <strong>Rolex (Adobe Analytics and Content Square)</strong></br>
+                    Rolex Policy <a href="https://www.rolex.com/legal-notices/cookies.html" target="_blank">https://www.rolex.com/legal-notices/cookies.html</a></br>
+                    Adobe Analytics <a href="https://www.adobe.com/privacy/policy.html" target="_blank">https://www.adobe.com/privacy/policy.html</a></br>
+                    Content Square <a href="https://contentsquare.com/" target="_blank">https://contentsquare.com/</a>
+                </p>
             </div>
             <div class="preference">
                 <input type="checkbox" name="marketing" id="marketing" />
                 <label for="marketing">Marketing</label>
                 <p>Enables storage (such as cookies) related to advertising.</p>
             </div>
-            <div class="preference">
-                <input type="checkbox" name="rolex" id="rolex" />
-                <label for="rolex">Rolex (Adobe Analytics and Content Square)</label>
+            <p>Please visit our <a href="/privacy">Privacy Policy</a> page to learn more.</p>
 
-                <div class="rolex-text">
-                    <p>Please visit our <a href="/privacy">Privacy Policy</a> page to learn more.</p>
-                    <p>Adobe Analytics <a href="https://www.adobe.com/privacy/policy.html" target="_blank">https://www.adobe.com/privacy/policy.html</a></p>
-                    <p>Content Square <a href="https://contentsquare.com/" target="_blank">https://contentsquare.com/</a></p>
-                </div>
-            </div>
         </div>
 
         <div class="cookie-cta-container">
