@@ -162,11 +162,19 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                 <a href='?page=customer-management&action=delete&id={$customer_id}' class='button' onclick=\"return confirm('Are you sure you want to delete this salesperson?');\">Delete</a>
             </td>";
                 } else {
-                    $layaway_credit = get_layaway_sum($customer_id, $location_id);
-                    $layaway = $layaway_credit["layaway"] ? "Layaway: " . $layaway_credit["layaway"] : '';
-                    $credit = $layaway_credit["credit"] ? "<br />Credit: " . $layaway_credit["credit"] : '';
+                    $layaway = get_active_layaway_list($customer_id, $location_id);
+
+                    $layaway_arr = array_map(function ($n) {
+                        return "Layaway #" . $n->reference_num . ": $" . $n->remaining_amount;
+                    }, $layaway);
+
+                    $layaway_el = implode("<br />", $layaway_arr);
+
+                    $actionMethod = "";
+                    // $layaway = $layaway_credit["layaway"] ? "Layaway: " . $layaway_credit["layaway"] : '';
+                    // $credit = $layaway_credit["credit"] ? "<br />Credit: " . $layaway_credit["credit"] : '';
                     $actionMethod = '
-                            <td>' . $layaway  . $credit . '</td>
+                            <td>' . $layaway_el . '</td>
                             <td>
                                 <button class="select-customer button" data-customerid="' . $customer_id . '">Select</button>
                             </td>

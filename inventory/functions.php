@@ -883,7 +883,6 @@ function mji_brands_dropdown($required = true, $selected_id = '')
     return $html;
 }
 
-
 function mji_get_suppliers()
 {
     // Try transient first

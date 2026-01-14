@@ -90,9 +90,7 @@ export const CartSelector = {
     }
 
     this.cartItems.innerHTML = cartHTML;
-    // TODO: DISPATCH EVEN AND USE THAT EVENT IN CHECKOUT TO UPDATE LAYAWAY
     document.dispatchEvent(new CustomEvent("checkout:updateLayaway"));
-    // DOM.inputs.paymentMethods.layaway.max = state.layawayTotal;
   },
 
   handleCartClick(e) {

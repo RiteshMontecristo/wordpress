@@ -22,9 +22,9 @@ export const CheckoutSelector = {
       cup: document.querySelector("#cart #cup"),
       alipay: document.querySelector("#cart #alipay"),
       wire: document.querySelector("#cart #wire"),
-      layaway: document.querySelector("#cart #layaway"),
       credit: document.querySelector("#cart #credit"),
     };
+    this.layawayContainer = document.querySelector("#cart #layawayContainer");
     this.location = document.querySelector("#cart #location");
     this.subtotal = document.querySelector("#cart #subtotal");
     this.excludeGst = document.querySelector("#cart #exclude-gst");
@@ -39,11 +39,24 @@ export const CheckoutSelector = {
   },
 
   bindEvents() {
-    document.addEventListener("checkout:updateLayaway", () => {
-      this.payment.layaway.value = AppState.layawayTotal;
-      this.payment.layaway.max = AppState.layawayTotal;
-      this.payment.credit.value = AppState.creditTotal;
-      this.payment.credit.max = AppState.creditTotal;
+    document.addEventListener("checkout:updateLayaway", async () => {
+      // this.payment.layaway.value = AppState.layawayTotal;
+      // this.payment.layaway.max = AppState.layawayTotal;
+      // this.payment.credit.value = AppState.creditTotal;
+      // this.payment.credit.max = AppState.creditTotal;
+      try {
+        let res = await fetch(
+          `${ajax_inventory.ajax_url}?action=getActiveLayaway&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`
+        );
+
+        res = await res.json();
+        const { data } = res;
+        if (data.length > 0) {
+          this.renderLayaway(data);
+        }
+      } catch (err) {
+        console.error("Fetch operation failed:", err);
+      }
     });
 
     this.excludeGst.addEventListener("change", this.calculateTotal.bind(this));
@@ -105,6 +118,19 @@ export const CheckoutSelector = {
     });
   },
 
+  renderLayaway(data) {
+    const layawayEl = data.map((el) => {
+      return `
+              <div>
+                <label for="layaway-${el.id}">Layaway #${el.reference_num}:</label>
+                <input class="layaway" type="number" min="0" step="0.01" value=${el.remaining_amount} max=${el.remaining_amount} id="layaway-${el.id}" name="layaway-${el.id}">
+              </div>
+      `;
+    });
+
+    this.layawayContainer.innerHTML = layawayEl.join("");
+  },
+
   getTotals() {
     let subtotal = AppState.cart.reduce((sum, item) => {
       return sum + (Number(item.price_after_discount || item.price) || 0);
@@ -143,15 +169,17 @@ export const CheckoutSelector = {
   },
 
   validateAndSubmitSale() {
+    const allLayaway = document.querySelectorAll("#cart .layaway");
     const { total } = this.getTotals();
 
     const payments = this.payment;
     let totalPaid = 0;
 
-    if (
-      payments.layaway.value > 0 &&
-      payments.layaway.value > AppState.layawayTotal
-    ) {
+    allLayaway.forEach((el) => {
+      totalPaid += parseFloat(el.value);
+    });
+
+    if (totalPaid > 0 && totalPaid > AppState.layawayTotal) {
       alert("Layaway entered is greater than the amount the customer has.");
       return false;
     }
@@ -224,7 +252,13 @@ export const CheckoutSelector = {
 
     const paymentLines = data.payments
       .map((payment) => {
-        return `${payment.method}: $${formatCurrency(payment.amount)}`;
+        if (payment.method == "layaway") {
+          return `${payment.method} #${payment.reference_num}: $${formatCurrency(
+            payment.amount
+          )}`;
+        } else {
+          return `${payment.method}: $${formatCurrency(payment.amount)}`;
+        }
       })
       .join(", ");
 
@@ -254,7 +288,7 @@ export const CheckoutSelector = {
                       <p>Served by ${data.salesperson_name}</p>
                   </div>
                 </header>
-    
+
                 <main>
                   <table>
                     <thead>
@@ -272,7 +306,7 @@ export const CheckoutSelector = {
                         ${
                           data.payments.length == 0
                             ? "<p>This is a gift!!</p>"
-                            : "<p>Paid by ${paymentLines} </p>"
+                            : `<p>Paid by ${paymentLines} </p>`
                         }
                           <p>Thank you for shopping at Montecristo Jewellers</p>
                         </td>
