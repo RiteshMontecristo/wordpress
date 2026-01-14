@@ -26,7 +26,7 @@ function reports_page()
         menu_page_url('reports-management', false)
     );
 
-    ?>
+?>
     <div class="wrap">
         <h1>Reports</h1>
 
@@ -53,7 +53,7 @@ function reports_page()
             reports_render_inventory_section();
         } ?>
     </div>
-    <?php
+<?php
 }
 
 // Reports sales Section
@@ -70,7 +70,7 @@ function reports_render_sales_section()
 
 function reports_render_sales_filters()
 {
-    ?>
+?>
     <form method="get" action="">
         <input type="hidden" name="page" value="reports-management">
 
@@ -118,7 +118,7 @@ function reports_render_sales_filters()
 
         <?php submit_button('Generate Report'); ?>
     </form>
-    <?php
+<?php
 }
 
 function reports_get_sales_results()
@@ -382,7 +382,7 @@ function reports_render_inventory_filters()
 {
     $location = isset($_GET['location']) ? intval($_GET['location']) : '';
     $brands = isset($_GET['brands']) ? intval($_GET['brands']) : '';
-    ?>
+?>
     <form method="get" action="">
         <input type="hidden" name="page" value="reports-management">
         <input type="hidden" name="tab" value="inventory">
@@ -448,7 +448,7 @@ function reports_render_inventory_filters()
         <?php submit_button('Generate Report'); ?>
     </form>
 
-    <?php
+<?php
 }
 
 function reports_get_inventory_result()
@@ -484,6 +484,7 @@ function reports_get_inventory_result()
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
     $orders_table = $wpdb->prefix . 'mji_orders';
     $order_items_table = $wpdb->prefix . 'mji_order_items';
+    $inventory_status_history = $wpdb->prefix . 'mji_inventory_status_history';
 
     $where = [];
     $params = [];
@@ -498,26 +499,6 @@ function reports_get_inventory_result()
         $params[] = $brands;
     }
 
-    if ($status === 'in_stock') {
-        $where[] = "i.created_date <= %s";
-        $params[] = $end_date;
-
-        $where[] = "(i.sold_date IS NULL OR i.sold_date > %s)";
-        $params[] = $start_date;
-
-        $where[] = "(i.status_updated_date IS NULL OR i.status_updated_date > %s)";
-        $params[] = $start_date;
-    } else if ($status === 'sold') {
-        $where[] = "i.sold_date BETWEEN %s AND %s";
-        $params[] = $start_date;
-        $params[] = $end_date;
-    } else {
-        $where[] = "(i.status_updated_date BETWEEN %s AND %s)";
-        $params[] = $start_date;
-        $params[] = $end_date;
-    }
-
-    // Search: SKU, Serial, Model Name
     if (!empty($search_text)) {
         $like = '%' . $wpdb->esc_like($search_text) . '%';
         $where[] = "(i.sku LIKE %s OR i.serial LIKE %s OR m.name LIKE %s)";
@@ -526,45 +507,145 @@ function reports_get_inventory_result()
         $params[] = $like;
     }
 
-    $where_clause = implode(' AND ', $where);
+    $where_clause = $where ? ' AND ' . implode(' AND ', $where) : '';
 
-    // We can join with wpdb->posts to speed up 
-    $query = "
-            SELECT 
-                i.wc_product_id AS product_id,
-                i.wc_product_variant_id AS product_variant_id,
-                i.sku AS sku,
-                i.serial,
-                m.name, 
-                i.status,
-                i.sold_date,
-                COALESCE(i.cost_price, 0) as cost_price,
-                COALESCE(i.retail_price, 0) as retail_price,
-                o.reference_num,
-                c.first_name as customer_first_name,
-                c.last_name AS customer_last_name,
-                sp.first_name as salesperson_first_name,
-                sp.last_name AS salesperson_last_name
+    $query_in_stock = "
+        SELECT 
+            i.wc_product_id AS product_id,
+            i.wc_product_variant_id AS product_variant_id,
+            i.sku,
+            i.serial,
+            m.name, 
+            'in_stock' AS status,
+            i.created_date,
+            NULL AS sold_date,
+            COALESCE(i.cost_price, 0) AS cost_price,
+            COALESCE(i.retail_price, 0) AS retail_price,
+            o.reference_num,
+            c.first_name AS customer_first_name,
+            c.last_name AS customer_last_name,
+            sp.first_name AS salesperson_first_name,
+            sp.last_name AS salesperson_last_name,
+            ish.created_at AS status_change_date
+        FROM {$inventory_table} i
+        LEFT JOIN {$inventory_status_history} ish
+            ON ish.inventory_unit_id = i.id
+            AND ish.created_at = (
+                SELECT MAX(created_at)
+                FROM {$inventory_status_history}
+                WHERE inventory_unit_id = i.id
+                AND created_at <= %s 
+            )
+        LEFT JOIN {$models} m ON m.id = i.model_id
+        LEFT JOIN {$order_items_table} oi ON oi.product_inventory_unit_id = i.id
+        LEFT JOIN {$orders_table} o ON o.id = oi.order_id
+        LEFT JOIN {$customers_table} c ON c.id = o.customer_id
+        LEFT JOIN {$salespeople_table} sp ON sp.id = o.salesperson_id
+        WHERE 
+            i.created_date <= %s
+            AND COALESCE(ish.to_status, i.status) = 'in_stock'
+            {$where_clause}
+    ";
 
-            FROM $inventory_table i
-            LEFT JOIN $models m 
-            ON m.id = i.model_id
+    $query_sold = "
+        SELECT 
+            i.wc_product_id AS product_id,
+            i.wc_product_variant_id AS product_variant_id,
+            i.sku,
+            i.serial,
+            m.name, 
+            'sold' AS status,
+            i.created_date,
+            h.created_at AS sold_date,
+            COALESCE(i.cost_price, 0) AS cost_price,
+            COALESCE(i.retail_price, 0) AS retail_price,
+            o.reference_num,
+            c.first_name AS customer_first_name,
+            c.last_name AS customer_last_name,
+            sp.first_name AS salesperson_first_name,
+            sp.last_name AS salesperson_last_name,
+            h.created_at AS status_change_date
+        FROM {$inventory_table} i
+        INNER JOIN {$inventory_status_history} h
+            ON h.inventory_unit_id = i.id
+            AND h.created_at = (
+                SELECT MAX(created_at)
+                FROM {$inventory_status_history}
+                WHERE inventory_unit_id = i.id
+                AND to_status = 'sold'
+                AND created_at BETWEEN %s AND %s
+            )
+        LEFT JOIN {$models} m ON m.id = i.model_id
+        LEFT JOIN {$order_items_table} oi ON oi.product_inventory_unit_id = i.id
+        LEFT JOIN {$orders_table} o ON o.id = oi.order_id
+        LEFT JOIN {$customers_table} c ON c.id = o.customer_id
+        LEFT JOIN {$salespeople_table} sp ON sp.id = o.salesperson_id
+        WHERE 
+            h.to_status = 'sold'
+            AND h.created_at >= %s
+            AND h.created_at <= %s;
+            {$where_clause}
+    ";
 
-            LEFT JOIN {$order_items_table} oi
-            ON oi.product_inventory_unit_id = i.id
+    $query_other = "
+        SELECT 
+            i.wc_product_id AS product_id,
+            i.wc_product_variant_id AS product_variant_id,
+            i.sku,
+            i.serial,
+            m.name, 
+            h.to_status AS status,
+            i.created_date,
+            NULL AS sold_date,
+            COALESCE(i.cost_price, 0) AS cost_price,
+            COALESCE(i.retail_price, 0) AS retail_price,
+            o.reference_num,
+            c.first_name AS customer_first_name,
+            c.last_name AS customer_last_name,
+            sp.first_name AS salesperson_first_name,
+            sp.last_name AS salesperson_last_name,
+            h.created_at AS status_change_date
+        FROM {$inventory_table} i
+        INNER JOIN {$inventory_status_history} h
+            ON h.inventory_unit_id = i.id
+            AND h.created_at = (
+                SELECT MAX(created_at)
+                FROM {$inventory_status_history}
+                WHERE inventory_unit_id = i.id
+                AND to_status IN ('damaged','missing','rtv')
+                AND created_at BETWEEN %s AND %s
+            )
+        LEFT JOIN {$models} m ON m.id = i.model_id
+        LEFT JOIN {$order_items_table} oi ON oi.product_inventory_unit_id = i.id
+        LEFT JOIN {$orders_table} o ON o.id = oi.order_id
+        LEFT JOIN {$customers_table} c ON c.id = o.customer_id
+        LEFT JOIN {$salespeople_table} sp ON sp.id = o.salesperson_id
+        WHERE 
+            h.to_status IN ('damaged', 'missing', 'rtv')
+            AND h.created_at >= %s  -- $start_date
+            AND h.created_at <= %s; -- $end_date
+            {$where_clause}
+    ";
 
-            LEFT JOIN {$orders_table} o
-            ON o.id = oi.order_id
+    switch ($status) {
+        case "in_stock":
+            $query = $query_in_stock;
+            $final_params = array_merge([$end_date, $end_date], $params);
+            break;
+        case "sold":
+            $query = $query_sold;
+            $final_params = array_merge([$start_date, $end_date, $start_date, $end_date], $params);
+            break;
+        case "out_of_stock":
+            $query = $query_other;
+            $final_params = array_merge([$start_date, $end_date, $start_date, $end_date], $params);
+            break;
 
-            LEFT JOIN {$customers_table} c
-            ON c.id = o.customer_id
+        default:
+            throw new InvalidArgumentException("Invalid status");
+    }
 
-            LEFT JOIN {$salespeople_table} sp
-            ON sp.id = o.salesperson_id
-            WHERE {$where_clause}
-        ";
-
-    $results = $wpdb->get_results($wpdb->prepare($query, ...$params));
+    $results = $wpdb->get_results($wpdb->prepare($query, ...$final_params));
     $results['start_date'] = $start_date;
     $results['end_date'] = $end_date;
     $results['status'] = $status;
@@ -687,10 +768,6 @@ function reports_render_inventory_report($results)
     }
 }
 
-// NEED TO REDO THE REPORTS and status updates
-// ALTER TABLE {$inventory_table}
-// ADD COLUMN status_updated_date DATETIME NULL DEFAULT NULL;
-
 // Reports layaway Section
 function reports_render_layaway_section()
 {
@@ -705,7 +782,7 @@ function reports_render_layaway_section()
 
 function reports_render_layaway_filters()
 {
-    ?>
+?>
     <form method="get" action="">
         <input type="hidden" name="page" value="reports-management">
         <input type="hidden" name="tab" value="layaway">
@@ -750,7 +827,7 @@ function reports_render_layaway_filters()
 
         <?php submit_button('Generate Report'); ?>
     </form>
-    <?php
+<?php
 }
 
 function reports_get_layaway_results()

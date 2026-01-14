@@ -358,6 +358,7 @@ function create_inventory_units()
     $models_table = $wpdb->prefix . 'mji_models';
     $brands_table = $wpdb->prefix . 'mji_brands';
     $suppliers_table = $wpdb->prefix . 'mji_suppliers';
+    $inventory_unit_history_table = $wpdb->prefix . "mji_inventory_status_history";
 
     // Grab the model number
     if ($variation) {
@@ -385,6 +386,7 @@ function create_inventory_units()
     }
 
     try {
+        $wpdb->query('START TRANSACTION');
         // If unit id present then update else need to create product unit
         if ($unit_id) {
             update_unit_sku($unit_id, $sku);
@@ -412,6 +414,7 @@ function create_inventory_units()
 
             if ($result === false) {
                 custom_log('Database error: ' . $wpdb->last_error);
+                $wpdb->query('ROLLBACK');
                 wp_send_json_error(
                     [
                         'message' => 'Please fix the following errors:',
@@ -452,9 +455,13 @@ function create_inventory_units()
 
                 wc_delete_product_transients($product_id);
             }
+
+            $wpdb->query('COMMIT');
             wp_send_json_success($result);
         } else {
             sku_exists_anywhere($sku);
+
+
             $result = $wpdb->insert(
                 $table_name,
                 [
@@ -478,9 +485,35 @@ function create_inventory_units()
 
             if ($result === false) {
                 custom_log('Database error: ' . $wpdb->last_error);
+                $wpdb->query('ROLLBACK');
                 wp_send_json_error(
                     [
                         'message' => 'Please fix the following errors:',
+                        'errors' => 'Database error: ' . $wpdb->last_error
+                    ]
+                );
+            }
+
+            $inventory_unit_id = $wpdb->insert_id;
+
+            $history_result = $wpdb->insert(
+                $inventory_unit_history_table,
+                [
+                    'inventory_unit_id' => $inventory_unit_id,
+                    'from_status' => null,
+                    'to_status' => 'in_stock',
+                    'notes' => 'Initial status on creation',
+                    'reference_num' => $invoice_number,
+                    'created_at' => $invoice_date
+                ]
+            );
+
+            if ($history_result === false) {
+                custom_log('Status history insert error: ' . $wpdb->last_error);
+                $wpdb->query('ROLLBACK');
+                wp_send_json_error(
+                    [
+                        'message' => 'Inventory inserted but failed to create status history',
                         'errors' => 'Database error: ' . $wpdb->last_error
                     ]
                 );
@@ -521,11 +554,13 @@ function create_inventory_units()
 
                 wc_delete_product_transients($product_id);
             }
+            $wpdb->query('COMMIT');
             wp_send_json_success($result);
         }
     } catch (Exception $e) {
         custom_log("Error " . $e->getMessage());
         wp_send_json_error(['message' => 'Error creating inventory unit: ' . $e->getMessage()]);
+        $wpdb->query('ROLLBACK');
     }
 }
 
@@ -879,7 +914,6 @@ function change_status()
         }
 
         if ($existing_unit->status == $status) {
-            $wpdb->query('ROLLBACK');
             wp_send_json_success('Status did not change.');
         }
 
@@ -904,6 +938,7 @@ function change_status()
         );
 
         if ($insert_result === false) {
+            $wpdb->query('ROLLBACK');
             throw new Exception('Failed to insert status history: ' . $wpdb->last_error);
         }
 
@@ -924,6 +959,7 @@ function change_status()
         );
 
         if ($updated_result === false) {
+            $wpdb->query('ROLLBACK');
             throw new Exception('Database update failed.' . $wpdb->last_error);
         } else {
             $product = wc_get_product($product_id);
@@ -933,6 +969,7 @@ function change_status()
                 $wpdb->query('COMMIT');
                 wp_send_json_success('Status updated successfully.');
             } else {
+                $wpdb->query('ROLLBACK');
                 throw new Exception('Product not found');
             }
         }
