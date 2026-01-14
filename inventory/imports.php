@@ -5,7 +5,7 @@ function import_page()
     render_page();
 
     if (isset($_POST['upload_data']) && !empty($_FILES['upload_csv']['tmp_name'])) {
-        $count = process_uploaded_csv_file($_FILES['upload_csv']['tmp_name']);
+        $count = save_product_description($_FILES['upload_csv']['tmp_name']);
         echo '<div class="updated"><p>File imported successfully! ' . intval($count) . ' entries added.</p></div>';
     }
 }
@@ -560,7 +560,77 @@ function parse_watch_description($desc)
     return $data;
 }
 
-function save_product_description() {}
+function save_product_description($file_path)
+{
+    global $wpdb;
+
+    $handle = fopen($file_path, 'r');
+    $inventory_units_table = $wpdb->prefix . 'mji_product_inventory_units';
+    if ($handle) {
+        $header = true;
+        $count = 0;
+        while (($row = fgetcsv($handle)) !== false) {
+
+            if ($header) {
+                $header = false;
+                continue;
+            }
+
+            $sku = trim($row[0]);
+            $description = trim($row[2]);
+            $desc = mb_convert_encoding($description, 'UTF-8', 'Windows-1252');
+            $parts = array_map('trim', explode('|||', $desc));
+            // Remove any part that contains the word "serial" (case-insensitive)
+            $parts = array_filter($parts, function ($part) {
+                return !preg_match('/\bserial\b/i', $part);
+            });
+
+            // Optional: Re-index array to ensure sequential keys (0,1,2...)
+            $parts = array_values($parts);
+            
+            $sql = $wpdb->prepare(
+                "SELECT wc_product_id, wc_product_variant_id, sku FROM $inventory_units_table WHERE sku = %s LIMIT 1",
+                $sku
+            );
+            $product_data = $wpdb->get_row($sql);
+
+            if (!$product_data) {
+                custom_log("No item in product unit inventory table: " . $sku);
+                continue;
+            }
+            $product_id = $product_data->wc_product_variant_id ?: $product_data->wc_product_id;
+            $is_variant = empty($product_data->wc_product_variant_id) ? false : true;
+
+            $product = wc_get_product($product_id);
+
+            if (!$product) {
+                custom_log("No woocommerce product created for  " . $sku);
+                continue;
+            }
+            if ($is_variant) {
+                $short_desc = join("\n", $parts);
+                $description = $product->get_description();
+                if (strlen($description) == 0) {
+                    $product->set_description($short_desc);
+                } else {
+                    custom_log("Skipped short description for " . $sku);
+                }
+            } else {
+                $short_desc = join("<br />", $parts);
+                $short_description = $product->get_short_description();
+                if (strlen($short_description) == 0) {
+                    $product->set_short_description($short_desc);
+                } else {
+                    custom_log("Skipped short description for " . $sku);
+                }
+            }
+            $product->save();
+            $count++;
+        }
+        fclose($handle);
+        return $count;
+    }
+}
 
 // Grab the brand and model id
 function get_supplier_id($table_name, $value)
