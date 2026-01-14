@@ -1,5 +1,6 @@
 import { formatCurrency, formatLabel } from "../index.js";
 import { showSelection } from "../sales.js";
+import { ServiceSelector } from "./service.js";
 import { AppState } from "./state.js";
 
 export const CartSelector = {
@@ -43,11 +44,14 @@ export const CartSelector = {
                     <span>SKU: ${item.sku}</span><br />
                     <span>Price: ${item.price} CAD</span><br />
                     <span>Discount: ${item.discount_amount}</span><br />
+                    <span>Discount Percent: ${
+                      item.discount_percent
+                    }%</span><br />
                     <span>Discounted Price: ${
                       item.price_after_discount
                     }</span><br />
                     <button type="button">Edit</button>
-                    <button type="button">Remove from cart</button>
+                    <button type="button">Remove</button>
                   </div>
                 </div>
               `;
@@ -57,7 +61,7 @@ export const CartSelector = {
 
     if (AppState.services.length > 0) {
       cartHTML += AppState.services
-        .map((service, index) => {
+        .map((service) => {
           return `
           <div class="service-item">
             <strong>${formatLabel(service.category)}</strong> </br>
@@ -77,7 +81,8 @@ export const CartSelector = {
                 ? `<span>Reference: ${service.reference}</span><br />`
                 : ``
             }
-            <button id="${index}" type="button">Remove from cart</button>
+            <button id="${service.id}" type="edit">Edit</button>
+            <button id="${service.id}" type="button">Remove</button>
             </div>
       `;
         })
@@ -98,23 +103,27 @@ export const CartSelector = {
 
     const button = e.target;
     const productItem = button.closest(".product-item div[data-unitid]");
-    const buttonId = button.id;
 
-    if (buttonId) {
-      this.removeFromService(buttonId);
-    } else {
+    if (productItem) {
       const unitId = productItem.dataset.unitid;
-      if (button.textContent === "Remove from cart") {
+      if (button.textContent === "Remove") {
         this.removeFromCart(unitId);
-        this.displayCart();
       } else if (button.textContent === "Edit") {
         this.openEditModal(unitId);
+      }
+    } else {
+      const serviceId = button.id;
+      if (button.textContent === "Remove") {
+        this.removeFromService(serviceId);
+      } else if (button.textContent === "Edit") {
+        this.openServiceEditModal(serviceId);
       }
     }
   },
 
   removeFromService(id) {
-    AppState.services.splice(id, 1);
+    const index = AppState.services.findIndex((s) => s.id == id);
+    AppState.services.splice(index, 1);
     this.displayCart();
   },
 
@@ -151,6 +160,7 @@ export const CartSelector = {
     titleEl.textContent = item.title;
     skuEl.textContent = item.sku;
     priceEl.textContent = `${item.price} CAD`;
+    discountAmtEl.focus();
 
     discountAmtEl.value = item.discount_amount || 0;
     discountPctEl.value = item.discount_percent || 0;
@@ -221,5 +231,9 @@ export const CartSelector = {
     priceAfterDiscountEl.addEventListener("input", onPriceAfterDiscountInput);
     cancelBtn.addEventListener("click", onCancelClick);
     saveBtn.addEventListener("click", onSaveClick);
+  },
+
+  openServiceEditModal(serviceId) {
+    ServiceSelector.openEditModal(serviceId);
   },
 };
