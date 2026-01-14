@@ -61,6 +61,8 @@ function inventory_page()
                         <th>Transaction Type</th>
                         <th>Method</th>
                         <th>Amount</th>
+                        <th>Notes</th>
+                        <th>Salesperson</th>
                     </tr>
                 </thead>
                 <tbody id="layawayItems">
@@ -68,7 +70,7 @@ function inventory_page()
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="4">Total:</td>
+                        <td colspan="6">Total:</td>
                         <td id="layaway-total">0.00 CAD</td>
                     </tr>
                 </tfoot>
@@ -526,10 +528,13 @@ function get_layaway_list()
     global $wpdb;
 
     $table_name = $wpdb->prefix . 'mji_payments';
+    $salespeople_table = $wpdb->prefix . 'mji_salespeople';
 
     $query = $wpdb->prepare("
-        SELECT *
-        FROM {$table_name}
+        SELECT payment_date, reference_num, transaction_type, method, amount, notes, s.first_name as salesperson_first_name, s.last_name as salesperson_last_name
+        FROM {$table_name} p
+        LEFT JOIN {$salespeople_table} s
+        ON p.salesperson_id = s.id
         WHERE (transaction_type = 'layaway_deposit' OR transaction_type = 'layaway_redemption' OR transaction_type = 'credit_deposit' OR transaction_type = 'credit_redemption')
         AND customer_id = %d
         AND location_id = %d

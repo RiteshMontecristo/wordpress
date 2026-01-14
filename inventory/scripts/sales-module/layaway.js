@@ -55,6 +55,8 @@ export const LayawaySelector = {
             <td>${formatLabel(item.transaction_type)}</p>
             <td>${formatLabel(item.method)}</p>
             <td>${item.amount}</p>
+            <td>${item.notes}</p>
+            <td>${item.salesperson_first_name} ${item.salesperson_last_name}</p>
           `;
               this.items.appendChild(layawayItem);
             });
