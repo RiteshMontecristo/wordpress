@@ -285,8 +285,9 @@ function reports_render_sales_report($results)
             $product_id = $row->product_variant_id ?: $row->product_id;
             $product = wc_get_product($product_id);
 
-            $profit = $row->retail_paid - $row->cost_price;
-            $margin_percent = $row->retail_paid ? ($profit / $row->retail_paid) * 100 : 0;
+            $retail_paid = (float) $row->retail_paid;
+            $profit = $retail_paid - $row->cost_price;
+            $margin_percent = $retail_paid > 0 ? ($profit / $retail_paid) * 100 : 0;
             $desc = $row->description ? ' - ' . $row->description : '';
             $name = format_label($row->sku) . $desc;
             $dt = new DateTime($row->sold_date);
@@ -300,8 +301,8 @@ function reports_render_sales_report($results)
                 echo '<td>' . $name . '</td>';
                 echo '<td>Service</td>';
                 echo '<td>' . number_format($row->cost_price, 2) . '</td>';
-                echo '<td>' . number_format($row->retail_paid, 2) . '</td>';
-                echo '<td>' . number_format($row->retail_paid, 2) . '</td>';
+                echo '<td>' . number_format($row->retail_price, 2) . '</td>';
+                echo '<td>' . number_format($retail_paid, 2) . '</td>';
                 echo '<td>' . number_format($row->discount_amount, 2) . '</td>';
                 echo '<td>' . number_format(0, 2) . '%</td>';
                 echo '<td>' . number_format($profit, 2) . '</td>';
@@ -322,14 +323,14 @@ function reports_render_sales_report($results)
             }
 
             $discount_percent = $row->retail_price ? ($row->discount_amount / $row->retail_price) * 100 : 0;
-            $profit = $row->retail_paid - $row->cost_price;
-            $margin_percent = $row->retail_paid ? ($profit / $row->retail_paid) * 100 : 0;
+            $profit = $retail_paid - $row->cost_price;
+            $margin_percent = $retail_paid ? ($profit / $retail_paid) * 100 : 0;
             $image = $product->get_image([50, 50]);
 
             // Calculate totals
             $total_cost += $row->cost_price;
             $total_retail += $row->retail_price;
-            $total_retail_paid += $row->retail_paid;
+            $total_retail_paid += $retail_paid;
             $total_profit += $profit;
 
             echo '<tr>';
@@ -340,7 +341,7 @@ function reports_render_sales_report($results)
             echo '<td>' . $row->sku . '<br/>' . $row->model_name . '<br />' . $row->serial . '</td>';
             echo '<td>' . number_format($row->cost_price, 2) . '</td>';
             echo '<td>' . number_format($row->retail_price, 2) . '</td>';
-            echo '<td>' . number_format($row->retail_paid, 2) . '</td>';
+            echo '<td>' . number_format($retail_paid, 2) . '</td>';
             echo '<td>' . number_format($row->discount_amount, 2) . '</td>';
             echo '<td>' . number_format($discount_percent, 2) . '%</td>';
             echo '<td>' . number_format($profit, 2) . '</td>';
@@ -583,7 +584,7 @@ function reports_get_inventory_result()
         WHERE 
             h.to_status = 'sold'
             AND h.created_at >= %s
-            AND h.created_at <= %s;
+            AND h.created_at <= %s
             {$where_clause}
     ";
 
@@ -622,8 +623,8 @@ function reports_get_inventory_result()
         LEFT JOIN {$salespeople_table} sp ON sp.id = o.salesperson_id
         WHERE 
             h.to_status IN ('damaged', 'missing', 'rtv')
-            AND h.created_at >= %s  -- $start_date
-            AND h.created_at <= %s; -- $end_date
+            AND h.created_at >= %s
+            AND h.created_at <= %s
             {$where_clause}
     ";
 
