@@ -24,7 +24,7 @@
  * @property {Array<Object>} cart
  * @property {CustomerState} customer
  * @property {number} layawayTotal
- * @property {number} creditTotalTotal
+ * @property {number} creditTotal
  * @property {Array<Object>} services
  * @property {StoreState} location
  */

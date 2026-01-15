@@ -163,6 +163,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
             </td>";
                 } else {
                     $layaway = get_active_layaway_list($customer_id, $location_id);
+                    $credit = get_active_credit_list($customer_id, $location_id);
 
                     $layaway_arr = array_map(function ($n) {
                         return "Layaway #" . $n->reference_num . ": $" . $n->remaining_amount;
@@ -170,11 +171,15 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
 
                     $layaway_el = implode("<br />", $layaway_arr);
 
+                    $credit_arr = array_map(function ($n) {
+                        return "Credit #" . $n->reference_num . ": $" . $n->remaining_amount;
+                    }, $credit);
+
+                    $credit_el = implode("<br />", $credit_arr);
+
                     $actionMethod = "";
-                    // $layaway = $layaway_credit["layaway"] ? "Layaway: " . $layaway_credit["layaway"] : '';
-                    // $credit = $layaway_credit["credit"] ? "<br />Credit: " . $layaway_credit["credit"] : '';
                     $actionMethod = '
-                            <td>' . $layaway_el . '</td>
+                            <td>' . $layaway_el . '<br />' . $credit_el . '</td>
                             <td>
                                 <button class="select-customer button" data-customerid="' . $customer_id . '">Select</button>
                             </td>

@@ -146,6 +146,11 @@ function inventory_page()
                         <input type="number" step="0.01" id="trade_in" name="trade_in">
                     </div>
 
+                    <div>
+                        <label for="credit">Credit:</label>
+                        <input type="number" step="0.01" id="credit" name="credit">
+                    </div>
+
                 </div>
 
                 <div>
@@ -360,9 +365,7 @@ function inventory_page()
                     <div id="layawayContainer">
                     </div>
 
-                    <div>
-                        <label for="credit">Credit:</label>
-                        <input type="number" min="0" step="0.01" id="credit" name="credit">
+                    <div id="creditContainer">
                     </div>
 
                 </div>
@@ -554,10 +557,11 @@ add_action('wp_ajax_getLayaway', 'get_layaway_list');
 function add_layaway()
 {
     global $wpdb;
-    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'bank_draft', 'cup', 'alipay', 'wire', 'trade_in'];
+    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'bank_draft', 'cup', 'alipay', 'wire', 'trade_in', 'credit'];
     $payments = [];
     $payments_table = $wpdb->prefix . 'mji_payments';
     $layaway_table = $wpdb->prefix . 'mji_layaways';
+    $credit_table = $wpdb->prefix . 'mji_credits';
     $total_sum = 0;
 
     foreach ($payment_methods as $method) {
@@ -594,25 +598,51 @@ function add_layaway()
 
     try {
 
-        $layaway_data = [
-            'reference_num' => $reference_num,
-            'created_at' => $payment_date,
-            'status' => "active",
-            'total_amount' => $total_sum,
-            'remaining_amount' => $total_sum,
-            'customer_id' => $customer_id,
-            'location_id' => $location_id
-        ];
+        $layaway_id = null;
+        $credit_id = null;
+        if ($transaction_type == "layaway_deposit") {
 
-        $format = array('%s', '%s', '%s', '%f', '%f', '%d', '%d');
+            $layaway_data = [
+                'reference_num' => $reference_num,
+                'created_at' => $payment_date,
+                'status' => "active",
+                'total_amount' => $total_sum,
+                'remaining_amount' => $total_sum,
+                'customer_id' => $customer_id,
+                'location_id' => $location_id
+            ];
 
-        $success = $wpdb->insert($layaway_table, $layaway_data, $format);
+            $format = array('%s', '%s', '%s', '%f', '%f', '%d', '%d');
 
-        if (!$success) {
-            throw new Exception("Failed to insert payment: " . $wpdb->last_error);
+            $success = $wpdb->insert($layaway_table, $layaway_data, $format);
+
+            if (!$success) {
+                throw new Exception("Failed to insert payment: " . $wpdb->last_error);
+            }
+
+            $layaway_id = $wpdb->insert_id;
+        } else {
+
+            $credit_data = [
+                'reference_num' => $reference_num,
+                'created_at' => $payment_date,
+                'status' => "active",
+                'total_amount' => $total_sum,
+                'remaining_amount' => $total_sum,
+                'customer_id' => $customer_id,
+                'location_id' => $location_id
+            ];
+
+            $format = array('%s', '%s', '%s', '%f', '%f', '%d', '%d');
+
+            $success = $wpdb->insert($credit_table, $credit_data, $format);
+
+            if (!$success) {
+                throw new Exception("Failed to insert payment: " . $wpdb->last_error);
+            }
+
+            $credit_id = $wpdb->insert_id;
         }
-
-        $layaway_id = $wpdb->insert_id;
 
         foreach ($payments as $payment) {
 
@@ -626,10 +656,11 @@ function add_layaway()
                 'notes' => $notes,
                 'customer_id' => $customer_id,
                 'location_id' => $location_id,
-                'layaway_id' => $layaway_id
+                'layaway_id' => $layaway_id,
+                'credit_id' => $credit_id
             ];
 
-            $format = array('%s', '%d', '%s', '%f', '%s', '%s', '%s', '%d', '%d', '%d');
+            $format = array('%s', '%d', '%s', '%f', '%s', '%s', '%s', '%d', '%d', '%d', '%d');
 
             $success = $wpdb->insert($payments_table, $layaway_data, $format);
             if (!$success) {
@@ -697,6 +728,43 @@ function get_active_layaway_list($customer_id = null, $location_id = null)
 }
 
 add_action('wp_ajax_getActiveLayaway', 'get_active_layaway_list');
+
+
+// Get layaway that is active and hasn't been redeemed
+function get_active_credit_list($customer_id = null, $location_id = null)
+{
+
+    $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) :  $customer_id;
+    $location = isset($_GET['location_id']) ? intval($_GET['location_id']) :  $location_id;
+
+    if (!$customer) {
+        return wp_send_json_error('Customer ID is required');
+    }
+
+    if (!$location) {
+        return wp_send_json_error('Location ID is required');
+    }
+
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'mji_credits';
+
+    $query = $wpdb->prepare("
+        SELECT id, reference_num, remaining_amount
+        FROM {$table_name}
+        WHERE status = 'active'
+        AND customer_id = %d
+        AND location_id = %d
+    ", $customer, $location);
+
+    $credit_items = $wpdb->get_results($query);
+
+    if ($customer_id && $location_id) return $credit_items;
+
+    return wp_send_json_success($credit_items);
+}
+
+add_action('wp_ajax_getActiveCredit', 'get_active_credit_list');
 
 function searchProducts()
 {
@@ -845,9 +913,33 @@ function get_remaining_layaway_balance($layaway_id, $customer_id, $location_id)
     return $layaway;
 }
 
+function get_remaining_credit_balance($credit_id, $customer_id, $location_id)
+{
+    global $wpdb;
+    $table = $wpdb->prefix . 'mji_credits';
+
+    $credit = $wpdb->get_row($wpdb->prepare(
+        "SELECT reference_num, remaining_amount
+         FROM {$table} 
+         WHERE id = %d AND customer_id = %d AND location_id = %d",
+        $credit_id,
+        $customer_id,
+        $location_id
+    ));
+
+    if (!$credit) {
+        wp_send_json_error([
+            'message' => "Credit #$credit_id not found or does not belong to this customer/location."
+        ]);
+        return new WP_Error('invalid_credit', ".");
+    }
+
+    return $credit;
+}
+
 function get_payments($post_data, $expected_total, $customer_id, $location_id)
 {
-    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'bank_draft', 'cup', 'alipay', 'wire', 'credit'];
+    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'bank_draft', 'cup', 'alipay', 'wire'];
     $payments = [];
     $payment_total = 0;
 
@@ -863,6 +955,7 @@ function get_payments($post_data, $expected_total, $customer_id, $location_id)
         }
     }
 
+    // Adding layaways and credit to the payment method
     foreach ($_POST as $key => $value) {
         if (strpos($key, 'layaway-') === 0 && !empty($value)) {
             // Extract the ID: e.g., 'layaway-4' → 4
@@ -885,6 +978,32 @@ function get_payments($post_data, $expected_total, $customer_id, $location_id)
                         'reference_num' => $reference_num,
                         'method' => 'layaway',
                         'amount' => $layaway_amount,
+                        'status' => $status
+                    ];
+                }
+            }
+        }
+
+        if (strpos($key, 'credit-') === 0 && !empty($value)) {
+            $credit_id = (int) substr($key, strlen('credit-'));
+            $credit_amount = (float) $value;
+
+            if ($credit_amount > 0) {
+                $credit = get_remaining_credit_balance($credit_id, $customer_id, $location_id);
+                $reference_num = $credit->reference_num;
+                $credit_id_balance = $credit->remaining_amount;
+
+                if ($credit_amount > $credit_id_balance) {
+                    wp_send_json_error(['message' => 'credit_id used more than available']);
+                } else {
+                    $payment_total += $credit_amount;
+                    $status = $credit_id_balance - $credit_amount == 0 ? "redeemed" : "active";
+
+                    $payments[] = [
+                        'credit_id' => $credit_id,
+                        'reference_num' => $reference_num,
+                        'method' => 'credit',
+                        'amount' => $credit_amount,
                         'status' => $status
                     ];
                 }
@@ -941,6 +1060,23 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     if ($wpdb->query($sql) === false) {
                         throw new RuntimeException("Failed to update layaway #$layaway_id: " . $wpdb->last_error);
                     }
+                } elseif ($payment['method'] == 'credit') {
+                    $credit_id = $payment['credit_id'];
+                    $amount = $payment['amount'];
+                    $status = $payment['status'];
+
+                    $sql = $wpdb->prepare(
+                        "UPDATE {$wpdb->prefix}mji_credits 
+                         SET remaining_amount = remaining_amount - %f, status = %s
+                        WHERE id = %d",
+                        $amount,
+                        $status,
+                        $credit_id
+                    );
+
+                    if ($wpdb->query($sql) === false) {
+                        throw new RuntimeException("Failed to update layaway #$credit_id: " . $wpdb->last_error);
+                    }
                 }
 
                 $success = $wpdb->insert($wpdb->prefix . 'mji_payments', [
@@ -960,7 +1096,12 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     'layaway_id' => match ($payment['method']) {
                         'layaway' => $payment['layaway_id'],
                         default   => NULL,
-                    }
+                    },
+                    'credit_id' => match ($payment['method']) {
+                        'credit' => $payment['credit_id'],
+                        default   => NULL,
+                    },
+                    'notes' => ''
                 ]);
                 if (!$success) {
                     throw new RuntimeException("Failed to insert payment: " . $wpdb->last_error);

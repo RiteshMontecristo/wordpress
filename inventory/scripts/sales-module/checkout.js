@@ -22,9 +22,9 @@ export const CheckoutSelector = {
       cup: document.querySelector("#cart #cup"),
       alipay: document.querySelector("#cart #alipay"),
       wire: document.querySelector("#cart #wire"),
-      credit: document.querySelector("#cart #credit"),
     };
     this.layawayContainer = document.querySelector("#cart #layawayContainer");
+    this.creditContainer = document.querySelector("#cart #creditContainer");
     this.location = document.querySelector("#cart #location");
     this.subtotal = document.querySelector("#cart #subtotal");
     this.excludeGst = document.querySelector("#cart #exclude-gst");
@@ -40,19 +40,26 @@ export const CheckoutSelector = {
 
   bindEvents() {
     document.addEventListener("checkout:updateLayaway", async () => {
-      // this.payment.layaway.value = AppState.layawayTotal;
-      // this.payment.layaway.max = AppState.layawayTotal;
-      // this.payment.credit.value = AppState.creditTotal;
-      // this.payment.credit.max = AppState.creditTotal;
       try {
-        let res = await fetch(
+        let layawayRes = await fetch(
           `${ajax_inventory.ajax_url}?action=getActiveLayaway&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`
         );
 
-        res = await res.json();
-        const { data } = res;
+        layawayRes = await layawayRes.json();
+        const { data } = layawayRes;
         if (data.length > 0) {
           this.renderLayaway(data);
+        }
+
+        let creditRes = await fetch(
+          `${ajax_inventory.ajax_url}?action=getActiveCredit&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`
+        );
+
+        creditRes = await creditRes.json();
+        const creditData = creditRes.data;
+
+        if (creditData.length > 0) {
+          this.renderCredit(creditData);
         }
       } catch (err) {
         console.error("Fetch operation failed:", err);
@@ -131,6 +138,19 @@ export const CheckoutSelector = {
     this.layawayContainer.innerHTML = layawayEl.join("");
   },
 
+  renderCredit(data) {
+    const creditEl = data.map((el) => {
+      return `
+              <div>
+                <label for="credit-${el.id}">Credit #${el.reference_num}:</label>
+                <input class="credit" type="number" min="0" step="0.01" value=${el.remaining_amount} max=${el.remaining_amount} id="credit-${el.id}" name="credit-${el.id}">
+              </div>
+      `;
+    });
+
+    this.creditContainer.innerHTML = creditEl.join("");
+  },
+
   getTotals() {
     let subtotal = AppState.cart.reduce((sum, item) => {
       return sum + (Number(item.price_after_discount || item.price) || 0);
@@ -170,16 +190,30 @@ export const CheckoutSelector = {
 
   validateAndSubmitSale() {
     const allLayaway = document.querySelectorAll("#cart .layaway");
+    const allCredit = document.querySelectorAll("#cart .credit");
     const { total } = this.getTotals();
 
     const payments = this.payment;
     let totalPaid = 0;
+    let totalLayaway = 0;
+    let totalCredit = 0;
 
     allLayaway.forEach((el) => {
       totalPaid += parseFloat(el.value);
+      totalLayaway += parseFloat(el.value);
     });
 
-    if (totalPaid > 0 && totalPaid > AppState.layawayTotal) {
+    if (totalLayaway > 0 && totalLayaway > AppState.layawayTotal) {
+      alert("Layaway entered is greater than the amount the customer has.");
+      return false;
+    }
+
+    allCredit.forEach((el) => {
+      totalPaid += parseFloat(el.value);
+      totalCredit += parseFloat(el.value);
+    });
+
+    if (totalCredit > 0 && totalCredit > AppState.creditTotal) {
       alert("Layaway entered is greater than the amount the customer has.");
       return false;
     }
@@ -253,9 +287,9 @@ export const CheckoutSelector = {
     const paymentLines = data.payments
       .map((payment) => {
         if (payment.method == "layaway") {
-          return `${payment.method} #${payment.reference_num}: $${formatCurrency(
-            payment.amount
-          )}`;
+          return `${payment.method} #${
+            payment.reference_num
+          }: $${formatCurrency(payment.amount)}`;
         } else {
           return `${payment.method}: $${formatCurrency(payment.amount)}`;
         }
