@@ -2,11 +2,19 @@
 
 $discoverArr = array(
     array(
-        "desktop_url" => "/wp-content/uploads/rolex/discover-rolex/landscape/brand-centre-banners-day-date_m128239-0063_pk20_2000x920.webp",
-        "mobile_url" => "/wp-content/uploads/rolex/discover-rolex/portrait/brand-centre-banners-day-date_m128239-0063_pk20_780x1050.webp",
+        "desktop_url" => "/wp-content/uploads/rolex/discover-rolex/landscape/rolex_land-dweller_m127334-0001_rvb_2000x920.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/discover-rolex/portrait/rolex_land-dweller_m127334-0001_rvb_780x1050.webp",
         "title" => "Rolex",
-        "subtitle" => "Day-Date",
-        "url" => "/rolex/day-date",
+        "subtitle" => "Land-Dweller",
+        "url" => "/rolex/land-dweller",
+        "text_color" => "black"
+    ),
+    array(
+        "desktop_url" => "/wp-content/uploads/rolex/discover-rolex/landscape/drp-cufflinks_A1018_BOM_OR18-BanGen-14492_6166-02D22_2000x920.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/discover-rolex/portrait/drp-cufflinks_A1018_BOM_OR18-BanGen-14492_6166-02D22_780x1050.webp",
+        "title" => "Collection",
+        "subtitle" => "Rolex accessories",
+        "url" => "/rolex/accessories",
         "text_color" => "black"
     ),
     array(
