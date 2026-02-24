@@ -1,0 +1,205 @@
+.invoice > form {
+  display: flex;
+  gap: 15px;
+}
+
+.invoice > form p.submit {
+  margin: 0;
+  padding: 0;
+}
+
+.refund {
+  position: fixed;
+  background-color: rgba(0, 0, 0, 0.75);
+  height: 100%;
+  width: 100%;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.refund-container {
+  margin: 0 auto;
+  font-family: sans-serif;
+  background: white;
+  padding: 2rem 4rem;
+  width: 650px;
+}
+
+/* Return Section */
+.return-section {
+  margin-top: 30px;
+  padding: 20px;
+  border: 1px solid #ddd;
+  background: #f9f9f9;
+}
+
+/* Return Items List */
+.return-items {
+  margin-bottom: 20px;
+}
+
+.return-item {
+  display: flex;
+  align-items: center;
+  border: 1px solid #eee;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.return-item-checkbox {
+  margin-right: 15px;
+  margin-top: 10px;
+}
+
+/* Item Content */
+.item-content {
+  display: flex;
+  align-items: center;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.item-name {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.item-details {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* Services */
+.return-services {
+  margin-bottom: 20px;
+}
+
+.service-label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* Form + Totals Layout */
+.return-info-totals {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+/* Left form fields */
+.return-form-fields {
+  flex: 1;
+  max-width: 60%;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Right totals */
+.return-totals {
+  flex: 0 0 35%;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 15px;
+  border-radius: 5px;
+  height: fit-content;
+}
+
+.return-totals p {
+  margin: 8px 0;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.refund-container {
+  .form-submit {
+    display: flex;
+    gap: 15px;
+  }
+
+  p.submit {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Receipts */
+  .receipt-header {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+
+    p {
+      margin: 0;
+    }
+
+    .company {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+
+      h2 {
+        margin: 0;
+      }
+    }
+
+    .details {
+      text-align: end;
+    }
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+
+    thead th {
+      border: 1px solid;
+    }
+
+    tbody tr {
+      border: 1px solid;
+    }
+
+    tfoot {
+      border: 1px solid;
+
+      p:last-child {
+        margin: 0;
+      }
+    }
+
+    tr td:last-child {
+      white-space: nowrap;
+    }
+  }
+  
+  @media print {
+    #print-receipt,
+    #close-reciept {
+      display: none !important;
+    }
+  }
+}

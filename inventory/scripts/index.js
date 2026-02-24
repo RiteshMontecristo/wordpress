@@ -17,6 +17,11 @@ if (window.location.href.includes("/admin.php?page=reports-management")) {
     console.error("Error loading inventory module:", error)
   );
 }
+if (window.location.href.includes("/admin.php?page=invoice-management")) {
+  import("./find_invoice.js").catch((error) =>
+    console.error("Error loading invoice module:", error)
+  );
+}
 
 export function formatCurrency(amount) {
   return amount.toFixed(2);
