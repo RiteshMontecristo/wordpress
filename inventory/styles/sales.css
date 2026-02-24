@@ -79,7 +79,7 @@ form[name="finalize-sale"] {
   .service-item {
     padding: 16px;
   }
-  
+
   .product-item {
     display: flex;
     align-items: center;
@@ -138,20 +138,22 @@ form[name="finalize-sale"] {
       width: 100%;
       border-collapse: collapse;
       margin-top: 20px;
-    }
 
-    th,
-    td {
-      border: 1px solid #000;
-    }
-
-    tr {
-      td:first-child {
-        border-right: none;
+      th,
+      td {
+        border: 1px solid #000;
       }
 
       td:last-child {
-        border-left: none;
+        white-space: nowrap;
+      }
+
+      td.payment-summary {
+        vertical-align: bottom;
+
+        p:not(:last-child) {
+          margin-bottom: 8px;
+        }
       }
     }
   }

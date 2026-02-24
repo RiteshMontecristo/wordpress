@@ -7,14 +7,14 @@ export const ProductSelector = {
     this.searchDiv = document.querySelector("#search-products");
     this.searchForm = document.querySelector("form[name='search-products']");
     this.searchInput = document.querySelector(
-      "#search-products #search-products"
+      "#search-products #search-products",
     );
     this.searchBtn = document.querySelector("#search-product-btn");
     this.searchResult = document.querySelector("#search-product-results");
 
     this.bindEvents();
     document.addEventListener("customer:selected", () =>
-      showSelection(this.searchDiv)
+      showSelection(this.searchDiv),
     );
   },
 
@@ -32,7 +32,7 @@ export const ProductSelector = {
       const url = `${
         ajax_inventory.ajax_url
       }?action=searchProducts&search_product=${encodeURIComponent(
-        searchValue
+        searchValue,
       )}`;
       if (searchValue) {
         fetch(url, {
@@ -46,6 +46,7 @@ export const ProductSelector = {
                 image_url,
                 sku,
                 status,
+                serial,
                 location_id,
                 price,
                 title,
@@ -74,6 +75,7 @@ export const ProductSelector = {
                   `<span>Variation: ${variation_detail}</span><br />`
                 }
                 <span>SKU: ${sku}</span><br />
+                <span>Serial: ${serial}</span><br />
                 <span>Price: ${price} CAD</span><br />
                 ${ctaBtn}
               </div>
@@ -92,13 +94,14 @@ export const ProductSelector = {
                 price,
                 image_url,
                 sku,
+                serial,
                 variation_detail,
                 discount_amount: 0,
                 discount_percent: 0,
                 price_after_discount: price,
               };
               addToCartButton?.addEventListener("click", () =>
-                this.addToCart(product)
+                this.addToCart(product),
               );
             } else {
               this.searchResult.textContent = `No products found for "${searchValue}".`;
@@ -128,7 +131,11 @@ export const ProductSelector = {
     AppState.cart.push(product);
 
     // Create a dispatchevent
-    document.dispatchEvent(new CustomEvent("displayCart"));
+    document.dispatchEvent(
+      new CustomEvent("displayCart", {
+        detail: { fetchLayaways: true },
+      }),
+    );
     this.searchResult.innerHTML = "";
     this.searchInput.value = "";
   },

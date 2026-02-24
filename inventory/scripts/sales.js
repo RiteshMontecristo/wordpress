@@ -18,8 +18,8 @@ document.addEventListener("layaway:added", () => {
   CustomerSelector.updateLayaway();
 });
 
-document.addEventListener("displayCart", () => {
-  CartSelector.displayCart();
+document.addEventListener("displayCart", (e) => {
+  CartSelector.displayCart(e.detail.fetchLayaways);
 });
 
 document.addEventListener("call:calculateTotal", () => {

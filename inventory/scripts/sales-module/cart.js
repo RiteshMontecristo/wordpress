@@ -24,7 +24,7 @@ export const CartSelector = {
     this.cartItems.addEventListener("click", this.handleCartClick.bind(this));
   },
 
-  displayCart() {
+  displayCart(fetchLayaways = false) {
     document.dispatchEvent(new CustomEvent("call:calculateTotal"));
     showSelection(this.cart);
     let cartHTML = "";
@@ -42,6 +42,7 @@ export const CartSelector = {
                       `<span>Variation: ${item.variation_detail}</span><br />`
                     }
                     <span>SKU: ${item.sku}</span><br />
+                    <span>Serial: ${item.serial}</span><br />
                     <span>Price: ${item.price} CAD</span><br />
                     <span>Discount: ${item.discount_amount}</span><br />
                     <span>Discount Percent: ${
@@ -71,10 +72,10 @@ export const CartSelector = {
                 : ``
             }
             <span>Cost Price: ${formatCurrency(
-              service.costPrice
+              service.costPrice,
             )} CAD</span><br />
             <span>Retail Price: ${formatCurrency(
-              service.retailPrice
+              service.retailPrice,
             )} CAD</span><br />
             ${
               service.reference
@@ -95,7 +96,9 @@ export const CartSelector = {
     }
 
     this.cartItems.innerHTML = cartHTML;
-    document.dispatchEvent(new CustomEvent("checkout:updateLayaway"));
+    if (fetchLayaways) {
+      document.dispatchEvent(new CustomEvent("checkout:updateLayaway"));
+    }
   },
 
   handleCartClick(e) {
@@ -150,7 +153,7 @@ export const CartSelector = {
     const discountAmtEl = this.editItems.querySelector("#edit-discount-amt");
     const discountPctEl = this.editItems.querySelector("#edit-discount-pct");
     const priceAfterDiscountEl = this.editItems.querySelector(
-      "#edit-price-after-discount"
+      "#edit-price-after-discount",
     );
     const saveBtn = this.editItems.querySelector("#save-edit");
     const cancelBtn = this.editItems.querySelector("#cancel-edit");
@@ -201,7 +204,7 @@ export const CartSelector = {
       discountPctEl.removeEventListener("input", onDiscountPctInput);
       priceAfterDiscountEl.removeEventListener(
         "input",
-        onPriceAfterDiscountInput
+        onPriceAfterDiscountInput,
       );
       cancelBtn.removeEventListener("click", onCancelClick);
       saveBtn.removeEventListener("click", onSaveClick);

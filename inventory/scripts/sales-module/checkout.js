@@ -8,7 +8,7 @@ export const CheckoutSelector = {
   init() {
     this.details = document.querySelector("#customerDetails");
     this.finalizeSale = document.querySelector(
-      "#cart form[name='finalize-sale']"
+      "#cart form[name='finalize-sale']",
     );
     this.payment = {
       cash: document.querySelector("#cart #cash"),
@@ -42,7 +42,7 @@ export const CheckoutSelector = {
     document.addEventListener("checkout:updateLayaway", async () => {
       try {
         let layawayRes = await fetch(
-          `${ajax_inventory.ajax_url}?action=getActiveLayaway&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`
+          `${ajax_inventory.ajax_url}?action=getActiveLayaway&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
         );
 
         layawayRes = await layawayRes.json();
@@ -52,7 +52,7 @@ export const CheckoutSelector = {
         }
 
         let creditRes = await fetch(
-          `${ajax_inventory.ajax_url}?action=getActiveCredit&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`
+          `${ajax_inventory.ajax_url}?action=getActiveCredit&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
         );
 
         creditRes = await creditRes.json();
@@ -69,7 +69,7 @@ export const CheckoutSelector = {
     this.excludeGst.addEventListener("change", this.calculateTotal.bind(this));
     this.excludePst.addEventListener("change", this.calculateTotal.bind(this));
     this.salesPrintReceipt?.addEventListener("click", () =>
-      this.printReceipt()
+      this.printReceipt(),
     );
 
     this.finalizeSale.addEventListener("submit", (e) => {
@@ -80,7 +80,7 @@ export const CheckoutSelector = {
 
       if (AppState.cart.length === 0 && AppState.services.length === 0) {
         alert(
-          "Cart is empty. Please add items to the cart before finalizing the sale."
+          "Cart is empty. Please add items to the cart before finalizing the sale.",
         );
         submitBtn.disabled = false;
         return;
@@ -225,8 +225,8 @@ export const CheckoutSelector = {
     if (Math.abs(totalPaid - Number(total)) > 0.01) {
       alert(
         `Payment does not match total!\nExpected: $${total}\nReceived: $${formatCurrency(
-          totalPaid
-        )}`
+          totalPaid,
+        )}`,
       );
       return false;
     }
@@ -252,21 +252,14 @@ export const CheckoutSelector = {
   displayReceipt(data) {
     let itemRows = data.items
       ?.map((item) => {
-        const attributePairs =
-          item.attributes?.map((attr) => {
-            // Get the first (and only) key-value pair in each object
-            const key = Object.keys(attr)[0];
-            const value = attr[key];
-            return `${key}: ${value}`;
-          }) || [];
-
-        const attributesString =
-          attributePairs.length > 0 ? `${attributePairs.join("<br>")}` : "";
         return `
                     <tr>
-                      <td>${item.title}${
-          item.variation_detail ? ` (${item.variation_detail})` : ""
-        } <br> SKU: ${item.sku} <br>${attributesString}</td>
+                      <td>
+                          <img src="${item.image_url}" /><br />
+                          ${item.description.split("•").join("<br />•")}
+                          <br>•SKU: ${item.sku} 
+                          <br>•Serial: ${item.serial}
+                      </td>
                       <td>$${item.price_after_discount}</td>
                     </tr>
                   `;
@@ -277,8 +270,8 @@ export const CheckoutSelector = {
       return `
                 <tr>
                     <td>${formatLabel(service.category)} <br /> ${
-        service.description
-      }</td>
+                      service.description
+                    }</td>
                     <td>$${formatCurrency(service.retailPrice)}</td>
                 </tr>
               `;
@@ -286,7 +279,7 @@ export const CheckoutSelector = {
 
     const paymentLines = data.payments
       .map((payment) => {
-        if (payment.method == "layaway") {
+        if (payment.method == "layaway" || payment.method == "credit") {
           return `${payment.method} #${
             payment.reference_num
           }: $${formatCurrency(payment.amount)}`;
@@ -305,8 +298,8 @@ export const CheckoutSelector = {
                   <div>
                     <address>
                       <p>${AppState.customer.firstName} ${
-      AppState.customer.lastName
-    }</p>
+                        AppState.customer.lastName
+                      }</p>
                       <p>${AppState.customer.address
                         .split(",")
                         .join("<br/>")}</p>
@@ -317,8 +310,8 @@ export const CheckoutSelector = {
                   <div>
                       <p>Reference # ${data.reference_num}</p>
                       <p>Sold on <time datetime="${data.date}">${
-      data.date
-    }</time></p>
+                        data.date
+                      }</time></p>
                       <p>Served by ${data.salesperson_name}</p>
                   </div>
                 </header>
@@ -336,28 +329,23 @@ export const CheckoutSelector = {
                     </tbody>
                     <tfoot>
                       <tr>
-                        <td>
-                        ${
-                          data.payments.length == 0
-                            ? "<p>This is a gift!!</p>"
-                            : `<p>Paid by ${paymentLines} </p>`
-                        }
+                        <td class="payment-summary">
+                        ${data.notes ? `<p>${data.notes}</p>` : ""}
+                          <p>${
+                            data.payments.length == 0
+                              ? "This is a gift!!"
+                              : `Paid by ${paymentLines}`
+                          }</p>
                           <p>Thank you for shopping at Montecristo Jewellers</p>
                         </td>
                         <td>
-                          <strong>Subtotal: $${formatCurrency(
-                            data.totals.subtotal
-                          )}</strong><br />
-                          <strong>GST (5%): $${formatCurrency(
-                            data.totals.gst
-                          )} </strong><br />
-                          <strong>PST (8%): $${formatCurrency(
-                            data.totals.pst
-                          )} </strong><br />
-                          <strong>Total: $${formatCurrency(data.totals.total)}
-                        </strong></td>
+                          <strong>Subtotal: $${formatCurrency(data.totals.subtotal)}</strong><br />
+                          <strong>GST (5%): $${formatCurrency(data.totals.gst)} </strong><br />
+                          <strong>PST (8%): $${formatCurrency(data.totals.pst)} </strong><br />
+                          <strong>Total: $${formatCurrency(data.totals.total)}</strong>
+                        </td>
                       </tr>
-                      </tfoot>
+                    </tfoot>
                   </table>
                 </main>
               `;

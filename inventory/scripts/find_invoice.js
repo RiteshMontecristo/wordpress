@@ -2,6 +2,7 @@ import { formatCurrency } from "./index.js";
 
 const issueRefundBtn = document.querySelector("#issue_refund");
 const refundInvoice = document.querySelector('form[name="refund_invoice"]');
+const submitReturnBtn = document.querySelector("#submit_return");
 const allItemsCheckbox = document.querySelectorAll(".return-item-checkbox");
 const refundEl = document.querySelector("#refund");
 const refundContainer = refundEl.querySelector(".refund-container");
@@ -20,6 +21,7 @@ issueRefundBtn.addEventListener("click", (e) => {
 refundInvoice.addEventListener("submit", async (e) => {
   e.preventDefault();
 
+  submitReturnBtn.disabled = true;
   const formData = new FormData(refundInvoice);
   formData.append("gst", gst);
   formData.append("pst", pst);
@@ -41,6 +43,8 @@ refundInvoice.addEventListener("submit", async (e) => {
     }
   } catch (error) {
     console.error("AJAX request failed:", error);
+  } finally {
+    submitReturnBtn.disabled = false;
   }
 });
 
@@ -124,7 +128,7 @@ function createRefundReceipt(data) {
                 <br />
                 SKU: ${el.sku}
                 <br />
-                Serial: ${el.serial ? el.serial : ''}
+                Serial: ${el.serial ? el.serial : ""}
               </td>
               <td class="item-price">${el.price}</td>
             </tr>

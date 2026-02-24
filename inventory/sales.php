@@ -380,6 +380,10 @@ function inventory_page()
                         <?= mji_salesperson_dropdown() ?>
                     </div>
                     <div>
+                        <label for="notes">Notes:</label>
+                        <textarea id="notes" name="notes" rows="4" cols="50"></textarea>
+                    </div>
+                    <div>
                         <label for="sales-date">Date:</label>
                         <input type="date" id="sales-date" name="date" value="<?php echo date('Y-m-d'); ?>">
                     </div>
@@ -783,7 +787,7 @@ function searchProducts()
     $sku_history_table =  $wpdb->prefix . 'mji_product_sku_history';
 
     $query = $wpdb->prepare("
-            SELECT u.id, u.wc_product_id, u.wc_product_variant_id, u.sku, u.retail_price, u.location_id, u.status
+            SELECT u.id, u.wc_product_id, u.wc_product_variant_id, u.sku, u.retail_price, u.location_id, u.status, u.serial
             FROM {$table_name} AS u
             LEFT JOIN {$sku_history_table} AS h
             ON h.unit_id = u.id
@@ -798,6 +802,7 @@ function searchProducts()
         $product_variant_id = $result->wc_product_variant_id;
         $sku = $result->sku;
         $status = $result->status;
+        $serial = $result->serial;
         $variation_detail = "";
 
         $product = wc_get_product($product_id);
@@ -825,6 +830,7 @@ function searchProducts()
             'image_url' => esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($product_id), 'thumbnail')),
             'sku' => $sku,
             'status' => $status,
+            'serial' => $serial,
             'variation_detail' => $variation_detail,
             'price' => $price
         );
@@ -1233,6 +1239,7 @@ function finalizeSale()
     $location_id = intval($_POST['location']);
     $reference_num = sanitize_text_field($_POST['reference']);
     $created_at = sanitize_text_field($_POST['date']);
+    $notes = sanitize_text_field($_POST['notes']);
 
     [$items_data, $services_data] = validate_sale_input($_POST);
     $totals = calculate_sale_totals($items_data, $services_data, !empty($_POST['exclude_gst']), !empty($_POST['exclude_pst']));
@@ -1247,6 +1254,7 @@ function finalizeSale()
         'pst_total' => $totals['pst'],
         'total' => $totals['total'],
         'created_at' => $created_at,
+        'notes' => $notes,
     ];
 
     insert_order_and_items($order_data, $items_data, $services_data, $payments, $location_id);
@@ -1256,28 +1264,11 @@ function finalizeSale()
         $wc_id = $item->product_id;
         $product = wc_get_product($wc_id);
 
-        $attributes = $product->get_attributes();
-        $regular_attributes = array();
-
-        foreach ($attributes as $attribute) {
-            if (!$attribute->get_variation()) {
-                $regular_attributes[] = [
-                    $attribute['name'] => implode(", ", $attribute['options'])
-                ];
-            }
-        }
-
         if ($item->product_variant_id) {
-            $variation = wc_get_product($item->product_variant_id);
-            $variation_attributes = $variation->get_attributes();
-
-            foreach ($variation_attributes as $attr_name => $attr_value) {
-                $regular_attributes[] = [
-                    $attr_name => $attr_value
-                ];
-            }
+            $item->description = $product->get_description();
+        } else {
+            $item->description = $product->get_short_description();
         }
-        $item->attributes = $regular_attributes;
     }
 
     $salespeople = mji_get_salespeople();
@@ -1294,6 +1285,7 @@ function finalizeSale()
         'payments' => $payments,
         'reference_num' => $reference_num,
         'salesperson_name' => $salesperson_name,
-        'date' => $created_at
+        'date' => $created_at,
+        'notes' => $notes
     ]);
 }

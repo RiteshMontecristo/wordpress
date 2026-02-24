@@ -228,6 +228,7 @@ function render_invoice($results)
     $items = $results['items'];
     $services = $results['services'];
     $payments = $results['payments'];
+    $notes = $results['order']->notes;
 
     $calculate_gst = $order->gst_total > 0 ? true : false;
     $calculate_pst = $order->pst_total > 0 ? true : false;
@@ -237,7 +238,6 @@ function render_invoice($results)
             <h2>Invoice #<?= esc_html($order->reference_num) ?></h2>
 
             <!-- Customer & Invoice Info -->
-            <!-- TODO ADD ORDER NOTES -->
             <div style="margin-bottom:20px;">
                 <p><strong>Customer:</strong> <?= esc_html($order->customer_first_name . ' ' . $order->customer_last_name) ?></p>
                 <p><strong>Address:</strong> <?= esc_html($order->street_address . ', ' . $order->city . ', ' . $order->province . ' ' . $order->postal_code . ', ' . $order->country) ?></p>
@@ -330,6 +330,17 @@ function render_invoice($results)
                         <?php endforeach; ?>
                     <?php endif; ?>
 
+                    <!-- NOTES SECTION -->
+                    <?php if (!empty($notes)): ?>
+                        <tr>
+                            <td style="font-weight:bold; background:#f1f1f1;">Notes</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <?= esc_html($notes) ?>
+                            </td>
+                        </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
 
@@ -346,7 +357,7 @@ function render_invoice($results)
                 <input type="hidden" name="order_id" value="<?= intval($order->id) ?>">
                 <input type="hidden" name="action" value="delete_invoice">
                 <?php submit_button('Delete Invoice', 'primary', 'delete_invoice'); ?>
-                <button class="button issue_refund" id="issue_refund">Issue refund</button>
+                <button type="button" class="button issue_refund" id="issue_refund">Issue refund</button>
             </form>
         </div>
 
@@ -430,7 +441,7 @@ function render_invoice($results)
                 <?php endif; ?>
 
             </div>
-            
+
         </div>
     <?php endif; ?>
     </div>
