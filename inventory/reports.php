@@ -148,6 +148,7 @@ function reports_get_sales_results()
     $customers_table = $wpdb->prefix . 'mji_customers';
     $service_table = $wpdb->prefix . 'mji_services';
     $models_table = $wpdb->prefix . 'mji_models';
+    $returns_table = $wpdb->prefix . 'mji_returns';
 
     $where1 = ["o.created_at BETWEEN %s AND %s"];
     $params1 = [$start_date, $end_date];
@@ -180,13 +181,15 @@ function reports_get_sales_results()
                     COALESCE(oi.discount_amount, 0) AS discount_amount,
                     COALESCE(pi.cost_price, 0) AS cost_price,
                     COALESCE(pi.retail_price, 0) AS retail_price,
+                    r.reference_num AS return_reference_num,
                     'TEST' AS description
                 FROM $orders_table o
                 INNER JOIN $order_items oi ON o.id = oi.order_id
                 INNER JOIN $inventory_table pi ON oi.product_inventory_unit_id = pi.id
                 INNER JOIN $salespeople_table s ON o.salesperson_id = s.id
                 INNER JOIN $customers_table c ON o.customer_id = c.id
-                INNER JOIN $models_table m on m.id = pi.model_id
+                LEFT JOIN $models_table m on m.id = pi.model_id
+                LEFT JOIN $returns_table r on r.order_id = o.id
                 WHERE " . implode(" AND ", $where1) . "
             ";
 
@@ -221,6 +224,7 @@ function reports_get_sales_results()
                     COALESCE(0, 0) as discount_amount,
                     COALESCE(si.cost_price, 0) as cost_price,
                     COALESCE(si.sold_price, 0) as retail_price,
+                    NULL AS return_reference_num,
                     si.description AS description
                 FROM $orders_table o
                 INNER JOIN $service_table si ON si.order_id = o.id
@@ -327,28 +331,47 @@ function reports_render_sales_report($results)
             $margin_percent = $retail_paid ? ($profit / $retail_paid) * 100 : 0;
             $image = $product->get_image([50, 50]);
 
-            // Calculate totals
-            $total_cost += $row->cost_price;
-            $total_retail += $row->retail_price;
-            $total_retail_paid += $retail_paid;
-            $total_profit += $profit;
+            if (is_empty($row->return_reference_num)) {
+                // Calculate totals
+                $total_cost += $row->cost_price;
+                $total_retail += $row->retail_price;
+                $total_retail_paid += $retail_paid;
+                $total_profit += $profit;
 
-            echo '<tr>';
-            echo '<td>' . $image . '</td>';
-            echo '<td>' . $row->invoice . '</td>';
-            echo '<td>' . $date . '</td>';
-            echo '<td>' . $name . '</td>';
-            echo '<td>' . $row->sku . '<br/>' . $row->model_name . '<br />' . $row->serial . '</td>';
-            echo '<td>' . number_format($row->cost_price, 2) . '</td>';
-            echo '<td>' . number_format($row->retail_price, 2) . '</td>';
-            echo '<td>' . number_format($retail_paid, 2) . '</td>';
-            echo '<td>' . number_format($row->discount_amount, 2) . '</td>';
-            echo '<td>' . number_format($discount_percent, 2) . '%</td>';
-            echo '<td>' . number_format($profit, 2) . '</td>';
-            echo '<td>' . number_format($margin_percent, 2) . '%</td>';
-            echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
-            echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
-            echo '</tr>';
+                echo '<tr>';
+                echo '<td>' . $image . '</td>';
+                echo '<td>' . $row->invoice . '</td>';
+                echo '<td style="white-space: nowrap;">' . $date . '</td>';
+                echo '<td>' . $name . '</td>';
+                echo '<td>' . $row->sku . '<br/>' . $row->model_name . '<br />' . $row->serial . '</td>';
+                echo '<td>$' . number_format($row->cost_price, 2) . '</td>';
+                echo '<td>$' . number_format($row->retail_price, 2) . '</td>';
+                echo '<td>$' . number_format($retail_paid, 2) . '</td>';
+                echo '<td>$' . number_format($row->discount_amount, 2) . '</td>';
+                echo '<td>' . number_format($discount_percent, 2) . '%</td>';
+                echo '<td>' . number_format($profit, 2) . '</td>';
+                echo '<td>' . number_format($margin_percent, 2) . '%</td>';
+                echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
+                echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
+                echo '</tr>';
+            } else {
+                echo '<tr>';
+                echo '<td>' . $image . '</td>';
+                echo '<td>' . $row->invoice . '<br>(' . $row->return_reference_num . ')</td>';
+                echo '<td style="white-space: nowrap;">' . $date . '</td>';
+                echo '<td>' . $name . ' <strong>(Returned for credit)</strong></td>';
+                echo '<td>-' . $row->sku . ' <strong>(RETURNED)</strong><br/>' . $row->model_name . '<br />' . $row->serial . '</td>';
+                echo '<td>-$' . number_format($row->cost_price, 2) . '</td>';
+                echo '<td>-$' . number_format($row->retail_price, 2) . '</td>';
+                echo '<td>-$' . number_format($retail_paid, 2) . '</td>';
+                echo '<td>-$' . number_format($row->discount_amount, 2) . '</td>';
+                echo '<td>-' . number_format($discount_percent, 2) . '%</td>';
+                echo '<td>-' . number_format($profit, 2) . '</td>';
+                echo '<td>-' . number_format($margin_percent, 2) . '%</td>';
+                echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
+                echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
+                echo '</tr>';
+            }
         }
 
         echo '

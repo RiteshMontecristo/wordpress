@@ -248,6 +248,7 @@ function add_customer_form()
                     <option value="Mrs.">Mrs.</option>
                     <option value="Miss">Miss</option>
                     <option value="Ms.">Ms.</option>
+                    <option value="Dr.">Dr.</option>
                 </select>
             </div>
             <!-- First Name -->
@@ -531,6 +532,7 @@ function edit_customer_form()
                     <option value="Mrs." <?= selected('Mrs.', trim($customer->prefix), false); ?>>Mrs.</option>
                     <option value="Miss." <?= selected('Miss', trim($customer->prefix), false); ?>>Miss</option>
                     <option value="Ms." <?= selected('Ms.',  trim($customer->prefix), false); ?>>Ms.</option>
+                    <option value="Dr." <?= selected('Dr.',  trim($customer->prefix), false); ?>>Dr.</option>
                 </select>
             </div>
             <!-- First Name -->
@@ -680,6 +682,7 @@ function view_customer_page()
     $product_inventory_units = $wpdb->prefix . 'mji_product_inventory_units';
     $models_table = $wpdb->prefix . 'mji_models';
     $services_table = $wpdb->prefix . 'mji_services';
+    $return_items_table = $wpdb->prefix . 'mji_return_items';
 
     $customer = $wpdb->get_row(
         $wpdb->prepare("
@@ -712,18 +715,21 @@ function view_customer_page()
     c.first_name,
     c.last_name,
     s.first_name AS salesperson_first_name,
-    s.last_name AS salesperson_last_name
+    s.last_name AS salesperson_last_name,
+    ri.return_id
     FROM $orders_table o
-    JOIN  $order_items oi 
+    LEFT JOIN  $order_items oi 
     ON oi.order_id = o.id
-    JOIN $customers_table c
+    LEFT JOIN $customers_table c
     ON o.customer_id = c.id
-    JOIN $salespeople_table s
+    LEFT JOIN $salespeople_table s
     ON s.id = o.salesperson_id
-    JOIN $product_inventory_units p
+    LEFT JOIN $product_inventory_units p
     ON p.id = oi.product_inventory_unit_id
-    JOIN $models_table m
+    LEFT JOIN $models_table m
     ON m.id = p.model_id
+    LEFT JOIN $return_items_table ri
+    on ri.order_item_id = oi.id
     WHERE o.customer_id = $customer_id
     ";
 
@@ -841,6 +847,7 @@ function view_customer_page()
                     <?php if ($item_orders): ?>
                         <?php foreach ($item_orders as $order):
                             $discount_pct = $order->retail_price > 0 ? number_format(($order->discount / $order->retail_price) * 100, 2)  : 0;
+                            $return_id = $order->return_id;
                         ?>
                             <tr>
                                 <td><img src="<?= $order->image ?>" alt="<?= $order->name ?>" /></td>
@@ -849,13 +856,13 @@ function view_customer_page()
                                     Inv# <?= $order->reference_num ?> </br>
                                     <?= $order->salesperson_first_name ?> <?= $order->salesperson_last_name ?>
                                 </td>
-                                <td><?= $order->name ?></td>
-                                <td><?= $order->sku ?><br /><?= $order->model_name ?><br /><?= $order->serial ?></td>
-                                <td>$<?php echo number_format($order->retail_price, 2); ?></td>
-                                <td>$<?php echo number_format($order->sale, 2); ?></td>
-                                <td>$
+                                <td><?= $order->name ?> <?php echo $return_id ?  "<strong>(Returned for credit)</strong>" : "" ?></td>
+                                <td><?= $order->sku ?> <?php echo $return_id ?  "<strong>(RETURNED)</strong>" : "" ?><br /><?= $order->model_name ?><br /><?= $order->serial ?></td>
+                                <td><?php echo $return_id ?  "-" : "" ?>$<?php echo number_format($order->retail_price, 2); ?></td>
+                                <td><?php echo $return_id ?  "-" : "" ?>$<?php echo number_format($order->sale, 2); ?></td>
+                                <td><?php echo $return_id ?  "-" : "" ?>$
                                     <?php echo number_format($order->discount, 2); ?> <br />
-                                    <?= $discount_pct; ?> %
+                                    <?php echo $return_id ?  "-" : "" ?><?= $discount_pct; ?> %
                                 </td>
                                 <td></td>
                             </tr>
