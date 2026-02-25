@@ -353,7 +353,7 @@ function render_invoice($results)
             </div>
 
             <!-- Delete Invoice Button -->
-            <form method="post" style="margin-top:20px;" onsubmit="return confirm('Are you sure you want to delete this invoice?');">
+            <form method="post" style="margin-top:20px; position: relative; z-index:1;" onsubmit="return confirm('Are you sure you want to delete this invoice?');">
                 <input type="hidden" name="order_id" value="<?= intval($order->id) ?>">
                 <input type="hidden" name="action" value="delete_invoice">
                 <?php submit_button('Delete Invoice', 'primary', 'delete_invoice'); ?>
@@ -944,6 +944,17 @@ function delete_layaway($layaway_id)
 function delete_credit($id)
 {
 
+/*
+
+Things TODO 
+
+1. Change item status back to sold
+2. Decrease item quantity
+3. Delete from inventory status history
+4. Delete from return and return items table
+5. Delete from credit and payment table
+
+*/
     $credit_id = absint($id);
     if (!$credit_id) {
         return array("success" => false, "message" => "Credit id is required to delete.");
@@ -1150,31 +1161,31 @@ function insert_return_transactions($data, $order)
     $total = 0;
 
     foreach ($order_items as $item) {
-        $subtotal += $item->sale_price;
+        $subtotal += (float)$item->sale_price;
         if ($item->gst_total > 0) {
-            $gst_total += $item->sale_price * $GST_RATE;
+            $gst_total += round($item->sale_price * $GST_RATE, 2);
         }
         if ($item->pst_total > 0) {
-            $pst_total += $item->sale_price * $PST_RATE;
+            $pst_total += round($item->sale_price * $PST_RATE, 2);
         }
     }
 
     $total = $gst_total + $pst_total + $subtotal;
 
     if (abs($data['gst_total'] - $gst_total) > 0.01) {
-        wp_send_json_error(['message' => 'GST total mismatch'], 422);
+        wp_send_json_error(['message' => 'GST total mismatch. Provided GST: ' . $data['gst_total'] . ' and calculated GST:' . $gst_total], 422);
     }
 
     if (abs($data['pst_total'] - $pst_total) > 0.01) {
-        wp_send_json_error(['message' => 'PST total mismatch'], 422);
+        wp_send_json_error(['message' => 'PST total mismatch. Provided PST: ' . $data['pst_total'] . ' and calculated PST:' . $pst_total], 422);
     }
 
     if (abs($data['subtotal'] - $subtotal) > 0.01) {
-        wp_send_json_error(['message' => 'Subtotal mismatch'], 422);
+        wp_send_json_error(['message' => 'Subtotal mismatch. Provided subtotal: ' . $data['subtotal'] . ' and calculated subtotal:' . $subtotal], 422);
     }
 
     if (abs($data['total'] - $total) > 0.01) {
-        wp_send_json_error(['message' => 'Total mismatch'], 422);
+        wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and calculated total:' . $total], 422);
     }
 
     $restored_stock = [];
@@ -1358,43 +1369,3 @@ function insert_return_transactions($data, $order)
         wp_send_json_error(['message' => $e->getMessage()]);
     }
 }
-/*
-
-WHAT HAPPENS WHEN ITEM GETS REFUNDED
-
-A. Customer should get refunded with credits.
-B. Item should return back to stock.
-C. Item history should be preserved.
-
-WHAT ARE THINGS THAT WILL BE NEEDED FOR TO GENERATE REPORTS
-
-A. Need to keep track of items that was purchased then refunded
-
-
-CREATE TABLE wp_mji_returns (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    order_id BIGINT NOT NULL,
-    reference_num varchar(50) COLLATE utf8mb4_unicode_520_ci,	
-    return_date DATE NOT NULL DEFAULT (CURRENT_DATE),
-    reason TEXT COLLATE utf8mb4_unicode_520_ci,
-    subtotal DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    gst_total DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    pst_total DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    total DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    created_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (order_id) REFERENCES wp_mji_orders(id) ON DELETE CASCADE
-);
-
-CREATE TABLE wp_mji_return_items (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    return_id BIGINT NOT NULL,
-    order_item_id BIGINT NOT NULL,  
-    product_inventory_unit_id BIGINT NOT NULL,
-    unit_price DECIMAL(10, 2) NOT NULL,
-    created_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (return_id) REFERENCES wp_mji_returns(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_inventory_unit_id) REFERENCES wp_mji_product_inventory_units(id)
-);
-*/
