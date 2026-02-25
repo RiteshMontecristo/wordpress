@@ -249,6 +249,7 @@ function add_customer_form()
                     <option value="Miss">Miss</option>
                     <option value="Ms.">Ms.</option>
                     <option value="Dr.">Dr.</option>
+                    <option value="Mr. & Mrs.">Mr. and Mrs.</option>
                 </select>
             </div>
             <!-- First Name -->
@@ -533,6 +534,7 @@ function edit_customer_form()
                     <option value="Miss." <?= selected('Miss', trim($customer->prefix), false); ?>>Miss</option>
                     <option value="Ms." <?= selected('Ms.',  trim($customer->prefix), false); ?>>Ms.</option>
                     <option value="Dr." <?= selected('Dr.',  trim($customer->prefix), false); ?>>Dr.</option>
+                    <option value="Mr. & Mrs." <?= selected('Mr. & Mrs.',  trim($customer->prefix), false); ?>>Mr. and Mrs.</option>
                 </select>
             </div>
             <!-- First Name -->
