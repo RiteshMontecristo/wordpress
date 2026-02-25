@@ -1122,6 +1122,7 @@ function insert_return_transactions($data, $order)
     $inventory_status_history_table = $wpdb->prefix . "mji_inventory_status_history";
     $product_inventory_units_table = $wpdb->prefix . "mji_product_inventory_units";
     $mji_order_items_table = $wpdb->prefix . "mji_order_items";
+    $mji_orders_table = $wpdb->prefix . "mji_orders";
     $order_item_ids = $data['return_items'];
     $items_data = [];
 
@@ -1133,10 +1134,14 @@ function insert_return_transactions($data, $order)
             pi.wc_product_id,
             pi.wc_product_variant_id,
             pi.sku,
-            pi.serial
+            pi.serial,
+            o.gst_total,
+            o.pst_total
         FROM $mji_order_items_table oi
-        INNER JOIN $product_inventory_units_table pi
+        JOIN $product_inventory_units_table pi
             ON pi.id = oi.product_inventory_unit_id
+        JOIN $mji_orders_table o
+            ON o.id = oi.order_id
         WHERE oi.id IN (" . implode(',', $order_item_ids) . ")"
     );
     $gst_total = 0;
@@ -1144,29 +1149,32 @@ function insert_return_transactions($data, $order)
     $subtotal = 0;
     $total = 0;
 
-
     foreach ($order_items as $item) {
         $subtotal += $item->sale_price;
-        $gst_total += $item->sale_price * $GST_RATE;
-        $pst_total += $item->sale_price * $PST_RATE;
+        if ($item->gst_total > 0) {
+            $gst_total += $item->sale_price * $GST_RATE;
+        }
+        if ($item->pst_total > 0) {
+            $pst_total += $item->sale_price * $PST_RATE;
+        }
     }
 
     $total = $gst_total + $pst_total + $subtotal;
 
     if (abs($data['gst_total'] - $gst_total) > 0.01) {
-        wp_send_json_error('GST total mismatch', 422);
+        wp_send_json_error(['message' => 'GST total mismatch'], 422);
     }
 
     if (abs($data['pst_total'] - $pst_total) > 0.01) {
-        wp_send_json_error('PST total mismatch', 422);
+        wp_send_json_error(['message' => 'PST total mismatch'], 422);
     }
 
     if (abs($data['subtotal'] - $subtotal) > 0.01) {
-        wp_send_json_error('Subtotal mismatch', 422);
+        wp_send_json_error(['message' => 'Subtotal mismatch'], 422);
     }
 
     if (abs($data['total'] - $total) > 0.01) {
-        wp_send_json_error('Total mismatch', 422);
+        wp_send_json_error(['message' => 'Total mismatch'], 422);
     }
 
     $restored_stock = [];
