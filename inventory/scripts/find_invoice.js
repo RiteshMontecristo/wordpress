@@ -124,7 +124,7 @@ function createRefundReceipt(data) {
               <td class="item">
                 <img class="item-image" src="${el.image_url}" />
                 <br />
-                ${el.description}
+                ${el.description.split("•").join("<br />•")}
                 <br />
                 SKU: ${el.sku}
                 <br />
@@ -139,7 +139,7 @@ function createRefundReceipt(data) {
         <tfoot>
           <tr>
             <td class="summary">
-              <p>Customer has been credited $${data.totals.total} on credit# ${data.reference_num}</p>
+              <p>Customer has been credited $${data.totals.total} on credit# ${data.reference_num} for the original invoice #${data.original_reference}</p>
               <p>Thank you for shopping at Montecristo Jewellers</p>
             </td>
             <td class="totals">

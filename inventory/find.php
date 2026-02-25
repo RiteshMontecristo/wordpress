@@ -370,6 +370,7 @@ function render_invoice($results)
                         <form name="refund_invoice" method="post" class="return-form">
                             <input type="hidden" name="order_id" value="<?= intval($order->id) ?>">
                             <input type="hidden" name="action" value="create_return">
+                            <input type="hidden" name="original_reference" value="<?= esc_html($order->reference_num) ?>">
 
                             <!-- Items -->
                             <?php if (!empty($items)): ?>
@@ -1031,13 +1032,14 @@ function sanitize_and_validate_return($post_data)
         'return_items' => isset($data['return_items']) && is_array($data['return_items'])
             ? array_map('absint', $data['return_items'])
             : [],
-        'reference'     => isset($data['reference']) ? sanitize_text_field($data['reference']) : '',
-        'gst_total'     => isset($data['gst']) ? round((float) $data['gst'], 2) : '',
-        'pst_total'     => isset($data['pst']) ? round((float) $data['pst'], 2) : '',
-        'subtotal'      => isset($data['subtotal']) ? round((float) $data['subtotal'], 2) : '',
-        'total'         => isset($data['total']) ? round((float) $data['total'], 2) : '',
-        'date'         => isset($data['date']) ? sanitize_text_field($data['date']) : '',
-        'reason'       => isset($data['reason']) ? sanitize_textarea_field($data['reason']) : '',
+        'reference'             => isset($data['reference']) ? sanitize_text_field($data['reference']) : '',
+        'gst_total'             => isset($data['gst']) ? round((float) $data['gst'], 2) : '',
+        'pst_total'             => isset($data['pst']) ? round((float) $data['pst'], 2) : '',
+        'subtotal'              => isset($data['subtotal']) ? round((float) $data['subtotal'], 2) : '',
+        'total'                 => isset($data['total']) ? round((float) $data['total'], 2) : '',
+        'date'                  => isset($data['date']) ? sanitize_text_field($data['date']) : '',
+        'reason'                => isset($data['reason']) ? sanitize_textarea_field($data['reason']) : '',
+        'original_reference'    => isset($data['original_reference']) ? sanitize_text_field($data['original_reference']) : '',
     ];
 
     $errors = [];
@@ -1329,7 +1331,8 @@ function insert_return_transactions($data, $order)
             'reference_num' => $data['reference'],
             'salesperson' => $salesperson,
             'customer_info' => $customer_info,
-            'date' => $data['date']
+            'date' => $data['date'],
+            'original_reference' => $data['original_reference']
         ]);
     } catch (Exception $e) {
 
