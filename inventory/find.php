@@ -73,11 +73,11 @@ function render_search_section()
             }
         } elseif (
             $_POST['action'] === 'delete_credit'
-            && isset($_POST['credit_id'], $_POST['delete_credit_nonce'])
+            && isset($_POST['reference_num'], $_POST['delete_credit_nonce'])
             && wp_verify_nonce($_POST['delete_credit_nonce'], 'delete_credit_action')
         ) {
-            $credit_id = (int) $_POST['credit_id'];
-            $result = delete_credit($credit_id);
+            $reference_num = $_POST['reference_num'];
+            $result = delete_credit($reference_num);
 
             if ($result['success']) {
                 echo '<div class="notice notice-success"><p>Credit deleted successfully.</p></div>';
@@ -911,7 +911,7 @@ function render_layaway_invoice($invoice)
                 <?php if ($type === 'layaway'): ?>
                     <input type="hidden" name="layaway_id" value="<?php echo esc_attr($invoice->layaway_id); ?>">
                 <?php elseif ($type === 'credit'): ?>
-                    <input type="hidden" name="credit_id" value="<?php echo esc_attr($invoice->credit_id); ?>">
+                    <input type="hidden" name="reference_num" value="<?php echo esc_attr($invoice->reference_num); ?>">
                 <?php endif; ?>
 
                 <button type="submit" class="button button-danger">
@@ -1014,52 +1014,85 @@ function delete_layaway($layaway_id)
     }
 }
 
-function delete_credit($id)
+function delete_credit($reference_num)
 {
-
-    /*
-
-Things TODO 
-
-1. Change item status back to sold
-2. Decrease item quantity
-3. Delete from inventory status history
-4. Delete from return and return items table
-5. Delete from credit and payment table
-
-*/
-    $credit_id = absint($id);
-    if (!$credit_id) {
+    $reference_num = $reference_num;
+    if (!$reference_num) {
         return array("success" => false, "message" => "Credit id is required to delete.");
     }
 
     global $wpdb;
-
     $credits_table = $wpdb->prefix . 'mji_credits';
     $payments_table = $wpdb->prefix . 'mji_payments';
+    $return_table = $wpdb->prefix . "mji_returns";
+    $return_items_table = $wpdb->prefix . "mji_return_items";
+    $inventory_status_history_table = $wpdb->prefix . "mji_inventory_status_history";
+    $product_inventory_units_table = $wpdb->prefix . "mji_product_inventory_units";
+    $restored_stock = [];
     $wpdb->query('START TRANSACTION');
-
     try {
         $credit_amount = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT total_amount, remaining_amount 
+                "SELECT id, total_amount, remaining_amount 
                  FROM {$credits_table}
-                 WHERE id = %d",
-                $credit_id
+                 WHERE reference_num = %s",
+                $reference_num
             )
         );
 
         check_wpdb_error($wpdb);
 
         if (!$credit_amount) {
-            return array("message" => "No Credits found with that ID.");
+            return array("message" => "No Credits found with that reference number.");
         }
 
+        $credit_id = $credit_amount->id;
         if ($credit_amount->total_amount == $credit_amount->remaining_amount) {
+
             $wpdb->delete($payments_table, ['credit_id' => $credit_id], ['%d']);
             check_wpdb_error($wpdb);
             $wpdb->delete($credits_table, ['id' => $credit_id], ['%d']);
             check_wpdb_error($wpdb);
+
+            $returns = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT r.id, ri.product_inventory_unit_id, p.wc_product_id, p.wc_product_variant_id
+                    FROM {$return_table} r
+                    JOIN {$return_items_table} ri
+                        ON r.id = ri.return_id
+                    JOIN {$product_inventory_units_table} p
+                        ON ri.product_inventory_unit_id = p.id
+                    WHERE reference_num = %s",
+                    $reference_num
+                )
+            );
+
+            check_wpdb_error($wpdb);
+
+            if ($returns) {
+                $wpdb->delete($inventory_status_history_table, ['reference_num' => $reference_num], ['%s']);
+                check_wpdb_error($wpdb);
+                $wpdb->delete($return_table, ['reference_num' => $reference_num], ['%s']);
+                check_wpdb_error($wpdb);
+                $wpdb->delete($return_items_table, ['return_id' => $returns[0]->id], ['%d']);
+                check_wpdb_error($wpdb);
+
+                foreach ($returns as $return) {
+                    $wpdb->update($product_inventory_units_table, ["status" => "sold"], ['id' => $return->product_inventory_unit_id], ['%s'], ['%d']);
+                    check_wpdb_error($wpdb);
+
+                    $product_id = $return->wc_product_variant_id ?: $return->wc_product_id;
+                    $product = wc_get_product($product_id);
+                    if (!$product) {
+                        throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
+                    }
+
+                    $product->set_stock_quantity($product->get_stock_quantity() - 1);
+                    $product->save();
+                    $restored_stock[] = $product_id;
+                }
+            }
+
             $wpdb->query('COMMIT');
             return [
                 'success' => true,
@@ -1073,6 +1106,15 @@ Things TODO
         }
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
+        
+        // restore WooCommerce stock
+        foreach ($restored_stock as $product_id) {
+            $product = wc_get_product($product_id);
+            if ($product) {
+                $product->set_stock_quantity($product->get_stock_quantity() + 1);
+                $product->save();
+            }
+        }
         custom_log('[Delete Credit Invoice Failed] ' . $e->getMessage());
         return [
             'success' => false,
