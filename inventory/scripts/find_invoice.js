@@ -91,7 +91,7 @@ function createRefundReceipt(data) {
     <header class="receipt-header">
       <div class="company">
         <h2 class="title">Montecristo Jewellers</h2>
-        <p class="subtitle"><strong>Refund Receipt</strong></p>
+        <p class="subtitle"><strong>Return Receipt</strong></p>
       </div>
       <div class="customer">
         <address>
@@ -103,7 +103,7 @@ function createRefundReceipt(data) {
       </div>
       <div class="details">
         <p class="reference-num">Reference # ${data.reference_num}</p>
-        <p class="sale-date">Sold on <time datetime="${data.date}">${data.date}</time></p>
+        <p class="sale-date">Returned on <time datetime="${data.date}">${data.date}</time></p>
         <p class="salesperson">Served by ${data.salesperson.first_name} ${data.salesperson.last_name}</p>
       </div>
     </header>
@@ -139,7 +139,8 @@ function createRefundReceipt(data) {
         <tfoot>
           <tr>
             <td class="summary">
-              <p>Customer has been credited $${data.totals.total} on credit# ${data.reference_num} for the original invoice #${data.original_reference}</p>
+              ${data.reason && `<p>${data.reason}</p>`}
+              <p>Return for purchase #${data.original_reference}</p>
               <p>Thank you for shopping at Montecristo Jewellers</p>
             </td>
             <td class="totals">
