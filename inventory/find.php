@@ -100,14 +100,20 @@ function render_search_section()
                 return;
             }
         } else {
-            $results = search_layaway_results($reference_num);
-            if (!$results) {
+            try {
+                $results = search_layaway_results($reference_num);
+                if (!$results) {
+                    echo "<div class='wrap'>";
+                    echo "<h2>Invoice " . $reference_num . " not found!!";
+                    echo "</div>";
+                } else {
+                    render_layaway_invoice($results);
+                    return;
+                }
+            } catch (Exception $e) {
                 echo "<div class='wrap'>";
-                echo "<h2>Invoice " . $reference_num . " not found!!";
+                echo "<h2>" . $e->getMessage() . "</h2>";
                 echo "</div>";
-            } else {
-                render_layaway_invoice($results);
-                return;
             }
         }
     }
@@ -644,10 +650,12 @@ function search_layaway_results($reference_num)
 {
     global $wpdb;
 
-    $layaway_table = $wpdb->prefix . 'mji_layaways';
     $payments_table = $wpdb->prefix . 'mji_payments';
     $customers_table = $wpdb->prefix . 'mji_customers';
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
+    $returns_table = $wpdb->prefix . 'mji_returns';
+    $return_items_table = $wpdb->prefix . 'mji_return_items';
+    $product_inventory_units_table = $wpdb->prefix . 'mji_product_inventory_units';
 
     try {
         $sql_layaway = $wpdb->prepare("
@@ -696,6 +704,7 @@ function search_layaway_results($reference_num)
 
         $results->payment = $payments;
 
+        $items = null;
         $usage = null;
         // IF credit/layawyay used
         if ($results->layaway_id) {
@@ -723,6 +732,54 @@ function search_layaway_results($reference_num)
 
             $usage  = $wpdb->get_results($sql_credit_used);
             check_wpdb_error($wpdb);
+
+            $sql_return_items = $wpdb->prepare("
+                SELECT
+                    p.wc_product_id, p.wc_product_variant_id, p.sku, p.serial
+                    FROM {$returns_table} r
+                    JOIN {$return_items_table} ri 
+                        ON r.id = ri.return_id
+                    JOIN {$product_inventory_units_table} p
+                        ON p.id = ri.product_inventory_unit_id
+                    WHERE r.reference_num = %s
+                ", $reference_num);
+
+            $return_items  = $wpdb->get_results($sql_return_items);
+
+            check_wpdb_error($wpdb);
+
+            if ($return_items) {
+                $items = [];
+                foreach ($return_items as $return_item) {
+
+                    $product_id = $return_item->wc_product_variant_id ?: $return_item->wc_product_id;
+                    $product = wc_get_product($product_id);
+                    $description = "";
+
+                    if (!$product) {
+                        custom_log("{Product {$product_id} not found");
+                        throw new Exception("Product {$product_id} not found.");
+                    }
+
+                    $image_url = esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($return_item->wc_product_id), 'thumbnail'));
+                    if ($return_item->wc_product_variant_id) {
+                        $description = $product->get_description();
+                    } else {
+                        $description = $product->get_short_description();
+                    }
+
+                    $item = [
+                        "sku" => $return_item->sku,
+                        "serial" => $return_item->serial,
+                        "description" => $description,
+                        "image_url" => $image_url,
+                    ];
+
+                    array_push($items, $item);
+                }
+            }
+
+            $results->items = $items;
             $results->type = 'credit';
         }
 
@@ -788,6 +845,22 @@ function render_layaway_invoice($invoice)
             <strong>Date Created:</strong>
             <?php echo esc_html($purchased_date); ?>
         </p>
+
+        <?php
+        if (!empty($invoice->items)):
+            echo "<h3>Items:</h3>";
+            foreach ($invoice->items as $item):
+                echo "<div>";
+                echo "<img src='{$item["image_url"]}' alt='product image' />";
+                echo "<p>";
+                if (!empty($item["sku"])) echo "<b>SKU: " . esc_html($item["sku"]) . "</b><br/>";
+                echo nl2br($item["description"]);
+                if (!empty($item["serial"])) echo "<br />Serial: " . esc_html($item["serial"]);
+                echo  "</p>";
+                echo "</div>";
+            endforeach;
+        endif;
+        ?>
 
         <h3>Payment Summary</h3>
 
@@ -944,7 +1017,7 @@ function delete_layaway($layaway_id)
 function delete_credit($id)
 {
 
-/*
+    /*
 
 Things TODO 
 
@@ -1351,7 +1424,8 @@ function insert_return_transactions($data, $order)
             'salesperson' => $salesperson,
             'customer_info' => $customer_info,
             'date' => $data['date'],
-            'original_reference' => $data['original_reference']
+            'original_reference' => $data['original_reference'],
+            'reason' => $data['reason']
         ]);
     } catch (Exception $e) {
 
