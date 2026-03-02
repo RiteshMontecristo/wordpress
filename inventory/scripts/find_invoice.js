@@ -1,60 +1,62 @@
 import { formatCurrency } from "./index.js";
 
+const issueCreditBtn = document.querySelector("#issue_credit");
+const creditEl = document.querySelector("#credit");
+const cancelCreditBtn = creditEl.querySelector(".button.cancel");
+const creditContainer = creditEl.querySelector(".credit-container");
+const creditForm = document.querySelector('form[name="credit_invoice"]');
+const submitCreditReturnBtn = creditForm.querySelector("#submit_return");
+const allItemsCheckbox = creditForm.querySelectorAll(".return-item-checkbox");
+
 const issueRefundBtn = document.querySelector("#issue_refund");
-const refundInvoice = document.querySelector('form[name="refund_invoice"]');
-const submitReturnBtn = document.querySelector("#submit_return");
-const allItemsCheckbox = document.querySelectorAll(".return-item-checkbox");
 const refundEl = document.querySelector("#refund");
+const cancelRefundBtn = refundEl.querySelector(".button.cancel");
 const refundContainer = refundEl.querySelector(".refund-container");
-const cancelBtn = refundEl.querySelector(".button.cancel");
+const refundForm = document.querySelector('form[name="refund_invoice"]');
+const submitRefundReturnBtn = refundForm.querySelector("#submit_return");
+const allRefundItemsCheckbox = refundForm.querySelectorAll(
+  ".return-item-checkbox",
+);
+const allPaymentsMethod = refundForm.querySelectorAll(".payment-item");
 
 const GST = 0.05,
   PST = 0.07;
 
 let subtotal, gst, pst, total;
 
-issueRefundBtn.addEventListener("click", (e) => {
-  e.preventDefault();
-  refundEl.classList.add("refund");
-});
-
-refundInvoice.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  submitReturnBtn.disabled = true;
-  const formData = new FormData(refundInvoice);
-  formData.append("gst", gst);
-  formData.append("pst", pst);
-  formData.append("subtotal", subtotal);
-  formData.append("total", total);
-
-  try {
-    const response = await fetch(ajax_inventory.ajax_url, {
-      method: "POST",
-      body: formData,
-    });
-    const data = await response.json();
-
-    if (data.success) {
-      alert("Successfully created");
-      createRefundReceipt(data.data);
-    } else {
-      alert(data.data.message);
-    }
-  } catch (error) {
-    console.error("AJAX request failed:", error);
-  } finally {
-    submitReturnBtn.disabled = false;
-  }
-});
-
+// Credit Section
+issueCreditBtn.addEventListener("click", (e) => toggleDisplayEl(e, creditEl));
+cancelCreditBtn.addEventListener("click", (e) => toggleDisplayEl(e, creditEl));
 allItemsCheckbox.forEach((checkbox) => {
-  checkbox.addEventListener("change", updateTotals);
+  checkbox.addEventListener("change", () =>
+    updateTotals(allItemsCheckbox, creditForm),
+  );
 });
+creditForm.addEventListener("submit", (e) =>
+  sumbitForm(e, creditForm, "credit"),
+);
 
-function updateTotals() {
+// Refund Section
+issueRefundBtn.addEventListener("click", (e) => toggleDisplayEl(e, refundEl));
+cancelRefundBtn.addEventListener("click", (e) => toggleDisplayEl(e, refundEl));
+allRefundItemsCheckbox.forEach((checkbox) => {
+  checkbox.addEventListener("change", () =>
+    updateTotals(allRefundItemsCheckbox, refundForm),
+  );
+});
+refundForm.addEventListener("submit", (e) =>
+  sumbitForm(e, refundForm, "refund"),
+);
+
+// Reusable functions by both
+function toggleDisplayEl(e, el) {
+  e.preventDefault();
+  el.classList.toggle("refund");
+}
+
+function updateTotals(checkboxEl, formEl) {
   [gst, pst, subtotal, total] = [0, 0, 0];
-  allItemsCheckbox.forEach((cb) => {
+  checkboxEl.forEach((cb) => {
     if (cb.checked) {
       const itemsSubtotal = parseFloat(cb.dataset.subtotal || 0);
       subtotal += itemsSubtotal;
@@ -75,23 +77,84 @@ function updateTotals() {
   total = subtotal + gst + pst;
   total = Math.round(total * 100) / 100;
 
-  document.getElementById("display-subtotal").textContent = subtotal.toFixed(2);
-  document.getElementById("display-gst").textContent = gst.toFixed(2);
-  document.getElementById("display-pst").textContent = pst.toFixed(2);
-  document.getElementById("display-total").textContent = total.toFixed(2);
+  formEl.querySelector("#display-subtotal").textContent = subtotal.toFixed(2);
+  formEl.querySelector("#display-gst").textContent = gst.toFixed(2);
+  formEl.querySelector("#display-pst").textContent = pst.toFixed(2);
+  formEl.querySelector("#display-total").textContent = total.toFixed(2);
 }
 
-cancelBtn.addEventListener("click", (e) => {
+async function sumbitForm(e, form, type) {
   e.preventDefault();
-  refundEl.classList.remove("refund");
-});
 
-function createRefundReceipt(data) {
-  refundContainer.innerHTML = `
+  const formData = new FormData(form);
+  formData.append("gst", gst);
+  formData.append("pst", pst);
+  formData.append("subtotal", subtotal);
+  formData.append("total", total);
+
+  let errors = 0;
+
+  if (type == "credit") {
+    if (!formData.has("return_items[]")) {
+      errors++;
+      alert("Please select at least one item!!");
+    }
+    submitCreditReturnBtn.disabled = true;
+  } else {
+    submitRefundReturnBtn.disabled = true;
+    if (!formData.has("refund_items[]")) {
+      errors++;
+      alert("Please select at least one item!!");
+    }
+    let paymentTotal = 0;
+    allPaymentsMethod.forEach((el) => {
+      let val = el.querySelector("input").value;
+      paymentTotal += parseFloat(val || 0);
+    });
+
+    if (paymentTotal !== total) {
+      errors++;
+      alert("Throw payment not equal!!");
+    }
+  }
+
+  if (errors > 0) {
+    submitCreditReturnBtn.disabled = false;
+    submitRefundReturnBtn.disabled = false;
+    return;
+  }
+
+  try {
+    const response = await fetch(ajax_inventory.ajax_url, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+
+    if (data.success) {
+      alert("Successfully created");
+      createRefundReceipt(data.data, type);
+    } else {
+      alert(data.data.message);
+    }
+  } catch (error) {
+    console.error("AJAX request failed:", error);
+  } finally {
+    submitCreditReturnBtn.disabled = false;
+    submitRefundReturnBtn.disabled = false;
+  }
+}
+
+// Need to work on these
+function createRefundReceipt(data, type) {
+  const el = type == "credit" ? creditContainer : refundContainer;
+  type = type.charAt(0).toUpperCase() + type.slice(1);
+
+  el.innerHTML = `
     <header class="receipt-header">
       <div class="company">
         <h2 class="title">Montecristo Jewellers</h2>
-        <p class="subtitle"><strong>Return Receipt</strong></p>
+        <p class="subtitle"><strong>${type} Receipt</strong></p>
       </div>
       <div class="customer">
         <address>
@@ -158,10 +221,10 @@ function createRefundReceipt(data) {
     <button class="button" id="close-reciept">Close</button>
   `;
 
-  const printBtn = refundEl.querySelector("#print-receipt");
-  const closeReceiptBtn = refundEl.querySelector("#close-reciept");
+  const printBtn = el.querySelector("#print-receipt");
+  const closeReceiptBtn = el.querySelector("#close-reciept");
   printBtn?.addEventListener("click", printReceipt);
-  closeReceiptBtn.addEventListener("click", closeReceipt);
+  closeReceiptBtn.addEventListener("click", (e) => closeReceipt(e, type));
 }
 
 function printReceipt(e) {
@@ -177,7 +240,7 @@ function printReceipt(e) {
               <link rel="stylesheet" href="${cssPath}" onload="window.__cssLoaded = true;" />
             </head>
             <body>
-              ${refundContainer.outerHTML}
+              ${creditContainer.outerHTML}
             </body>
         </html>
     `);
@@ -205,8 +268,12 @@ function printReceipt(e) {
   }, 3000);
 }
 
-function closeReceipt(e) {
+function closeReceipt(e, type) {
   e.preventDefault();
 
-  refundEl.classList.remove("refund");
+  if (type == "Credit") {
+    creditEl.classList.remove("refund");
+  } else {
+    refundEl.classList.remove("refund");
+  }
 }

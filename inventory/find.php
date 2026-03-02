@@ -347,6 +347,7 @@ function render_invoice($results)
                             </td>
                         </tr>
                     <?php endif; ?>
+
                 </tbody>
             </table>
 
@@ -363,19 +364,20 @@ function render_invoice($results)
                 <input type="hidden" name="order_id" value="<?= intval($order->id) ?>">
                 <input type="hidden" name="action" value="delete_invoice">
                 <?php submit_button('Delete Invoice', 'primary', 'delete_invoice'); ?>
+                <button type="button" class="button issue_credit" id="issue_credit">Issue credit</button>
                 <button type="button" class="button issue_refund" id="issue_refund">Issue refund</button>
             </form>
         </div>
 
-        <!-- Refund items -->
-        <div class="hidden" id="refund">
-            <div class="refund-container">
+        <!-- Credit items -->
+        <div class="hidden" id="credit">
+            <div class="credit-container">
                 <?php if (!empty($items) || !empty($services)): ?>
                     <div class="return-section">
-                        <h3>Create Return / Refund</h3>
-                        <form name="refund_invoice" method="post" class="return-form">
+                        <h3>Create Return / Credit</h3>
+                        <form name="credit_invoice" method="post" class="return-form">
                             <input type="hidden" name="order_id" value="<?= intval($order->id) ?>">
-                            <input type="hidden" name="action" value="create_return">
+                            <input type="hidden" name="action" value="create_credit_return">
                             <input type="hidden" name="original_reference" value="<?= esc_html($order->reference_num) ?>">
 
                             <!-- Items -->
@@ -389,7 +391,7 @@ function render_invoice($results)
                                                 <img class="item-image" src="<?= $item->image_url ?>" alt="<?= esc_attr($product->get_name()) ?>">
                                                 <div class="item-info">
                                                     <p class="item-details">
-                                                        <!-- <?= esc_html($product->get_name()) ?><br> -->
+                                                        <?= esc_html($product->get_name()) ?><br>
                                                         <?php if (!empty($item->sku)): ?>
                                                             SKU: <?= esc_html($item->sku) ?><br>
                                                         <?php endif; ?>
@@ -408,8 +410,9 @@ function render_invoice($results)
                                                     </p>
                                                 </div>
                                         </div>
+                                    <?php endforeach; ?>
                                 </div>
-                            <?php endforeach; ?>
+                            <?php endif; ?>
 
                             <div class="return-info-totals">
                                 <!-- Left: Form Fields -->
@@ -435,7 +438,7 @@ function render_invoice($results)
                                     <p>Subtotal: $<span id="display-subtotal">0.00</span></p>
                                     <p>GST: $<span id="display-gst">0.00</span></p>
                                     <p>PST: $<span id="display-pst">0.00</span></p>
-                                    <p>Total Refund: $<span id="display-total">0.00</span></p>
+                                    <p>Total Credit: $<span id="display-total">0.00</span></p>
                                 </div>
                             </div>
 
@@ -446,11 +449,152 @@ function render_invoice($results)
                         </form>
                     </div>
                 <?php endif; ?>
-
             </div>
-
         </div>
-    <?php endif; ?>
+
+        <!-- Refund items -->
+        <div class="hidden" id="refund">
+            <div class="refund-container">
+                <?php if (!empty($items) || !empty($services)): ?>
+                    <div class="return-section">
+                        <h3>Create Return / Refund</h3>
+                        <form name="refund_invoice" method="post" class="return-form">
+                            <input type="hidden" name="order_id" value="<?= intval($order->id) ?>">
+                            <input type="hidden" name="action" value="create_refund_return">
+                            <input type="hidden" name="original_reference" value="<?= esc_html($order->reference_num) ?>">
+
+                            <!-- Items -->
+                            <?php if (!empty($items)): ?>
+                                <div class="return-items">
+                                    <?php foreach ($items as $item): ?>
+                                        <div class="return-item">
+                                            <input type="checkbox" class="return-item-checkbox"
+                                                name="refund_items[]" id="refund_items[<?= $item->id ?>]" value="<?= $item->id ?>" data-subtotal="<?= $item->sale_price ?>" data-gst="<?= $calculate_gst ?>" data-pst="<?= $calculate_pst ?>">
+                                            <label for="refund_items[<?= $item->id ?>]" class="item-content">
+                                                <img class="item-image" src="<?= $item->image_url ?>" alt="<?= esc_attr($product->get_name()) ?>">
+                                                <div class="item-info">
+                                                    <p class="item-details">
+                                                        <?= esc_html($product->get_name()) ?><br>
+                                                        <?php if (!empty($item->sku)): ?>
+                                                            SKU: <?= esc_html($item->sku) ?><br>
+                                                        <?php endif; ?>
+
+                                                        <?php if (!empty($item->serial)): ?>
+                                                            Serial: <?= esc_html($item->serial) ?><br>
+                                                        <?php endif; ?>
+
+                                                        <?php if (!empty($item->sale_price)): ?>
+                                                            Sale Price: <?= esc_html($item->sale_price) ?><br>
+                                                        <?php endif; ?>
+
+                                                        <?php if (!empty($item->discount_amount) && $item->discount_amount != 0): ?>
+                                                            Discount: <?= esc_html($item->discount_amount) ?>
+                                                        <?php endif; ?>
+                                                    </p>
+                                                </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="return-info-totals">
+                                <!-- Left: Form Fields -->
+                                <div class="return-form-fields">
+                                    <div class="form-group">
+                                        <label for="refund-reference">Reference Number:</label>
+                                        <input type="text" id="refund-reference" name="refund-reference" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="refund-date">Date:</label>
+                                        <input type="date" id="refund-date" name="refund-date" value="<?php echo date('Y-m-d'); ?>">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="refund-reason">Reason for return:</label>
+                                        <textarea name="refund-reason" id="refund-reason" rows="3"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Right: Totals -->
+                                <div class="return-totals">
+                                    <p>Subtotal: $<span id="display-subtotal">0.00</span></p>
+                                    <p>GST: $<span id="display-gst">0.00</span></p>
+                                    <p>PST: $<span id="display-pst">0.00</span></p>
+                                    <p>Total Refund: $<span id="display-total">0.00</span></p>
+                                </div>
+                            </div>
+
+                            <div class="payment-methods">
+                                <h3>Refund Payment Methods</h3>
+                                <div class="payment-grid">
+                                    <div class="payment-item">
+                                        <label for="cash">Cash:</label>
+                                        <input type="number" min="0" step="0.01" id="cash" name="cash">
+                                    </div>
+
+                                    <div class="payment-item">
+                                        <label for="cheque">Cheque:</label>
+                                        <input type="number" min="0" step="0.01" id="cheque" name="cheque">
+                                    </div>
+
+                                    <div class="payment-item">
+                                        <label for="debit">Debit/Interac:</label>
+                                        <input type="number" min="0" step="0.01" id="debit" name="debit">
+                                    </div>
+
+                                    <div class="payment-item">
+                                        <label for="visa">Visa:</label>
+                                        <input type="number" min="0" step="0.01" id="visa" name="visa">
+                                    </div>
+
+                                    <div class="payment-item">
+                                        <label for="master_card">Mastercard:</label>
+                                        <input type="number" min="0" step="0.01" id="master_card" name="master_card">
+                                    </div>
+
+                                    <div class="payment-item">
+                                        <label for="amex">Amex:</label>
+                                        <input type="number" min="0" step="0.01" id="amex" name="amex">
+                                    </div>
+
+                                    <div class="payment-item">
+                                        <label for="discover">Discover:</label>
+                                        <input type="number" min="0" step="0.01" id="discover" name="discover">
+                                    </div>
+
+                                    <div class="payment-item">
+                                        <label for="bank_draft">Bank Draft:</label>
+                                        <input type="number" min="0" step="0.01" id="bank_draft" name="bank_draft">
+                                    </div>
+
+                                    <div class="payment-item">
+                                        <label for="cup">Cup:</label>
+                                        <input type="number" min="0" step="0.01" id="cup" name="cup">
+                                    </div>
+
+                                    <div class="payment-item">
+                                        <label for="alipay">Alipay:</label>
+                                        <input type="number" min="0" step="0.01" id="alipay" name="alipay">
+                                    </div>
+
+                                    <div class="payment-item">
+                                        <label for="wire">Wire:</label>
+                                        <input type="number" min="0" step="0.01" id="wire" name="wire">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-submit">
+                                <?php submit_button('Process Return', 'primary', 'submit_return'); ?>
+                                <button class="button cancel" id="cancel">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
     </div>
 
     </div>
@@ -1106,7 +1250,7 @@ function delete_credit($reference_num)
         }
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
-        
+
         // restore WooCommerce stock
         foreach ($restored_stock as $product_id) {
             $product = wc_get_product($product_id);
@@ -1123,7 +1267,7 @@ function delete_credit($reference_num)
     }
 }
 
-function create_return()
+function create_credit_return()
 {
     $data = sanitize_and_validate_return($_POST);
 
@@ -1147,25 +1291,56 @@ function create_return()
     insert_return_transactions($data, $order);
 }
 
-add_action('wp_ajax_create_return', 'create_return');
+add_action('wp_ajax_create_credit_return', 'create_credit_return');
+
+function sanitize_payment_amount($value)
+{
+    if (!isset($value) || $value === '' || $value === null) {
+        return 0.00;
+    }
+
+    $num = (float) $value;
+    return is_naN($num) ? 0.00 : round($num, 2);
+}
+
 
 function sanitize_and_validate_return($post_data)
 {
     $data = wp_unslash($post_data);
+    $allowed_payment_methods = [
+        'cash',
+        'cheque',
+        'debit',
+        'visa',
+        'master_card',
+        'amex',
+        'discover',
+        'bank_draft',
+        'cup',
+        'alipay',
+        'wire'
+    ];
+
+    $payment_data = [];
+    foreach ($allowed_payment_methods as $method) {
+        if (isset($data[$method]) && (sanitize_payment_amount($data[$method]) > 0)) {
+            $payment_data[$method] = sanitize_payment_amount($data[$method]);
+        }
+    }
 
     $sanitized = [
-        'order_id'     => isset($data['order_id']) ? absint($data['order_id']) : 0,
-        'return_items' => isset($data['return_items']) && is_array($data['return_items'])
-            ? array_map('absint', $data['return_items'])
-            : [],
-        'reference'             => isset($data['reference']) ? sanitize_text_field($data['reference']) : '',
-        'gst_total'             => isset($data['gst']) ? round((float) $data['gst'], 2) : '',
-        'pst_total'             => isset($data['pst']) ? round((float) $data['pst'], 2) : '',
-        'subtotal'              => isset($data['subtotal']) ? round((float) $data['subtotal'], 2) : '',
-        'total'                 => isset($data['total']) ? round((float) $data['total'], 2) : '',
-        'date'                  => isset($data['date']) ? sanitize_text_field($data['date']) : '',
-        'reason'                => isset($data['reason']) ? sanitize_textarea_field($data['reason']) : '',
-        'original_reference'    => isset($data['original_reference']) ? sanitize_text_field($data['original_reference']) : '',
+        'order_id'              => absint($data['order_id'] ?? 0),
+        'return_items'          =>  is_array($data['return_items'] ?? null) ? array_map('absint', $data['return_items']) : [],
+        'refund_items'          => is_array($data['refund_items'] ?? null)  ? array_map('absint', $data['refund_items']) : [],
+        'payment'               => $payment_data,
+        'gst_total'             => round((float) ($data['gst'] ?? 0), 2),
+        'pst_total'             => round((float) ($data['pst'] ?? 0), 2),
+        'subtotal'              => round((float) ($data['subtotal'] ?? 0), 2),
+        'total'                 => round((float) ($data['total'] ?? 0), 2),
+        'reference'             => sanitize_text_field($data['reference'] ?? $data['refund-reference'] ?? ''),
+        'original_reference'    => sanitize_text_field($data['original_reference'] ?? ''),
+        'date'                  => sanitize_text_field($data['date'] ?? $data['refund-date'] ??  ''),
+        'reason'                => sanitize_textarea_field($data['reason'] ?? $data['refund-reason'] ?? ''),
     ];
 
     $errors = [];
@@ -1174,13 +1349,13 @@ function sanitize_and_validate_return($post_data)
         $errors['message'] = 'Invalid order ID';
     }
 
-    if (empty($sanitized['return_items'])) {
+    if (empty($sanitized['return_items']) && empty($sanitized['refund_items'])) {
         $errors['message'] = 'No return items provided';
     }
 
     $date = DateTime::createFromFormat('Y-m-d', $sanitized['date']);
     if (! $date || $date->format('Y-m-d') !== $sanitized['date']) {
-        $errors['date'] = 'Invalid date format';
+        $errors['message'] = 'Invalid date format';
     }
 
     if (! empty($errors)) {
@@ -1485,3 +1660,270 @@ function insert_return_transactions($data, $order)
         wp_send_json_error(['message' => $e->getMessage()]);
     }
 }
+
+function insert_refund_transactions($data, $order)
+{
+    global $wpdb;
+
+    $GST_RATE = 0.05;
+    $PST_RATE = 0.07;
+    $return_table = $wpdb->prefix . "mji_returns";
+    $customer_table = $wpdb->prefix . "mji_customers";
+    $return_items_table = $wpdb->prefix . "mji_return_items";
+    $payment_table = $wpdb->prefix . "mji_payments";
+    $inventory_status_history_table = $wpdb->prefix . "mji_inventory_status_history";
+    $product_inventory_units_table = $wpdb->prefix . "mji_product_inventory_units";
+    $mji_order_items_table = $wpdb->prefix . "mji_order_items";
+    $mji_orders_table = $wpdb->prefix . "mji_orders";
+    $order_item_ids = !empty($data['return_items']) ? $data['return_items'] : $data['refund_items'];
+    $items_data = [];
+
+    $order_items = $wpdb->get_results(
+        "SELECT 
+            oi.id AS order_item_id,
+            oi.sale_price,
+            oi.product_inventory_unit_id,
+            pi.wc_product_id,
+            pi.wc_product_variant_id,
+            pi.sku,
+            pi.serial,
+            o.gst_total,
+            o.pst_total
+        FROM $mji_order_items_table oi
+        JOIN $product_inventory_units_table pi
+            ON pi.id = oi.product_inventory_unit_id
+        JOIN $mji_orders_table o
+            ON o.id = oi.order_id
+        WHERE oi.id IN (" . implode(',', $order_item_ids) . ")"
+    );
+    $gst_total = 0;
+    $pst_total = 0;
+    $subtotal = 0;
+    $total = 0;
+    $payment_total = 0;
+
+    foreach ($order_items as $item) {
+        $subtotal += (float)$item->sale_price;
+        if ($item->gst_total > 0) {
+            $gst_total += round($item->sale_price * $GST_RATE, 2);
+        }
+        if ($item->pst_total > 0) {
+            $pst_total += round($item->sale_price * $PST_RATE, 2);
+        }
+    }
+
+    foreach (array_values($data['payment']) as $payment) {
+        $payment_total += $payment;
+    }
+
+    $total = $gst_total + $pst_total + $subtotal;
+
+    if (abs($data['gst_total'] - $gst_total) > 0.01) {
+        wp_send_json_error(['message' => 'GST total mismatch. Provided GST: ' . $data['gst_total'] . ' and calculated GST:' . $gst_total], 422);
+    }
+
+    if (abs($data['pst_total'] - $pst_total) > 0.01) {
+        wp_send_json_error(['message' => 'PST total mismatch. Provided PST: ' . $data['pst_total'] . ' and calculated PST:' . $pst_total], 422);
+    }
+
+    if (abs($data['subtotal'] - $subtotal) > 0.01) {
+        wp_send_json_error(['message' => 'Subtotal mismatch. Provided subtotal: ' . $data['subtotal'] . ' and calculated subtotal:' . $subtotal], 422);
+    }
+
+    if (abs($data['total'] - $total) > 0.01) {
+        wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and calculated total:' . $total], 422);
+    }
+
+    if (abs($data['total'] - $payment_total) > 0.01) {
+        wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and payment total:' . $payment_total], 422);
+    }
+
+    $restored_stock = [];
+    $wpdb->query('START TRANSACTION');
+    try {
+
+        // Insert into returns
+        $wpdb->insert(
+            $return_table,
+            [
+                'order_id'    => $data['order_id'],
+                'reference_num'   => $data['reference'],
+                'return_date' => $data['date'],
+                'reason'      => $data['reason'],
+                'subtotal'    => $subtotal,
+                'gst_total'   => $gst_total,
+                'pst_total'   => $pst_total,
+                'total'       => $total,
+            ],
+            ['%d', '%s', '%s', '%s', '%f', '%f', '%f', '%f']
+        );
+        $return_id = $wpdb->insert_id;
+
+        if (!$return_id) {
+            throw new RuntimeException("Failed to insert return: " . $wpdb->last_error);
+        }
+        // Inert into return item
+        foreach ($order_items as $item) {
+            $success = $wpdb->insert(
+                $return_items_table,
+                [
+                    'return_id'     => $return_id,
+                    'order_item_id' => $item->order_item_id,
+                    'product_inventory_unit_id' => $item->product_inventory_unit_id,
+                    'unit_price' => $item->sale_price,
+                ],
+                ['%d', '%d', '%d', '%f']
+            );
+            if (!$success) {
+                throw new RuntimeException("Failed to insert return item: " . $wpdb->last_error);
+            }
+        }
+
+        foreach ($data["payment"] as $method => $amount) {
+            $success = $wpdb->insert(
+                $payment_table,
+                [
+                    'customer_id'       => $order->customer_id,
+                    'salesperson_id'    => $order->salesperson_id,
+                    'location_id'       => $order->location_id,
+                    'order_id'          => $data['order_id'],
+                    'reference_num'     => $data['reference'],
+                    'method'            => $method,
+                    'amount'            => $amount,
+                    'transaction_type'  => 'refund',
+                    'payment_date'      => $data['date'],
+                    'notes'             => $data['reason'],
+                ],
+                ['%d', '%d', '%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s']
+            );
+
+            if (!$success) {
+                throw new RuntimeException("Failed to insert payment: " . $wpdb->last_error);
+            }
+        }
+
+        // Change the item status in inventory_status_history, product_inventory_units table and also woocommerce stock  
+        foreach ($order_items as $item) {
+
+            $items_info = [];
+
+            $success = $wpdb->insert(
+                $inventory_status_history_table,
+                [
+                    'inventory_unit_id' => $item->product_inventory_unit_id,
+                    'from_status'       => "sold",
+                    'to_status'         => "in_stock",
+                    'reference_num'     => $data['reference'],
+                    'created_at'        => $data['date'],
+                ],
+                ['%d', '%s', '%s', '%s', '%s']
+            );
+
+            if (!$success) {
+                throw new RuntimeException("Failed to insert in status history table: " . $wpdb->last_error);
+            }
+
+            $success = $wpdb->update(
+                $product_inventory_units_table,
+                [
+                    'status' => 'in_stock',
+                ],
+                ['id' => $item->product_inventory_unit_id],
+                ['%s'],
+                ['%d']
+            );
+
+            if ($success === false) {
+                throw new RuntimeException("Failed to update product inventory units table: " . $wpdb->last_error);
+            }
+
+            $product_id = $item->wc_product_variant_id ?: $item->wc_product_id;
+            $product = wc_get_product($product_id);
+            if (!$product) {
+                throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
+            }
+            $image_url = wp_get_attachment_image_url($product->get_image_id(), 'thumbnail');
+            $items_info['image_url'] = $image_url;
+            $items_info['sku'] = $item->sku;
+            $items_info['serial'] = $item->serial;
+            $items_info['price'] = $item->sale_price;
+            if ($item->wc_product_variant_id) {
+                $items_info['description'] = $product->get_description();
+            } else {
+                $items_info['description'] = $product->get_short_description();
+            }
+            $items_data[] = $items_info;
+            $product->set_stock_quantity($product->get_stock_quantity() + 1);
+            $product->save();
+            $restored_stock[] = $product_id;
+        }
+        $wpdb->query('COMMIT');
+
+        $totals = [
+            'subtotal' => $data['subtotal'],
+            'gst' => $data['gst_total'],
+            'pst' => $data['pst_total'],
+            'total' => $data['total'],
+        ];
+
+        // Grab customer and salesperson info for the print receipt
+        $customer_id = $order->customer_id;
+        $salesperson_id = $order->salesperson_id;
+        $all_salepeople = mji_get_salespeople();
+        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id);
+
+        $query = $wpdb->prepare("SELECT * FROM $customer_table WHERE id = %d", $customer_id);
+        $customer_info = $wpdb->get_row($query);
+
+        wp_send_json_success([
+            'items' => $items_data,
+            'totals' => $totals,
+            'reference_num' => $data['reference'],
+            'salesperson' => $salesperson,
+            'customer_info' => $customer_info,
+            'date' => $data['date'],
+            'original_reference' => $data['original_reference'],
+            'reason' => $data['reason']
+        ]);
+    } catch (Exception $e) {
+
+        // restore WooCommerce stock
+        foreach ($restored_stock as $product_id) {
+            $product = wc_get_product($product_id);
+            if ($product) {
+                $product->set_stock_quantity($product->get_stock_quantity() - 1);
+                $product->save();
+            }
+        }
+
+        custom_log($e->getMessage());
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(['message' => $e->getMessage()]);
+    }
+}
+
+function create_refund_return()
+{
+    $data = sanitize_and_validate_return($_POST);
+
+    $order = order_exists($data['order_id']);
+    if (!$order) {
+        wp_send_json_error(['message' => 'Order does not exist'], 404);
+    }
+
+    // get the order item ids to see if they match the items order id
+    $order_item_ids = get_order_items($data['order_id']);
+
+    if (! order_items_valid($order_item_ids, $data['refund_items'])) {
+        wp_send_json_error(['message' => 'One or more return items are invalid'], 422);
+    }
+
+    $already_returned = check_already_returned($data['refund_items']);
+    if ($already_returned) {
+        wp_send_json_error(['message' => 'Some selected items have already been returned'], 409);
+    }
+
+    insert_refund_transactions($data, $order);
+}
+
+add_action('wp_ajax_create_refund_return', 'create_refund_return');
