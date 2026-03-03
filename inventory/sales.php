@@ -1151,7 +1151,6 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     'inventory_unit_id' => $item->unit_id,
                     'from_status' => 'in_stock',
                     'to_status' => 'sold',
-                    'changed_by_user_id' => $order_data['salesperson_id'],
                     'reference_num' => $order_data['reference_num'],
                     'created_at' => $order_data['created_at']
                 ]);
