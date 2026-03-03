@@ -3,7 +3,7 @@
 function find_page()
 {
     $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'sales';
-    $allowed_tabs = ['sales', 'layaway'];
+    $allowed_tabs = ['sales', 'layaway', 'refund'];
 
     if (!in_array($active_tab, $allowed_tabs)) {
         $active_tab = 'sales';
@@ -20,6 +20,12 @@ function find_page()
         'layaway',
         menu_page_url('invoice-management', false)
     );
+
+    $refund_url = add_query_arg(
+        'tab',
+        'refund',
+        menu_page_url('invoice-management', false)
+    );
 ?>
 
     <div class="wrap">
@@ -33,6 +39,10 @@ function find_page()
             <a href="<?php echo esc_url($layaway_url); ?>"
                 class="nav-tab <?php echo $active_tab === 'layaway' ? 'nav-tab-active' : ''; ?>">
                 Layaway/Credit
+            </a>
+            <a href="<?php echo esc_url($refund_url); ?>"
+                class="nav-tab <?php echo $active_tab === 'refund' ? 'nav-tab-active' : ''; ?>">
+                Refund
             </a>
         </h2>
 
@@ -84,6 +94,19 @@ function render_search_section()
             } else {
                 echo '<div class="notice notice-error"><p>' . esc_html($result['message']) . '</p></div>';
             }
+        } elseif (
+            $_POST['action'] === 'delete_refund'
+            && isset($_POST['reference_num'], $_POST['delete_refund_nonce'])
+            && wp_verify_nonce($_POST['delete_refund_nonce'], 'delete_refund_action')
+        ) {
+            $reference_num = $_POST['reference_num'];
+            $result = delete_refund($reference_num);
+
+            if ($result['success']) {
+                echo '<div class="notice notice-success"><p>Refund deleted successfully.</p></div>';
+            } else {
+                echo '<div class="notice notice-error"><p>' . esc_html($result['message']) . '</p></div>';
+            }
         }
     } else if (isset($_GET['reference_num'])) {
 
@@ -99,7 +122,7 @@ function render_search_section()
                 render_invoice($results);
                 return;
             }
-        } else {
+        } else if ($active_tab == "layaway") {
             try {
                 $results = search_layaway_results($reference_num);
                 if (!$results) {
@@ -114,6 +137,16 @@ function render_search_section()
                 echo "<div class='wrap'>";
                 echo "<h2>" . $e->getMessage() . "</h2>";
                 echo "</div>";
+            }
+        } else {
+            $results = search_refund_results($reference_num);
+            if (!$results) {
+                echo "<div class='wrap'>";
+                echo "<h2>Invoice " . $reference_num . " not found!!";
+                echo "</div>";
+            } else {
+                render_refund_invoice($results);
+                return;
             }
         }
     }
@@ -615,6 +648,7 @@ function delete_invoice($order_id)
     $orders_table      = $wpdb->prefix . 'mji_orders';
     $order_items_table = $wpdb->prefix . 'mji_order_items';
     $inventory_table   = $wpdb->prefix . 'mji_product_inventory_units';
+    $inventory_history_table   = $wpdb->prefix . 'mji_inventory_status_history';
     $service_table     = $wpdb->prefix . 'mji_services';
     $payments_table    = $wpdb->prefix . 'mji_payments';
     $layaways_table    = $wpdb->prefix . 'mji_layaways';
@@ -677,6 +711,12 @@ function delete_invoice($order_id)
                     ...$inventory_ids
                 )
             );
+            check_wpdb_error($wpdb);
+
+            $wpdb->query($wpdb->prepare(
+                "DELETE FROM {$inventory_history_table} WHERE inventory_unit_id IN ($placeholders)",
+                $inventory_ids
+            ));
             check_wpdb_error($wpdb);
 
             foreach ($products as $product) {
@@ -1103,6 +1143,235 @@ function render_layaway_invoice($invoice)
 <?php
 }
 
+function search_refund_results($reference_num)
+{
+    global $wpdb;
+
+    $payments_table = $wpdb->prefix . 'mji_payments';
+    $customers_table = $wpdb->prefix . 'mji_customers';
+    $salespeople_table = $wpdb->prefix . 'mji_salespeople';
+    $returns_table = $wpdb->prefix . 'mji_returns';
+    $return_items_table = $wpdb->prefix . 'mji_return_items';
+    $product_inventory_units_table = $wpdb->prefix . 'mji_product_inventory_units';
+
+    try {
+        $sql_layaway = $wpdb->prepare("
+            SELECT
+                p.reference_num,
+                p.payment_date,
+                p.notes,
+                c.prefix,
+                c.first_name AS customer_first_name,
+                c.last_name  AS customer_last_name,
+                c.email,
+                c.street_address,
+                c.city,
+                c.province,
+                c.postal_code,  
+                c.country,
+                s.first_name AS salesperson_first_name,
+                s.last_name  AS salesperson_last_name
+            FROM {$payments_table} p
+            JOIN {$customers_table} c ON c.id = p.customer_id
+            JOIN {$salespeople_table} s ON s.id = p.salesperson_id
+            WHERE p.reference_num = %s
+            AND p.transaction_type = 'refund'
+        ", $reference_num);
+
+        $results = $wpdb->get_row($sql_layaway);
+        check_wpdb_error($wpdb);
+
+        if (!$results) return null;
+
+        $sql_payment = $wpdb->prepare("
+            SELECT
+                method,
+                amount
+            FROM {$payments_table}
+            WHERE reference_num = %s
+            AND transaction_type = 'refund'
+        ", $reference_num);
+
+        $payment = $wpdb->get_results($sql_payment);
+        check_wpdb_error($wpdb);
+
+        $results->payment = $payment;
+        $sql_get_return_items =  $wpdb->prepare("
+            SELECT
+                r.reference_num,
+                p.wc_product_id,
+                p.wc_product_variant_id,
+                p.sku,
+                p.serial
+            FROM {$returns_table} r
+            JOIN {$return_items_table} ri ON r.id = ri.return_id
+            JOIN {$product_inventory_units_table} p ON p.id = ri.product_inventory_unit_id
+            WHERE r.reference_num = %s
+        ", "$reference_num");
+
+        $return_items = $wpdb->get_results($sql_get_return_items);
+        check_wpdb_error($wpdb);
+
+        if ($return_items) {
+            $items = [];
+            foreach ($return_items as $return_item) {
+
+                $product_id = $return_item->wc_product_variant_id ?: $return_item->wc_product_id;
+                $product = wc_get_product($product_id);
+                $description = "";
+
+                if (!$product) {
+                    custom_log("{Product {$product_id} not found");
+                    throw new Exception("Product {$product_id} not found.");
+                }
+
+                $image_url = esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($return_item->wc_product_id), 'thumbnail'));
+                if ($return_item->wc_product_variant_id) {
+                    $description = $product->get_description();
+                } else {
+                    $description = $product->get_short_description();
+                }
+
+                $item = [
+                    "sku" => $return_item->sku,
+                    "serial" => $return_item->serial,
+                    "description" => $description,
+                    "image_url" => $image_url,
+                ];
+
+                array_push($items, $item);
+            }
+            $results->items = $items;
+        }
+        return $results;
+    } catch (Exception $e) {
+        custom_log($e->getMessage());
+    }
+}
+
+function render_refund_invoice($invoice)
+{
+    if (empty($invoice)) {
+        return;
+    }
+
+    $bill_to_lines = [];
+    $name = trim($invoice->prefix . ' ' . $invoice->customer_first_name . ' ' . $invoice->customer_last_name);
+    if ($name !== '') {
+        $bill_to_lines[] = esc_html($name);
+    }
+    if (!empty($invoice->street_address)) {
+        $bill_to_lines[] = esc_html($invoice->street_address);
+    }
+
+    $city_line = [];
+    if (!empty($invoice->city)) {
+        $city_line[] = $invoice->city;
+    }
+    if (!empty($invoice->province)) {
+        $city_line[] = $invoice->province;
+    }
+    if (!empty($invoice->postal_code)) {
+        $city_line[] = $invoice->postal_code;
+    }
+    if (!empty($city_line)) {
+        $bill_to_lines[] = esc_html(implode(', ', $city_line));
+    }
+    if (!empty($invoice->country)) {
+        $bill_to_lines[] = esc_html($invoice->country);
+    }
+    if (!empty($invoice->email)) {
+        $bill_to_lines[] = esc_html($invoice->email);
+    }
+
+    $purchased_date = $invoice->payment_date;
+    $purchased_date = strtotime($purchased_date);
+    $purchased_date = date('Y-m-d', $purchased_date);
+?>
+    <div style="max-width:700px;">
+
+        <h2>Refund Invoice #<?php echo esc_html($invoice->reference_num); ?></h2>
+
+        <p><strong>Bill To</strong></p>
+        <p>
+            <?php echo implode('<br>', $bill_to_lines); ?><br />
+            <strong>Served By:</strong>
+            <?php echo esc_html(
+                $invoice->salesperson_first_name . ' ' . $invoice->salesperson_last_name
+            ); ?><br>
+
+            <strong>Date Created:</strong>
+            <?php echo esc_html($purchased_date); ?>
+        </p>
+
+        <?php
+        if (!empty($invoice->items)):
+            echo "<h3>Items:</h3>";
+            foreach ($invoice->items as $item):
+                echo "<div>";
+                echo "<img src='{$item["image_url"]}' alt='product image' />";
+                echo "<p>";
+                if (!empty($item["sku"])) echo "<b>SKU: " . esc_html($item["sku"]) . "</b><br/>";
+                echo nl2br($item["description"]);
+                if (!empty($item["serial"])) echo "<br />Serial: " . esc_html($item["serial"]);
+                echo  "</p>";
+                echo "</div>";
+            endforeach;
+        endif;
+        ?>
+
+        <h3>Payment Summary</h3>
+
+        <table border="1" cellpadding="6" cellspacing="0" width="100%">
+            <thead>
+                <tr>
+                    <th align="left">Method</th>
+                    <th align="right">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $total_paid = 0.00;
+
+                if (!empty($invoice->payment)) :
+                    foreach ($invoice->payment as $payment) :
+                        $amount = (float) $payment->amount;
+                        $total_paid += $amount;
+                ?>
+                        <tr>
+                            <td><?php echo esc_html(ucfirst($payment->method)); ?></td>
+                            <td align="right">$<?php echo number_format($amount, 2); ?></td>
+                        </tr>
+                    <?php
+                    endforeach;
+                else :
+                    ?>
+                    <tr>
+                        <td colspan="2" align="center">No payments found</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th align="right">Total Paid</th>
+                    <th align="right">$<?php echo number_format($total_paid, 2); ?></th>
+                </tr>
+            </tfoot>
+        </table>
+
+
+        <form method="post" onsubmit="return confirm('Delete this refund? This cannot be undone.');">
+            <?php wp_nonce_field('delete_refund_action', 'delete_refund_nonce'); ?>
+            <input type="hidden" name="action" value="delete_refund">
+            <input type="hidden" name="reference_num" value="<?php echo esc_attr($invoice->reference_num); ?>">
+            <button type="submit" class="button button-danger">
+                Delete Refund
+            </button>
+        </form>
+    </div>
+<?php
+}
+
 function delete_layaway($layaway_id)
 {
     $layaway_id = absint($layaway_id);
@@ -1267,6 +1536,88 @@ function delete_credit($reference_num)
     }
 }
 
+function delete_refund($reference_num)
+{
+    $reference_num = $reference_num;
+    if (!$reference_num) {
+        return array("success" => false, "message" => "Reference number is required to delete.");
+    }
+
+    global $wpdb;
+    $payments_table = $wpdb->prefix . 'mji_payments';
+    $return_table = $wpdb->prefix . "mji_returns";
+    $return_items_table = $wpdb->prefix . "mji_return_items";
+    $inventory_status_history_table = $wpdb->prefix . "mji_inventory_status_history";
+    $product_inventory_units_table = $wpdb->prefix . "mji_product_inventory_units";
+    $restored_stock = [];
+    $wpdb->query('START TRANSACTION');
+    try {
+
+        $wpdb->delete($payments_table, ['reference_num' => $reference_num], ['%s']);
+        check_wpdb_error($wpdb);
+
+        $returns = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT r.id, ri.product_inventory_unit_id, p.wc_product_id, p.wc_product_variant_id
+                    FROM {$return_table} r
+                    JOIN {$return_items_table} ri
+                        ON r.id = ri.return_id
+                    JOIN {$product_inventory_units_table} p
+                        ON ri.product_inventory_unit_id = p.id
+                    WHERE reference_num = %s",
+                $reference_num
+            )
+        );
+        check_wpdb_error($wpdb);
+
+        if ($returns) {
+            $wpdb->delete($inventory_status_history_table, ['reference_num' => $reference_num], ['%s']);
+            check_wpdb_error($wpdb);
+            $wpdb->delete($return_table, ['reference_num' => $reference_num], ['%s']);
+            check_wpdb_error($wpdb);
+            $wpdb->delete($return_items_table, ['return_id' => $returns[0]->id], ['%d']);
+            check_wpdb_error($wpdb);
+
+            foreach ($returns as $return) {
+                $wpdb->update($product_inventory_units_table, ["status" => "sold"], ['id' => $return->product_inventory_unit_id], ['%s'], ['%d']);
+                check_wpdb_error($wpdb);
+
+                $product_id = $return->wc_product_variant_id ?: $return->wc_product_id;
+                $product = wc_get_product($product_id);
+                if (!$product) {
+                    throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
+                }
+
+                $product->set_stock_quantity($product->get_stock_quantity() - 1);
+                $product->save();
+                $restored_stock[] = $product_id;
+            }
+        }
+
+        $wpdb->query('COMMIT');
+        return [
+            'success' => true,
+            "message" => "Credit successfully deleted."
+        ];
+    } catch (Exception $e) {
+        $wpdb->query('ROLLBACK');
+
+        // restore WooCommerce stock
+        foreach ($restored_stock as $product_id) {
+            $product = wc_get_product($product_id);
+            if ($product) {
+                $product->set_stock_quantity($product->get_stock_quantity() + 1);
+                $product->save();
+            }
+        }
+        custom_log('[Delete Credit Invoice Failed] ' . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => '[Delete Credit Invoice Failed] ' . $e->getMessage(),
+        ];
+    }
+}
+
 function create_credit_return()
 {
     $data = sanitize_and_validate_return($_POST);
@@ -1302,7 +1653,6 @@ function sanitize_payment_amount($value)
     $num = (float) $value;
     return is_naN($num) ? 0.00 : round($num, 2);
 }
-
 
 function sanitize_and_validate_return($post_data)
 {
