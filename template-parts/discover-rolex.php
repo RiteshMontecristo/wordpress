@@ -2,11 +2,11 @@
 
 $discoverArr = array(
     array(
-        "desktop_url" => "/wp-content/uploads/rolex/discover-rolex/landscape/rolex_land-dweller_m127334-0001_rvb_2000x920.webp",
-        "mobile_url" => "/wp-content/uploads/rolex/discover-rolex/portrait/rolex_land-dweller_m127334-0001_rvb_780x1050.webp",
+        "desktop_url" => "/wp-content/uploads/rolex/discover-rolex/landscape/M126613LN-0002_2409jva_001d_2000x920.webp",
+        "mobile_url" => "/wp-content/uploads/rolex/discover-rolex/portrait/M126613LN-0002_2409jva_001d_780x1050.webp",
         "title" => "Rolex",
-        "subtitle" => "Land-Dweller",
-        "url" => "/rolex/land-dweller",
+        "subtitle" => "Submariner",
+        "url" => "/rolex/submariner",
         "text_color" => "black"
     ),
     array(
