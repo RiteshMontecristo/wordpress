@@ -4,5 +4,10 @@ function isValidEmail(email) {
 
   return emailPattern.test(email);
 }
+function isValidPostalCode(postalCode) {
+  const regex = /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i;
+  return regex.test(postalCode.trim());
+}
 
 export default isValidEmail;
+export { isValidPostalCode };

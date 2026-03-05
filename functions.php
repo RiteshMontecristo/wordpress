@@ -585,7 +585,7 @@ function rolex_form_shortcode($atts)
                     echo do_shortcode('[responsive_image desktop_image_url="' . $atts['success_img_url'] . '" mobile_image_url="' . $atts['success_img_url'] . '" alt_text="' . $atts['success_alt'] . '"]') ?>
                 </div>
             </div>
-            <script src="https://www.google.com/recaptcha/api.js?render=6LeQyf4qAAAAAAWm4dRwb-HQ55gjfYYzwVNMIZMI"></script>
+            <script src="https://www.google.com/recaptcha/api.js?render=6LeS14AsAAAAACGU-vMDvf6QF0nkxBY_LJbX2ljg"></script>
         </form>
 
         <noscript>
@@ -1260,7 +1260,7 @@ function conditional_recaptcha_script()
         stripos($current_path, 'rolex/contact-richmond') === false
     ) {
         // Output the script
-        echo '<script src="https://www.google.com/recaptcha/api.js?render=6LeQyf4qAAAAAAWm4dRwb-HQ55gjfYYzwVNMIZMI"></script>';
+        echo '<script src="https://www.google.com/recaptcha/api.js?render=6LeS14AsAAAAACGU-vMDvf6QF0nkxBY_LJbX2ljg"></script>';
     }
 }
 add_action('wp_footer', 'conditional_recaptcha_script');

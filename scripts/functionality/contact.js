@@ -1,13 +1,12 @@
-import isValidEmail from "../utils/index.js";
+import isValidEmail, { isValidPostalCode } from "../utils/index.js";
 
 // CONTACT US PAGE
 const contactUsFormContainer = document.querySelector(
-  ".contact-form-container"
+  ".contact-form-container",
 );
 if (contactUsFormContainer) {
   // Form and the form values
   const contactUsForm = contactUsFormContainer.querySelector("#contactUsForm");
-  const title = contactUsFormContainer.querySelector("#title");
   const firstName = contactUsFormContainer.querySelector("#first-name");
   const firstNameError =
     contactUsFormContainer.querySelector("#firstNameError");
@@ -15,99 +14,123 @@ if (contactUsFormContainer) {
   const lastNameError = contactUsFormContainer.querySelector("#lastNameError");
   const preferredContact =
     contactUsFormContainer.querySelector("#preferred-contact");
-  const emailContainer = contactUsFormContainer.querySelector(".email-address");
+  const preferredContactError =
+    contactUsFormContainer.querySelector("#preferred-contact");
   const email = contactUsFormContainer.querySelector("#email");
   const emailError = contactUsFormContainer.querySelector("#emailError");
-  const phoneContainer = contactUsFormContainer.querySelector(".phone-number");
   const phone = contactUsFormContainer.querySelector("#phone");
   const phoneError = contactUsFormContainer.querySelector("#phoneError");
+  const street = contactUsFormContainer.querySelector("#street");
+  const streetError = contactUsFormContainer.querySelector("#streetError");
+  const city = contactUsFormContainer.querySelector("#city");
+  const cityError = contactUsFormContainer.querySelector("#cityError");
+  const province = contactUsFormContainer.querySelector("#province");
+  const provinceError = contactUsFormContainer.querySelector("#provinceError");
+  const postalCode = contactUsFormContainer.querySelector("#postalCode");
+  const postalCodeError =
+    contactUsFormContainer.querySelector("#postalCodeError");
+  const country = contactUsFormContainer.querySelector("#country");
+  const countryError = contactUsFormContainer.querySelector("#countryError");
   const message = contactUsFormContainer.querySelector("#message");
   const messageError = contactUsFormContainer.querySelector("#messageError");
   const terms = contactUsFormContainer.querySelector("#terms");
   const termsError = contactUsFormContainer.querySelector("#termsError");
   const serverError = contactUsFormContainer.querySelector("#serverError");
-  const contact_us_nonce =
-    contactUsFormContainer.querySelector("#contact_us_nonce");
 
   const contactSuccess =
     contactUsFormContainer.querySelector("#contactSuccess");
 
-  preferredContact.addEventListener("change", () => {
-    if (preferredContact.value == "email") {
-      emailContainer.style.display = "flex";
-      phoneContainer.style.display = "none";
-    } else {
-      emailContainer.style.display = "none";
-      phoneContainer.style.display = "flex";
-    }
-  });
-
   contactUsForm.addEventListener("submit", (e) => {
     e.preventDefault();
 
-    firstNameError.classList.add("hidden");
-    lastNameError.classList.add("hidden");
-    emailError.classList.add("hidden");
-    phoneError.classList.add("hidden");
-    messageError.classList.add("hidden");
+    // Hide all errors
+    const allErrorElements = contactUsFormContainer.querySelectorAll(".error");
+    allErrorElements.forEach((el) => el.classList.add("hidden"));
     serverError.innerHTML = "";
 
     let errors = 0;
 
-    if (!firstName.value.trim()) {
-      errors++;
-      firstNameError.classList.remove("hidden");
-    }
-    if (!lastName.value.trim()) {
-      lastNameError.classList.remove("hidden");
-      errors++;
-    }
+    // Define validation rules
+    const validations = [
+      {
+        field: firstName,
+        errorEl: firstNameError,
+        validate: () => firstName.value.trim() !== "",
+      },
+      {
+        field: lastName,
+        errorEl: lastNameError,
+        validate: () => lastName.value.trim() !== "",
+      },
+      {
+        field: preferredContact,
+        errorEl: preferredContactError,
+        validate: () => preferredContact.value.trim() !== "",
+      },
+      {
+        field: email,
+        errorEl: emailError,
+        validate: () => isValidEmail(email.value.trim()),
+      },
+      {
+        field: phone,
+        errorEl: phoneError,
+        validate: () => phone.value.length == 10,
+      },
+      {
+        field: street,
+        errorEl: streetError,
+        validate: () => street.value.trim() !== "",
+      },
+      {
+        field: city,
+        errorEl: cityError,
+        validate: () => city.value.trim() !== "",
+      },
+      {
+        field: province,
+        errorEl: provinceError,
+        validate: () => province.value.trim() !== "",
+      },
+      {
+        field: postalCode,
+        errorEl: postalCodeError,
+        validate: () => isValidPostalCode(postalCode.value.trim()),
+      },
+      {
+        field: country,
+        errorEl: countryError,
+        validate: () => country.value.trim() !== "",
+      },
+      {
+        field: message,
+        errorEl: messageError,
+        validate: () => message.value.trim() !== "",
+      },
+      {
+        field: terms,
+        errorEl: termsError,
+        validate: () => terms.checked,
+      },
+    ];
 
-    if (preferredContact.value == "email") {
-      if (!isValidEmail(email.value.trim())) {
-        emailError.classList.remove("hidden");
+    validations.forEach((rule) => {
+      if (!rule.validate()) {
+        rule.errorEl.classList.remove("hidden");
         errors++;
       }
-    } else {
-      if (phone.value.length != 10) {
-        phoneError.classList.remove("hidden");
-        errors++;
-      }
-    }
-
-    if (!message.value.trim()) {
-      messageError.classList.remove("hidden");
-      errors++;
-    }
-
-    if (!terms.checked) {
-      termsError.classList.remove("hidden");
-      errors++;
-    }
+    });
 
     if (errors < 1) {
       grecaptcha.ready(async () => {
         const token = await grecaptcha.execute(
-          "6LeQyf4qAAAAAAWm4dRwb-HQ55gjfYYzwVNMIZMI",
-          { action: "contact_us" }
+          "6LeS14AsAAAAACGU-vMDvf6QF0nkxBY_LJbX2ljg",
+          { action: "contact_us" },
         );
-        let data = new FormData();
-
-        data.append("title", title.value);
-        data.append("lastName", lastName.value);
-        data.append("firstName", firstName.value);
-        data.append("preferredContact", preferredContact.value);
-        data.append("message", message.value);
-        data.append("action", "contact_us");
-        data.append("terms", terms.checked);
-        data.append("contact_us_nonce", contact_us_nonce.value);
-        data.append("g-recaptcha-response", token);
-
-        if (preferredContact.value === "email" && email.value) {
-          data.append("email", email.value);
-        } else if (preferredContact.value === "phone" && phone.value) {
-          data.append("phone", phone.value);
-        }
+        const data = new FormData(contactUsForm);
+        data.set("terms", terms.checked ? "1" : "0");
+        data.set("action", "contact_us");
+        data.set("g-recaptcha-response", token);
 
         fetch(ajax_object_another.ajax_url, {
           method: "POST",
@@ -187,9 +210,8 @@ const jewelleryMap = {
 const customizeContainer = document.querySelector(".customize-container");
 
 if (customizeContainer) {
-
   const copy = customizeContainer.querySelector(".copy");
-  
+
   // Form and the form values
   const customizeForm = customizeContainer.querySelector("#customize-form");
 
@@ -209,7 +231,7 @@ if (customizeContainer) {
 
   const jewelleryPiece = customizeContainer.querySelector("#jewelleryPiece");
   const jewelleryPieceError = customizeContainer.querySelector(
-    "#jewelleryPieceError"
+    "#jewelleryPieceError",
   );
 
   const montecristoPiece =
@@ -288,7 +310,7 @@ if (customizeContainer) {
       grecaptcha.ready(async () => {
         const token = await grecaptcha.execute(
           "6LeQyf4qAAAAAAWm4dRwb-HQ55gjfYYzwVNMIZMI",
-          { action: "customize_us" }
+          { action: "customize_us" },
         );
 
         let data = new FormData();

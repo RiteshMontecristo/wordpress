@@ -331,6 +331,11 @@ function contact_us()
         wp_send_json_error(array('message' => 'Server error while trying to send email, Please try again later.'));
         return;
     }
+    // Honeypot
+    if (! empty($_POST['website'])) {
+        wp_send_json_success(['message' => 'Thank you for your message!']);
+        exit;
+    }
 
     $title = isset($_POST['title']) ? sanitize_text_field($_POST['title']) : '';
     $firstName = isset($_POST['firstName']) ? sanitize_text_field($_POST['firstName']) : '';
@@ -338,9 +343,15 @@ function contact_us()
     $preferredContact = isset($_POST['preferredContact']) ? sanitize_text_field($_POST['preferredContact']) : '';
     $email = isset($_POST['email']) ? sanitize_email($_POST['email']) : '';
     $phone = isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : '';
+    $street = isset($_POST['street']) ? sanitize_text_field($_POST['street']) : '';
+    $city = isset($_POST['city']) ? sanitize_text_field($_POST['city']) : '';
+    $province = isset($_POST['province']) ? sanitize_text_field($_POST['province']) : '';
+    $postalCode = isset($_POST['postalCode']) ? sanitize_text_field($_POST['postalCode']) : '';
+    $country = isset($_POST['country']) ? sanitize_text_field($_POST['country']) : '';
     $customerMessage = isset($_POST['message']) ? sanitize_textarea_field($_POST['message']) : '';
-    $terms = isset($_POST['terms']) ? sanitize_textarea_field($_POST['terms']) : '';
+    $terms = isset($_POST['terms']) && $_POST['terms'] === '1';
     $captcha_token = isset($_POST['g-recaptcha-response']) ? sanitize_textarea_field($_POST['g-recaptcha-response']) : '';
+    $errors = [];
 
     // Validation checks
     if (empty($firstName)) {
@@ -355,10 +366,25 @@ function contact_us()
     if ($preferredContact === 'phone' && empty($phone)) {
         $errors[] = "Phone number is required.";
     }
+    if (empty($street)) {
+        $errors[] = "Street is required.";
+    }
+    if (empty($city)) {
+        $errors[] = "City is required.";
+    }
+    if (empty($province)) {
+        $errors[] = "Province is required.";
+    }
+    if (empty($postalCode)) {
+        $errors[] = "Postal code is required.";
+    }
+    if (empty($country)) {
+        $errors[] = "Country is required.";
+    }
     if (empty($customerMessage)) {
         $errors[] = "Message is required.";
     }
-    if (empty($terms)) {
+    if (!$terms) {
         $errors[] = "terms is required.";
     }
     if (empty($captcha_token)) {
@@ -380,18 +406,17 @@ function contact_us()
         $message = "Customer reached out to us with the following information:\r\n\r\n";
         $message .= "Name: $title $firstName $lastName\r\n";
         $message .= "Preferred Contact: $preferredContact\r\n";
-
-        if (!empty($email)) {
-            $message .= "Email: $email\r\n";
-        }
-        if (!empty($phone)) {
-            $message .= "Phone: $phone\r\n";
-        }
+        $message .= "Email: $email\r\n";
+        $message .= "Phone: $phone\r\n";
+        $message .= "Street: $street\r\n";
+        $message .= "City: $city\r\n";
+        $message .= "Postal code: $province\r\n";
+        $message .= "Country: $country\r\n";
 
         $message .= "\r\nMessage:\r\n$customerMessage\r\n\r\n";
         $message .= "--\r\n";
         $message .= "This message was sent via the Montecristo Jewellers contact form.";
-        $headers = array('Content-Type: text/plain; charset=UTF-8');
+        $headers = array("Content-Type: text/plain; charset=UTF-8', 'From: Montecristo Jewellers <$to>");
         $mail_sent = wp_mail($to, $subject, $message, $headers);
 
         if ($mail_sent) {
@@ -822,74 +847,6 @@ function handle_newsletter_subscribe_form()
         exit;
     }
 }
-
-// TESTING AND WORKIGN ON INVENTORY MANAGMENT
-function sendPosData()
-{
-    $message = '';
-    if (isset($_POST['products']) && !empty($_POST['products'])) {
-        $products = $_POST['products'];
-        foreach ($products as $product) {
-            // splits into product_id, sku_text, variation_product_id
-            $split_product = explode(" ", $product);
-            $split_product_len = count($split_product);
-
-            // If its vairable product
-            if ($split_product_len === 3) {
-                // reduce the product quantity
-                $reduced = reduce_product_quantity($split_product[2]);
-
-                // If wasnt able to reduce the quantity, save the message so we can inform someone to manually reduce it
-                if (!$reduced["success"]) {
-                    $message .= "Was not able to reduce product quantity for SKU: " . $split_product[1];
-                }
-
-                // remove the sku
-                $sku_removed = remove_sku($split_product);
-
-                // If wasnt able to remove the sku, save the message so we can inform someone to manually remove it
-                if (!$sku_removed["success"]) {
-                    $message .= "Was not able to remove product SKU: " . $split_product[1];
-                }
-            }
-            // if its normal product
-            else if ($split_product_len === 2) {
-
-                // reduce the product quantity
-                $reduced = reduce_product_quantity($split_product[0]);
-
-                // If wasnt able to reduce the quantity, save the message so we can inform someone.
-                if (!$reduced["success"]) {
-                    $message .= "Was not able to reduce product quantity for SKU: " . $split_product[1];
-                }
-
-                // remove the sku
-                $sku_removed = remove_sku($split_product);
-
-                // If wasnt able to remove the sku, save the message so we can inform someone to manually remove it
-                if (!$sku_removed["success"]) {
-                    $message .= "Was not able to remove product SKU: " . $split_product[1];
-                }
-            }
-            // if no sku number is there 
-            else {
-                // reduce the product quantity
-                $reduced = reduce_product_quantity($split_product[0]);
-
-                // If wasnt able to reduce the quantity, save the message so we can inform someone.
-                if (!$reduced["success"]) {
-                    $message .= "Was not able to reduce product quantity";
-                }
-
-                $message .= "This product didn't have any SKU option, Please look into this";
-            }
-        }
-    }
-    echo $message;
-    wp_send_json(array(" Testssss" => "TEST"));
-}
-
-add_action('wp_ajax_sendPosData', 'sendPosData'); // For logged-in users
 
 // To log issues when i cant echo out in the frontend
 function custom_log($message)

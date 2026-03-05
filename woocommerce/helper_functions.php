@@ -74,7 +74,7 @@ function remove_sku($split_product)
 
 function captcha_verify($captcha_token)
 {
-    $CAPTCHA_SERCRET = '6LeQyf4qAAAAALpHBHQW-1-NQfrZJNvVoGXZ8Ha1';
+    $CAPTCHA_SERCRET = '6LeS14AsAAAAAOVFXjnWopguQVwztxW5DUp8Ms89';
 
     // Prepare POST request to Google
     $url = 'https://www.google.com/recaptcha/api/siteverify';

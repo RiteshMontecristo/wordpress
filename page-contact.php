@@ -23,7 +23,7 @@ get_header(); ?>
 		?>
 		<div class="col-full">
 
-			<h1><?php the_title() ?></h1>
+			<h1 id="contactUs"><?php the_title() ?></h1>
 
 			<p class="contact-content">
 				Whether you have questions about our pieces, corporate affairs, or career opportunities, we’re here to assist you every step of the way.
@@ -50,7 +50,13 @@ get_header(); ?>
 							</div>
 
 							<input type="hidden" name="contact_us_nonce" id="contact_us_nonce" value="<?php echo wp_create_nonce('contact_us_nonce') ?>" />
-
+							<!-- HONEYPOT (invisible to humans) -->
+							<input
+								type="text"
+								name="website"
+								style="display:none !important; position:absolute !important; left:-9999px;"
+								autocomplete="off"
+								tabindex="-1" />
 							<div>
 								<label for="title">Title</label>
 								<select name="title" id="title">
@@ -63,36 +69,67 @@ get_header(); ?>
 							</div>
 
 							<div class="first-name">
-								<label for="first-name">First Name:</label>
-								<input type="text" id="first-name" name="first-name" required placeholder="Your First Name">
+								<label for="first-name">First Name</label>
+								<input type="text" id="first-name" name="firstName" required placeholder="Your First Name">
 								<span class="error hidden" id="firstNameError">First name is required</span>
 							</div>
 
 							<div class="last-name">
-								<label for="last-name">Last Name:</label>
-								<input type="text" id="last-name" name="last-name" required placeholder="Your Last Name">
+								<label for="last-name">Last Name</label>
+								<input type="text" id="last-name" name="lastName" required placeholder="Your Last Name">
 								<span class="error hidden" id="lastNameError">Last name is required</span>
 							</div>
 
 							<div class="preferred-contact">
-								<label for="preferred-contact">Preferred Contact Method:</label>
-								<select id="preferred-contact" name="preferred-contact" required>
+								<label for="preferred-contact">Preferred Contact Method</label>
+								<select id="preferred-contact" name="preferredContact" required>
 									<option value="" selected disabled>Select One</option>
 									<option value="email">Email</option>
 									<option value="phone">Phone</option>
 								</select>
+								<span class="error hidden" id="preferredContactError">Please select the contact method you prefer</span>
 							</div>
 
-							<div class="email-address hidden">
-								<label for="email">Email Address:</label>
-								<input type="email" id="email" name="email" placeholder="you@example.com">
+							<div class="email-address">
+								<label for="email">Email Address</label>
+								<input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="on">
 								<span class="error hidden" id="emailError">Email is required</span>
 							</div>
 
-							<div class="phone-number hidden">
-								<label for="phone">Phone Number:</label>
-								<input maxlength="10" type="tel" id="phone" name="phone" placeholder="Your Phone Number">
+							<div class="phone-number">
+								<label for="phone">Phone Number</label>
+								<input maxlength="10" type="tel" id="phone" name="phone" placeholder="Your Phone Number" autocomplete="on">
 								<span class="error hidden" id="phoneError">Phone number is required and must be 10 characters</span>
+							</div>
+
+							<div class="street">
+								<label for="street">Street Address</label>
+								<input type="text" id="street" name="street" placeholder="Your street address">
+								<span class="error hidden" id="streetError">Street address is required</span>
+							</div>
+
+							<div class="city">
+								<label for="city">City</label>
+								<input type="text" id="city" name="city" placeholder="Your city">
+								<span class="error hidden" id="cityError">City is required</span>
+							</div>
+
+							<div class="province">
+								<label for="province">Province</label>
+								<input type="text" id="province" name="province" placeholder="Your province">
+								<span class="error hidden" id="provinceError">Province is required</span>
+							</div>
+
+							<div class="postalCode">
+								<label for="postalCode">Postal Code</label>
+								<input type="text" id="postalCode" name="postalCode" placeholder="Your postalCode">
+								<span class="error hidden" id="postalCodeError">Postal Code is required</span>
+							</div>
+
+							<div class="country">
+								<label for="country">Country</label>
+								<?= countrySelector('Canada') ?>
+								<span class="error hidden" id="countryError">Country is required</span>
 							</div>
 
 							<div class="message">
@@ -115,7 +152,6 @@ get_header(); ?>
 							<ul id="serverError" class="server-error">
 							</ul>
 
-							<!-- Your code -->
 						</form>
 
 						<div id="contactSuccess" class="contact-success">
