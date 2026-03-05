@@ -2,22 +2,22 @@ import { formatCurrency } from "./index.js";
 
 const issueCreditBtn = document.querySelector("#issue_credit");
 const creditEl = document.querySelector("#credit");
-const cancelCreditBtn = creditEl.querySelector(".button.cancel");
-const creditContainer = creditEl.querySelector(".credit-container");
-const creditForm = document.querySelector('form[name="credit_invoice"]');
-const submitCreditReturnBtn = creditForm.querySelector("#submit_return");
-const allItemsCheckbox = creditForm.querySelectorAll(".return-item-checkbox");
+const cancelCreditBtn = creditEl?.querySelector(".button.cancel");
+const creditContainer = creditEl?.querySelector(".credit-container");
+const creditForm = document?.querySelector('form[name="credit_invoice"]');
+const submitCreditReturnBtn = creditForm?.querySelector("#submit_return");
+const allItemsCheckbox = creditForm?.querySelectorAll(".return-item-checkbox");
 
-const issueRefundBtn = document.querySelector("#issue_refund");
-const refundEl = document.querySelector("#refund");
-const cancelRefundBtn = refundEl.querySelector(".button.cancel");
-const refundContainer = refundEl.querySelector(".refund-container");
-const refundForm = document.querySelector('form[name="refund_invoice"]');
-const submitRefundReturnBtn = refundForm.querySelector("#submit_return");
-const allRefundItemsCheckbox = refundForm.querySelectorAll(
+const issueRefundBtn = document?.querySelector("#issue_refund");
+const refundEl = document?.querySelector("#refund");
+const cancelRefundBtn = refundEl?.querySelector(".button.cancel");
+const refundContainer = refundEl?.querySelector(".refund-container");
+const refundForm = document?.querySelector('form[name="refund_invoice"]');
+const submitRefundReturnBtn = refundForm?.querySelector("#submit_return");
+const allRefundItemsCheckbox = refundForm?.querySelectorAll(
   ".return-item-checkbox",
 );
-const allPaymentsMethod = refundForm.querySelectorAll(".payment-item");
+const allPaymentsMethod = refundForm?.querySelectorAll(".payment-item");
 
 const GST = 0.05,
   PST = 0.07;
@@ -25,26 +25,26 @@ const GST = 0.05,
 let subtotal, gst, pst, total;
 
 // Credit Section
-issueCreditBtn.addEventListener("click", (e) => toggleDisplayEl(e, creditEl));
-cancelCreditBtn.addEventListener("click", (e) => toggleDisplayEl(e, creditEl));
-allItemsCheckbox.forEach((checkbox) => {
+issueCreditBtn?.addEventListener("click", (e) => toggleDisplayEl(e, creditEl));
+cancelCreditBtn?.addEventListener("click", (e) => toggleDisplayEl(e, creditEl));
+allItemsCheckbox?.forEach((checkbox) => {
   checkbox.addEventListener("change", () =>
     updateTotals(allItemsCheckbox, creditForm),
   );
 });
-creditForm.addEventListener("submit", (e) =>
+creditForm?.addEventListener("submit", (e) =>
   sumbitForm(e, creditForm, "credit"),
 );
 
 // Refund Section
-issueRefundBtn.addEventListener("click", (e) => toggleDisplayEl(e, refundEl));
-cancelRefundBtn.addEventListener("click", (e) => toggleDisplayEl(e, refundEl));
-allRefundItemsCheckbox.forEach((checkbox) => {
+issueRefundBtn?.addEventListener("click", (e) => toggleDisplayEl(e, refundEl));
+cancelRefundBtn?.addEventListener("click", (e) => toggleDisplayEl(e, refundEl));
+allRefundItemsCheckbox?.forEach((checkbox) => {
   checkbox.addEventListener("change", () =>
     updateTotals(allRefundItemsCheckbox, refundForm),
   );
 });
-refundForm.addEventListener("submit", (e) =>
+refundForm?.addEventListener("submit", (e) =>
   sumbitForm(e, refundForm, "refund"),
 );
 
