@@ -2,9 +2,11 @@ const inventoryTable = document.querySelector("#inventory-units-table");
 
 const inventoryUnitModal = document?.querySelector("#inventory_unit_modal");
 const addUnitModal = document?.querySelector("#open_add_modal");
-const editUnitModal = inventoryTable?.querySelectorAll(".edit-unit");
+const editUnitBtn = inventoryTable?.querySelectorAll(".edit-unit");
 const saveModal = inventoryUnitModal?.querySelector("#modal_save");
 const cancelModal = inventoryUnitModal?.querySelector("#modal_cancel");
+
+const deleteUnitbtn = inventoryTable?.querySelectorAll(".delete-unit.button");
 
 const unitIdModal = inventoryUnitModal?.querySelector("#modal_unit_id");
 const productIdModal = inventoryUnitModal?.querySelector("#modal_product_id");
@@ -14,17 +16,25 @@ const serialModal = inventoryUnitModal?.querySelector("#modal_serial");
 const locationModal = inventoryUnitModal?.querySelector("#location");
 const supplierModal = inventoryUnitModal?.querySelector("#supplierID");
 const invoiceNumberModal = inventoryUnitModal?.querySelector(
-  "#modal_invoice_number"
+  "#modal_invoice_number",
 );
 const invoiceDateModal = inventoryUnitModal?.querySelector(
-  "#modal_invoice_date"
+  "#modal_invoice_date",
 );
 const costPriceModal = inventoryUnitModal?.querySelector("#modal_cost_price");
 const trueCostModal = inventoryUnitModal?.querySelector("#modal_true_cost");
 const retailPriceModal = inventoryUnitModal?.querySelector(
-  "#modal_retail_price"
+  "#modal_retail_price",
 );
 const notesModal = inventoryUnitModal?.querySelector("#modal_notes");
+
+// Status History Selectors
+const viewHistoryBtns = inventoryTable?.querySelectorAll("button.view-history");
+const viewHistoryModal = document.querySelector("#view-history-modal");
+const closeHistoryModalBtn = viewHistoryModal?.querySelector(".close-history");
+const itemStatusContainer = viewHistoryModal?.querySelector(
+  ".item-status-container",
+);
 
 // Edit status
 const editStatusModal = document?.querySelector("#edit-status-modal");
@@ -138,6 +148,49 @@ saveModal?.addEventListener("click", (e) => {
     });
 });
 
+// Delete Unit
+deleteUnitbtn?.forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    btn.disabled = true;
+    e.preventDefault();
+    let text = "Are you sure you want to delete?";
+    if (confirm(text) == true) {
+      const tr = btn.closest("tr");
+      const unitId = tr.dataset.unitId;
+      const productId = tr.dataset.productId;
+      const variantId = tr.dataset.variant;
+
+      const formData = new FormData();
+      formData.append("unit_id", unitId);
+      formData.append("product_id", productId);
+      formData.append("variant_id", variantId);
+      formData.append("action", "delete_inventory_unit");
+
+      fetch(`${ajax_inventory.ajax_url}`, {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((res) => {
+          if (res.success) {
+            alert("Unit deleted successfully!");
+            window.location.reload();
+          } else {
+            alert(res.data.message);
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        })
+        .finally(() => {
+          btn.disabled = false;
+        });
+    } else {
+      btn.disabled = false;
+    }
+  });
+});
+
 // Select searchbox
 jQuery(document).ready(function ($) {
   $(".supplier-select").select2({
@@ -161,7 +214,7 @@ function updatePricesFromVariation() {
 }
 variantModal?.addEventListener("change", updatePricesFromVariation);
 
-editUnitModal?.forEach((button) => {
+editUnitBtn?.forEach((button) => {
   button.addEventListener("click", function (event) {
     event.preventDefault();
     inventoryUnitModal.style.display = "block";
@@ -267,4 +320,43 @@ editStatusForm?.addEventListener("submit", async (e) => {
     editStatusError.classList.remove("hidden");
     editStatusUpdateBtn.removeAttribute("disabled");
   }
+});
+
+// Status History
+viewHistoryBtns?.forEach((button) => {
+  button.addEventListener("click", (e) => {
+    e.preventDefault();
+    viewHistoryModal.classList.remove("hidden");
+    const tr = button.closest("tr");
+    const history = tr.dataset.history;
+    const parsedHistory = JSON.parse(history);
+
+    const itemStatusEl = parsedHistory
+      .map(
+        (el) =>
+          `
+      <div class="item-status">
+          <p class="status-change">Item changed from ${el.from_status} to ${el.to_status} at ${el.created_at.split(" ")[0]}.</p>
+          ${
+            el.payments.length > 0
+              ? `<p class="payment-info">
+                Reference Number: ${el.payments[0].reference_num} <br />
+                Customer Name: ${el.payments[0].first_name}  ${el.payments[0].last_name}<br />
+                Salesperson: ${el.payments[0].salesperson_first_name}  ${el.payments[0].salesperson_last_name} 
+              </p>`
+              : ""
+          }
+          <p class="notes">Notes: ${el.notes}</p>
+      </div>
+    `,
+      )
+      .join("");
+
+    itemStatusContainer.innerHTML = itemStatusEl;
+  });
+});
+
+closeHistoryModalBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  viewHistoryModal.classList.add("hidden");
 });

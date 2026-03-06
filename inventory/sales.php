@@ -1152,7 +1152,8 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     'from_status' => 'in_stock',
                     'to_status' => 'sold',
                     'reference_num' => $order_data['reference_num'],
-                    'created_at' => $order_data['created_at']
+                    'created_at' => $order_data['created_at'],
+                    'notes' => $order_data['notes']
                 ]);
 
                 if (!$success) {

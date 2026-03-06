@@ -1060,6 +1060,12 @@ add_action('admin_notices', function () {
         }
         delete_transient('mji_global_admin_errors');
     }
+    if (isset($_GET['delete_blocked'])) {
+        $post_id = intval($_GET['delete_blocked']);
+        echo '<div class="notice notice-error is-dismissible">
+                <p><strong>Deletion blocked:</strong> Product ID ' . esc_html($post_id) . ' cannot be deleted because it exists in inventory history.</p>
+              </div>';
+    }
 });
 
 function format_label($input)

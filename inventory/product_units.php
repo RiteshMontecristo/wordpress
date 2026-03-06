@@ -19,6 +19,11 @@ function render_inventory_units_meta_box($post)
     global $wpdb;
 
     $table_name = $wpdb->prefix . 'mji_product_inventory_units';
+    $sku_history_table = $wpdb->prefix . 'mji_product_sku_history';
+    $status_history_table = $wpdb->prefix . 'mji_inventory_status_history';
+    $payments_table = $wpdb->prefix . 'mji_payments';
+    $customers_table = $wpdb->prefix . 'mji_customers';
+    $salespeople_table = $wpdb->prefix . 'mji_salespeople';
     $product_id = $post->ID;
     $is_variation = false;
     $location_name_by_id = [];
@@ -33,12 +38,89 @@ function render_inventory_units_meta_box($post)
     $variation_select = '';
     $cost_price = 0;
     $retail_price = 0;
+
     $units = $wpdb->get_results(
         $wpdb->prepare(
-            "SELECT * FROM $table_name WHERE wc_product_id = %d ",
+            "SELECT * FROM $table_name WHERE wc_product_id = %d",
             $product_id
-        )
+        ),
+        ARRAY_A
     );
+
+    if (! empty($units)) {
+        $unit_ids = wp_list_pluck($units, 'id');
+        $ids_placeholder = implode(',', array_fill(0, count($unit_ids), '%d'));
+
+        $sku_history = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $sku_history_table WHERE unit_id IN ($ids_placeholder) ORDER BY changed_date",
+                ...$unit_ids
+            ),
+            ARRAY_A
+        );
+
+        $sku_by_unit = [];
+        foreach ($sku_history as $sku) {
+            $sku_by_unit[$sku['unit_id']][] = $sku;
+        }
+
+        $status_history = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $status_history_table sh
+                 WHERE inventory_unit_id IN ($ids_placeholder) ORDER BY created_at",
+                ...$unit_ids
+            ),
+            ARRAY_A
+        );
+
+        $reference_numbers = wp_list_pluck($status_history, 'reference_num');
+        $reference_numbers = array_unique($reference_numbers);
+        $reference_numbers = array_filter($reference_numbers);
+
+        $payments = [];
+        if (! empty($reference_numbers)) {
+            $ref_placeholders = implode(',', array_fill(0, count($reference_numbers), '%s'));
+
+            $payments = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT p.reference_num, c.first_name, c.last_name, s.first_name AS salesperson_first_name, s.last_name AS salesperson_last_name FROM $payments_table p
+                    LEFT JOIN $customers_table c 
+                        ON c.id = p.customer_id
+                    LEFT JOIN $salespeople_table s
+                        ON s.id = p.salesperson_id
+                    WHERE reference_num IN ($ref_placeholders)",
+                    ...$reference_numbers
+                ),
+                ARRAY_A
+            );
+        }
+
+        $payments_by_ref = [];
+        foreach ($payments as $payment) {
+            $ref = $payment['reference_num'];
+            if (! isset($payments_by_ref[$ref])) {
+                $payments_by_ref[$ref] = [];
+            }
+            $payments_by_ref[$ref][] = $payment;
+        }
+        foreach ($status_history as &$status) {
+            $ref = $status['reference_num'];
+            $status['payments'] = $payments_by_ref[$ref] ?? [];
+        }
+        unset($status);
+
+        $status_by_unit = [];
+        foreach ($status_history as $status) {
+            $status_by_unit[$status['inventory_unit_id']][] = $status;
+        }
+
+        foreach ($units as &$unit) {
+            $unit['sku_history'] = $sku_by_unit[$unit['id']] ?? [];
+            $unit['status_history'] = $status_by_unit[$unit['id']] ?? [];
+        }
+        unset($unit);
+    }
+
     $product = wc_get_product($product_id);
 
     if ($product && $product->is_type('variable')) {
@@ -78,40 +160,55 @@ function render_inventory_units_meta_box($post)
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($units as $unit): ?>
+            <?php foreach ($units as $unit):
+                $old_sku_el = '';
+
+                if (!is_empty($unit["sku_history"])) {
+                    foreach ($unit["sku_history"] as $history) {
+                        $old_sku_el .= $history["old_sku"] . "->";
+                    }
+                }
+                // Convert to JSON string
+                $jsonHistory = json_encode($unit["status_history"]);
+                // Escape special HTML characters so quotes don't break the attribute
+                $escapedJson = htmlspecialchars($jsonHistory, ENT_QUOTES, 'UTF-8');
+            ?>
                 <tr class="unit-row"
                     data-product-id="<?= esc_attr($product_id) ?>"
-                    data-unit-id="<?= esc_attr($unit->id) ?>"
-                    data-sku="<?= esc_attr($unit->sku) ?>"
-                    data-status="<?= esc_attr($unit->status) ?>"
-                    data-variant="<?= esc_attr($unit->wc_product_variant_id) ?>"
-                    data-serial="<?= esc_attr($unit->serial) ?>"
-                    data-location="<?= esc_attr($unit->location_id) ?>"
-                    data-supplier="<?= esc_attr($unit->supplier_id ?? '') ?>"
-                    data-invoice-number="<?= esc_attr($unit->invoice_number ?? '') ?>"
-                    data-invoice-date="<?= esc_attr(date('Y-m-d', strtotime($unit->created_date)) ?? '') ?>"
-                    data-cost-price="<?= esc_attr($unit->cost_price) ?>"
-                    data-true-cost="<?= esc_attr($unit->true_cost) ?>"
-                    data-retail-price="<?= esc_attr($unit->retail_price) ?>"
-                    data-notes="<?= esc_attr($unit->notes ?? '') ?>">
+                    data-unit-id="<?= esc_attr($unit['id']) ?>"
+                    data-sku="<?= esc_attr($unit['sku']) ?>"
+                    data-status="<?= esc_attr($unit['status']) ?>"
+                    data-variant="<?= esc_attr($unit['wc_product_variant_id']) ?>"
+                    data-serial="<?= esc_attr($unit['serial']) ?>"
+                    data-location="<?= esc_attr($unit['location_id']) ?>"
+                    data-supplier="<?= esc_attr($unit['supplier_id'] ?? '') ?>"
+                    data-invoice-number="<?= esc_attr($unit['invoice_number'] ?? '') ?>"
+                    data-invoice-date="<?= esc_attr(date('Y-m-d', strtotime($unit['created_date'])) ?? '') ?>"
+                    data-cost-price="<?= esc_attr($unit['cost_price']) ?>"
+                    data-true-cost="<?= esc_attr($unit['true_cost']) ?>"
+                    data-retail-price="<?= esc_attr($unit['retail_price']) ?>"
+                    data-notes="<?= esc_attr($unit['notes'] ?? '') ?>"
+                    data-history="<?= $escapedJson ?>">
 
-                    <td data-field="sku" data-value="<?= esc_html($unit->sku) ?>" class="editable-cell">
-                        <?= esc_html($unit->sku) ?></td>
-                    <td data-field="status" data-value="<?= esc_html($unit->status) ?>" class="editable-cell">
-                        <?= esc_html($status[$unit->status]) ?></td>
+                    <td data-field="sku" data-value="<?= esc_html($unit['sku']) ?>" class="editable-cell">
+                        <?= $old_sku_el ?><?= esc_html($unit['sku']) ?></td>
+                    <td data-field="status" data-value="<?= esc_html($unit['status']) ?>" class="editable-cell">
+                        <?= esc_html($unit['status']) ?></td>
                     <?php if ($is_variation): ?>
-                        <td data-field="variant" data-value=" <?= esc_html($unit->wc_product_variant_id) ?>" class="editable-cell">
-                            <?= esc_html($variation_name_by_id[$unit->wc_product_variant_id]) ?>
+                        <td data-field="variant" data-value=" <?= esc_html($unit['wc_product_variant_id']) ?>" class="editable-cell">
+                            <?= esc_html($variation_name_by_id[$unit['wc_product_variant_id']]) ?>
                         </td>
                     <?php endif; ?>
-                    <td data-field="serial" data-value=" <?= esc_html($unit->serial) ?>" class="editable-cell">
-                        <?= esc_html($unit->serial) ?>
+                    <td data-field="serial" data-value=" <?= esc_html($unit['serial']) ?>" class="editable-cell">
+                        <?= esc_html($unit['serial']) ?>
                     </td>
-                    <td data-field="location" data-value="<?= esc_html($unit->location_id) ?>" class="editable-cell">
-                        <?= esc_html($location_name_by_id[$unit->location_id]) ?></td>
+                    <td data-field="location" data-value="<?= esc_html($unit['location_id']) ?>" class="editable-cell">
+                        <?= esc_html($location_name_by_id[$unit['location_id']]) ?></td>
                     <td>
                         <button class="edit-unit button">Edit</button>
-                        <?= $unit->status != "sold" ? '<button class="edit-status button">Return</button>' : '' ?>
+                        <?= $unit['status'] != "sold" ? '<button class="edit-status button">Change Status</button>' : '' ?>
+                        <button class="view-history button">View History</button>
+                        <button class="delete-unit button">Delete</button>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -211,6 +308,7 @@ function render_inventory_units_meta_box($post)
                     <select id="status" name="status" required>
                         <option value="in_stock">In Stock</option>
                         <option value="damaged">Damaged</option>
+                        <option value="dismantled">Dismantled</option>
                         <option value="missing">Missing</option>
                         <option value="rtv">Return to Vendor</option>
                     </select>
@@ -248,6 +346,16 @@ function render_inventory_units_meta_box($post)
                     <button id="cancel" class="button">Cancel</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="view-history-modal" class="return-container hidden">
+        <div class="view-history-container">
+            <button type="button" class="close-history">&#10005;</button>
+            <h2 class="form-title">Item History for <span id="sku"></span></h2>
+
+            <div class="item-status-container">
+            </div>
         </div>
     </div>
     <?php
@@ -302,6 +410,76 @@ function generate_variation_dropdown($product, &$variation_name_by_id)
         'default_cost' => $first_cost_price
     ];
 }
+
+function delete_inventory_unit()
+{
+    global $wpdb;
+    $unit_id = isset($_POST['unit_id']) ? intval($_POST['unit_id']) : null;
+    $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : null;
+    $variant_id = isset($_POST['variant_id']) ? intval($_POST['variant_id']) : null;
+
+    if (!$unit_id) $errors[] = wp_send_json_error([
+        'message' => 'Unit ID required!!',
+    ]);
+    if (!$product_id) $errors[] = wp_send_json_error([
+        'message' => 'Product ID required!!',
+    ]);
+
+    $table_name = $wpdb->prefix . 'mji_product_inventory_units';
+    $order_items_table = $wpdb->prefix . 'mji_order_items';
+    $return_items_table = $wpdb->prefix . 'mji_return_items';
+
+    try {
+        if ($unit_id) {
+
+            // Check order items table
+            $order_count = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $order_items_table WHERE product_inventory_unit_id = %d",
+                $unit_id
+            ));
+            if ($order_count > 0) {
+                wp_send_json_error(
+                    [
+                        'message' => 'Unable to delete as the unit has already been sold!!',
+                    ]
+                );
+            }
+            $order_count = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $return_items_table WHERE product_inventory_unit_id = %d",
+                $unit_id
+            ));
+
+            if ($order_count > 0) {
+                wp_send_json_error(
+                    [
+                        'message' => 'Unable to delete as the unit has already been sold and returned!!',
+                    ]
+                );
+            }
+
+            $result = $wpdb->delete(
+                $table_name,
+                ['id' => $unit_id],
+            );
+
+            if ($result === false) {
+                custom_log('Database error: ' . $wpdb->last_error);
+                wp_send_json_error(
+                    [
+                        'message' => 'Error deleting inventory unit:' . $wpdb->last_error,
+                    ]
+                );
+            } else {
+                wc_update_product_stock($variant_id ?: $product_id, 1, 'decrease');
+            }
+            wp_send_json_success($result);
+        }
+    } catch (Exception $e) {
+        custom_log("Error " . $e->getMessage());
+        wp_send_json_error(['message' => 'Error deleting inventory unit: ' . $e->getMessage()]);
+    }
+}
+add_action('wp_ajax_delete_inventory_unit', 'delete_inventory_unit');
 
 function create_inventory_units()
 {
@@ -397,7 +575,6 @@ function create_inventory_units()
                     'wc_product_variant_id' => $variation_id,
                     'sku' => $sku,
                     'serial' => $serial_number,
-                    'status' => "in_stock",
                     'location_id' => $location_id,
                     'invoice_number' => $invoice_number,
                     'created_date' => $invoice_date,
@@ -503,7 +680,6 @@ function create_inventory_units()
                     'from_status' => null,
                     'to_status' => 'in_stock',
                     'notes' => 'Initial status on creation',
-                    'reference_num' => $invoice_number,
                     'created_at' => $invoice_date
                 ]
             );
@@ -880,7 +1056,7 @@ function change_status()
         wp_send_json_error('Unit ID is required.');
     }
 
-    $allowed_statuses = ['in_stock', 'damaged', 'missing', 'rtv'];
+    $allowed_statuses = ['in_stock', 'damaged', 'dismantled', 'missing', 'rtv'];
     if (!in_array($status, $allowed_statuses, true)) {
         wp_send_json_error('Invalid status selected.');
     }
@@ -889,7 +1065,7 @@ function change_status()
         wp_send_json_error('Invalid date format.');
     }
 
-    $current_user = get_user_by('email', 'rm@montecristo1978.com');
+    $current_user = get_user_by('email', 'fc@montecristo1978.com');
     if (!wp_check_password($password, $current_user->user_pass, $current_user->ID)) {
         wp_send_json_error('Incorrect password.');
     }
@@ -978,7 +1154,6 @@ function change_status()
         wp_send_json_error('Error: ' . $e->getMessage());
     }
 }
-
 add_action('wp_ajax_update_unit_status', 'change_status');
 
 function is_stock_affecting_status($status)
@@ -995,5 +1170,32 @@ function handle_stock_adjustment_based_on_status_change($old, $new, $product_id)
         wc_update_product_stock($product_id, 1, 'decrease');
     } elseif (!$was_in_stock && $is_in_stock) {
         wc_update_product_stock($product_id, 1, 'increase');
+    }
+}
+
+add_action('wp_trash_post', 'block_product_deletion_if_in_inventory');
+
+function block_product_deletion_if_in_inventory($post_id)
+{
+    if (get_post_type($post_id) !== 'product') return;
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mji_product_inventory_units';
+
+    $exists = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE wc_product_id = %d",
+            $post_id
+        )
+    );
+
+    if ($exists > 0) {
+        $redirect_url = add_query_arg(
+            'delete_blocked',
+            $post_id,
+            admin_url('edit.php?post_type=product')
+        );
+        wp_safe_redirect($redirect_url);
+        exit;
     }
 }
