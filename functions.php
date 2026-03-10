@@ -1282,7 +1282,7 @@ function remove_phrase_from_mc_rolex_titles()
 
     $wpdb->query($query);
 }
-add_action('init', 'remove_phrase_from_mc_rolex_titles');
+// add_action('init', 'remove_phrase_from_mc_rolex_titles');
 
 // Adding Rolex clock script
 function add_rolex_clock_script()

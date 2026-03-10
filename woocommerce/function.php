@@ -796,6 +796,12 @@ function handle_newsletter_subscribe_form()
 
     $email = sanitize_email($_POST['newsletter_email']);
 
+    // Honeypot check
+    if (!empty($_POST['newsletter_hp'])) {
+        wp_redirect(add_query_arg('subscribed', '1', wp_get_referer()));
+        exit;
+    }
+
     if (!is_email($email)) {
         custom_log('Invalid email address: ' . $email);
         wp_redirect(add_query_arg('subscribed', '0', wp_get_referer()));
@@ -982,3 +988,13 @@ add_action('wp_head', 'add_meta_keywords_tag');
 //         exit;
 //     }
 // }
+
+// WooCommerce Admin Analytics
+add_filter('woocommerce_admin_disabled', '__return_true');
+
+// Woocoommerce marketing notices and analytics queries
+add_filter('woocommerce_admin_features', function ($features) {
+    return array_filter($features, function ($feature) {
+        return !in_array($feature, ['marketing', 'analytics']);
+    });
+});

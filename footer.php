@@ -101,6 +101,7 @@ wp_footer();
                 <form id="newsletter-form" role="form" method="POST">
                     <input type="email" id="newsletter" class="newsletter-field" placeholder="E-mail" name="newsletter_email" aria-required="true" required>
                     </input>
+                    <input type="text" name="newsletter_hp" value="" style="display:none">
                     <button name="newsletter_subscribe" type="submit" class="newsletter-submit" aria-label="Subscribe">Subscribe
                     </button>
                 </form>
