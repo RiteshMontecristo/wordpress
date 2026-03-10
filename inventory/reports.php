@@ -599,7 +599,6 @@ function reports_get_inventory_result()
                 reference_num,
                 created_at
             FROM {$inventory_status_history}
-            WHERE created_at BETWEEN %s AND %s
             ORDER BY inventory_unit_id, created_at
         ) AS ish
         
@@ -625,7 +624,6 @@ function reports_get_inventory_result()
     $all_params = array_merge(
         [$end_date],                    // latest_status subquery: created_at <= %s
         $status_params,                 // dynamic status filter params
-        [$start_date, $end_date],       // status_events: BETWEEN %s AND %s
         $params                         // search/location/brand filters
     );
 
