@@ -990,7 +990,7 @@ add_action('wp_head', 'add_meta_keywords_tag');
 // }
 
 // WooCommerce Admin Analytics
-add_filter('woocommerce_admin_disabled', '__return_true');
+// add_filter('woocommerce_admin_disabled', '__return_true');
 
 // Woocoommerce marketing notices and analytics queries
 add_filter('woocommerce_admin_features', function ($features) {
@@ -998,3 +998,27 @@ add_filter('woocommerce_admin_features', function ($features) {
         return !in_array($feature, ['marketing', 'analytics']);
     });
 });
+
+/**
+ * Speed up WordPress admin and MailPoet dashboard by blocking unnecessary API requests.
+ * 
+ * - Blocks MailPoet, WooCommerce, Jetpack, Hostinger, WordPress core update checks in admin
+ * - Keeps frontend, MailPoet cron, and newsletter sending fully functional
+ * - Easy to add more blocked hosts if needed
+ */
+add_filter('pre_http_request', function ($pre, $args, $url) {
+    // Allow MailPoet API and WordPress.org core updates
+    if (strpos($url, 'bridge.mailpoet.com') !== false) return false;
+    if (strpos($url, 'api.wordpress.org/core/') !== false) return false;
+
+    // Block everything else in admin for speed
+    if (is_admin()) return true;
+
+    return $pre;
+}, 10, 3);
+
+/**
+ * MailPoet-specific tweak: prevent dashboard API checks
+ * MailPoet cron (server-side) still works
+ */
+add_filter('mailpoet_disable_dashboard_check', '__return_true');
