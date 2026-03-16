@@ -507,15 +507,24 @@ function create_inventory_units()
     $notes = isset($_POST['notes']) ? sanitize_textarea_field($_POST['notes']) : null; // nl2br(esc_html()) when outputting notes in HTML.
     $supplier = isset($_POST['supplier']) ? sanitize_text_field($_POST['supplier']) : null;
 
-    if (!$product_id) $errors[] = "Product ID is required.";
-    if (!$sku) $errors[] = "SKU is required.";
-    if (!$location_id) $errors[] = "Location is required.";
-    if (!$supplier) $errors[] = "Supplier is required.";
-    if (!$invoice_number) $errors[] = "Invoice number is required.";
-    if (!$invoice_date) $errors[] = "Invoice date is required.";
-    if (!$true_cost) $errors[] = "True cost is required.";
-    if (!$cost_price) $errors[] = "Cost price is required.";
-    if (!$retail_price) $errors[] = "Retail price is required.";
+    if (!$product_id)
+        $errors[] = "Product ID is required.";
+    if (!$sku)
+        $errors[] = "SKU is required.";
+    if (!$location_id)
+        $errors[] = "Location is required.";
+    if (!$supplier)
+        $errors[] = "Supplier is required.";
+    if (!$invoice_number)
+        $errors[] = "Invoice number is required.";
+    if (!$invoice_date)
+        $errors[] = "Invoice date is required.";
+    if (!$true_cost)
+        $errors[] = "True cost is required.";
+    if (!$cost_price)
+        $errors[] = "Cost price is required.";
+    if (!$retail_price)
+        $errors[] = "Retail price is required.";
 
     // If errors exist, return them
     if (!empty($errors)) {
@@ -527,13 +536,12 @@ function create_inventory_units()
 
     $product = wc_get_product($product_id);
     $variation = $variation_id ? wc_get_product($variation_id) : null;
-    $category_id = get_post_meta($product_id, 'rank_math_primary_product_cat', true);
-    if ($category_id == 0) {
-        wp_send_json_error('No primary category set for this product.');
-    }
-    $brand = get_term($category_id, 'product_brand')->name;
+    $brand_id = get_post_meta($product_id, 'rank_math_primary_product_brand', true);
 
-    custom_log($brand);
+    $brand = '';
+    if ($brand_id != 0) {
+        $brand = get_term($brand_id, 'product_brand')->name;
+    }
     $model = "";
 
     $table_name = $wpdb->prefix . 'mji_product_inventory_units';
@@ -553,7 +561,7 @@ function create_inventory_units()
     }
 
     $model_id = get_brand_model_id($models_table, $model);
-    $brand_id = get_brand_model_id($brands_table, $brand);
+    $brand_id = $brand_id != 0 ? get_brand_model_id($brands_table, $brand) : NULL;
 
     // If numeric, it is an existing supplier else create new
     if (ctype_digit($supplier)) {
@@ -753,7 +761,7 @@ function get_brand_model_id($table_name, $value)
 
     $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-    if (is_empty($value)) return null;
+    if (empty($value)) return null;
 
     $sql = $wpdb->prepare(
         "SELECT id FROM $table_name WHERE name = %s LIMIT 1",
@@ -845,6 +853,12 @@ function watch_simple_product_changes($post_id, $post, $update)
         $primary_cat_id = $_POST['rank_math_primary_product_cat'];
         update_post_meta($post_id, 'rank_math_primary_product_cat', $primary_cat_id);
     }
+
+    // RANK MATH is not setting the primary brand
+    if (isset($_POST['rank_math_primary_product_brand'])) {
+        $primary_brand_id = $_POST['rank_math_primary_product_brand'];
+        update_post_meta($post_id, 'rank_math_primary_product_brand', $primary_brand_id);
+    }
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_product_inventory_units';
 
@@ -855,59 +869,41 @@ function watch_simple_product_changes($post_id, $post, $update)
     if (!$exists_units) return;
 
     if ($_POST['rank_math_primary_product_brand']) {
-        $old_primary_brand = get_post_meta($post_id, 'rank_math_primary_product_brand', true);
         $new_primary_brand = intval($_POST['rank_math_primary_product_brand']);
-
-        if ($old_primary_brand != $new_primary_brand) {
-            $brand = get_term($new_primary_brand, 'product_brand');
-
-            if ($brand && !is_wp_error($brand)) {
-                $brand = $brand->name;
-                $brands_table = $wpdb->prefix . 'mji_brands';
-                $brand_id = get_brand_model_id($brands_table, $brand);
-                try {
-                    $wpdb->update(
-                        $table_name,
-                        [
-                            'brand_id' => $brand_id,
-                        ],
-                        ['wc_product_id' => $post_id],
-                        ['%d'],
-                        ['%d']
-                    );
-                } catch (Exception $e) {
-                    custom_log("Error " . $e->getMessage());
-                }
+        $brand = get_term($new_primary_brand, 'product_brand');
+        if ($brand && !is_wp_error($brand)) {
+            $brand = $brand->name;
+            $brands_table = $wpdb->prefix . 'mji_brands';
+            $brand_id = get_brand_model_id($brands_table, $brand);
+            try {
+                $wpdb->update(
+                    $table_name,
+                    [
+                        'brand_id' => $brand_id,
+                    ],
+                    ['wc_product_id' => $post_id],
+                    ['%d'],
+                    ['%d']
+                );
+            } catch (Exception $e) {
+                custom_log("Error " . $e->getMessage());
             }
         }
+    } else {
+        try {
+            $wpdb->update(
+                $table_name,
+                [
+                    'brand_id' => NULL,
+                ],
+                ['wc_product_id' => $post_id],
+                ['%s'],
+                ['%d']
+            );
+        } catch (Exception $e) {
+            custom_log("Error " . $e->getMessage());
+        }
     }
-
-    // Update brands for simple and variable products
-    // $old_primary_cat = get_post_meta($post_id, 'rank_math_primary_product_cat', true);
-    // $new_primary_cat = isset($_POST['rank_math_primary_product_cat']) ? intval($_POST['rank_math_primary_product_cat']) : $old_primary_cat;
-
-    // if ($old_primary_cat != $new_primary_cat) {
-    //     $category = get_term($new_primary_cat, 'product_cat');
-
-    //     if ($category && !is_wp_error($category)) {
-    //         $brand = $category->name;
-    //         $brands_table = $wpdb->prefix . 'mji_brands';
-    //         $brand_id = get_brand_model_id($brands_table, $brand);
-    //         try {
-    //             $wpdb->update(
-    //                 $table_name,
-    //                 [
-    //                     'brand_id' => $brand_id,
-    //                 ],
-    //                 ['wc_product_id' => $post_id],
-    //                 ['%d'],
-    //                 ['%d']
-    //             );
-    //         } catch (Exception $e) {
-    //             custom_log("Error " . $e->getMessage());
-    //         }
-    //     }
-    // }
 
     // Update prices for simple products only
     $product = wc_get_product($post_id);
@@ -1200,8 +1196,6 @@ function handle_stock_adjustment_based_on_status_change($old, $new, $product_id)
     }
 }
 
-add_action('wp_trash_post', 'block_product_deletion_if_in_inventory');
-
 function block_product_deletion_if_in_inventory($post_id)
 {
     if (get_post_type($post_id) !== 'product') return;
@@ -1226,7 +1220,7 @@ function block_product_deletion_if_in_inventory($post_id)
         exit;
     }
 }
-
+add_action('wp_trash_post', 'block_product_deletion_if_in_inventory');
 
 add_action('set_object_terms', 'watch_product_collection_changes', 10, 6);
 function watch_product_collection_changes($object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids)
@@ -1251,192 +1245,6 @@ function watch_product_collection_changes($object_id, $terms, $tt_ids, $taxonomy
     }
 }
 
-// function sync_product_collections($product_id, $collection_names)
-// {
-//     global $wpdb;
-
-//     $collections_table = $wpdb->prefix . 'mji_collections';
-//     $product_collections_table = $wpdb->prefix . 'mji_products_collections';
-
-//     $wpdb->query('START TRANSACTION');
-
-//     try {
-
-//         // Clean collection names
-//         $new_collection_names = array_unique(array_map('trim', $collection_names));
-//         $new_collection_names = array_filter($new_collection_names);
-
-//         // Existing collection IDs for this product
-//         $existing_collection_ids = $wpdb->get_col(
-//             $wpdb->prepare(
-//                 "SELECT collection_id 
-//                  FROM {$product_collections_table} 
-//                  WHERE product_id = %d",
-//                 $product_id
-//             )
-//         );
-
-//         if ($wpdb->last_error) {
-//             throw new Exception($wpdb->last_error);
-//         }
-
-//         // If no collections were passed → remove all
-//         if (empty($new_collection_names)) {
-
-//             if (!empty($existing_collection_ids)) {
-//                 $wpdb->delete(
-//                     $product_collections_table,
-//                     ['product_id' => $product_id],
-//                     ['%d']
-//                 );
-
-//                 if ($wpdb->last_error) {
-//                     throw new Exception($wpdb->last_error);
-//                 }
-//             }
-
-//             $wpdb->query('COMMIT');
-//             return [];
-//         }
-
-//         // Get existing collections by name
-//         $placeholders = implode(',', array_fill(0, count($new_collection_names), '%s'));
-
-//         $existing_collections = $wpdb->get_results(
-//             $wpdb->prepare(
-//                 "SELECT id, collection_name 
-//                  FROM {$collections_table}
-//                  WHERE collection_name IN ($placeholders)",
-//                 $new_collection_names
-//             ),
-//             ARRAY_A
-//         );
-
-//         if ($wpdb->last_error) {
-//             throw new Exception($wpdb->last_error);
-//         }
-
-//         $collection_name_to_id = wp_list_pluck(
-//             $existing_collections,
-//             'id',
-//             'collection_name'
-//         );
-
-//         // Determine collections that need to be created
-//         $new_collections = array_diff(
-//             $new_collection_names,
-//             array_keys($collection_name_to_id)
-//         );
-
-//         if (!empty($new_collections)) {
-
-//             $values = [];
-//             $prepare_data = [];
-
-//             foreach ($new_collections as $name) {
-//                 $values[] = '(%s)';
-//                 $prepare_data[] = $name;
-//             }
-
-//             $sql = "INSERT INTO {$collections_table} (collection_name)
-//                     VALUES " . implode(',', $values);
-
-//             $wpdb->query($wpdb->prepare($sql, $prepare_data));
-
-//             if ($wpdb->last_error) {
-//                 throw new Exception($wpdb->last_error);
-//             }
-
-//             // Fetch newly created IDs
-//             $placeholders = implode(',', array_fill(0, count($new_collections), '%s'));
-
-//             $new_ids = $wpdb->get_results(
-//                 $wpdb->prepare(
-//                     "SELECT id, collection_name 
-//                      FROM {$collections_table}
-//                      WHERE collection_name IN ($placeholders)",
-//                     $new_collections
-//                 ),
-//                 ARRAY_A
-//             );
-
-//             if ($wpdb->last_error) {
-//                 throw new Exception($wpdb->last_error);
-//             }
-
-//             foreach ($new_ids as $collection) {
-//                 $collection_name_to_id[$collection['collection_name']] = $collection['id'];
-//             }
-//         }
-
-//         // Build final ID list only from submitted names
-//         $new_collection_ids = [];
-
-//         foreach ($new_collection_names as $name) {
-//             if (isset($collection_name_to_id[$name])) {
-//                 $new_collection_ids[] = $collection_name_to_id[$name];
-//             }
-//         }
-
-//         // Determine differences
-//         $collections_to_add = array_diff($new_collection_ids, $existing_collection_ids);
-//         $collections_to_remove = array_diff($existing_collection_ids, $new_collection_ids);
-
-//         // Remove old ones
-//         if (!empty($collections_to_remove)) {
-
-//             $placeholders = implode(',', array_fill(0, count($collections_to_remove), '%d'));
-
-//             $wpdb->query(
-//                 $wpdb->prepare(
-//                     "DELETE FROM {$product_collections_table}
-//                      WHERE product_id = %d
-//                      AND collection_id IN ($placeholders)",
-//                     array_merge([$product_id], $collections_to_remove)
-//                 )
-//             );
-
-//             if ($wpdb->last_error) {
-//                 throw new Exception($wpdb->last_error);
-//             }
-//         }
-
-//         // Add new ones
-//         if (!empty($collections_to_add)) {
-
-//             $values = [];
-//             $prepare_data = [];
-
-//             foreach ($collections_to_add as $collection_id) {
-//                 $values[] = '(%d,%d)';
-//                 $prepare_data[] = $product_id;
-//                 $prepare_data[] = $collection_id;
-//             }
-
-//             $sql = "INSERT IGNORE INTO {$product_collections_table}
-//                     (product_id, collection_id)
-//                     VALUES " . implode(',', $values);
-
-//             $wpdb->query($wpdb->prepare($sql, $prepare_data));
-
-//             if ($wpdb->last_error) {
-//                 throw new Exception($wpdb->last_error);
-//             }
-//         }
-
-//         $wpdb->query('COMMIT');
-
-//         return $new_collection_ids;
-
-//     } catch (Exception $e) {
-
-//         $wpdb->query('ROLLBACK');
-//         custom_log('DB ERROR: ' . $e->getMessage());
-
-//         return [];
-//     }
-// }
-
 function sync_product_collections($product_id, $collection_names)
 {
     global $wpdb;
@@ -1447,67 +1255,337 @@ function sync_product_collections($product_id, $collection_names)
     // Clean input
     $collection_names = array_unique(array_filter(array_map('trim', $collection_names)));
 
-    if (empty($collection_names)) {
-        $wpdb->delete($product_collections_table, ['product_id' => $product_id], ['%d']);
-        if ($wpdb->last_error) {
-            custom_log('DB ERROR: ' . $wpdb->last_error);
-        }
-        return [];
-    }
-
-    // Insert collections if they don't exist
-    foreach ($collection_names as $name) {
-        $wpdb->query(
-            $wpdb->prepare(
-                "INSERT IGNORE INTO {$collections_table} (name) VALUES (%s)",
-                $name
-            )
-        );
-
-        if ($wpdb->last_error) {
-            custom_log('DB ERROR: ' . $wpdb->last_error);
-        }
-    }
-
-    // Get IDs of collections
-    $placeholders = implode(',', array_fill(0, count($collection_names), '%s'));
-
-    $collection_ids = $wpdb->get_col(
+    // GET CURRENT COLLECTION IDS
+    $existing_ids = $wpdb->get_col(
         $wpdb->prepare(
-            "SELECT id FROM {$collections_table}
-             WHERE name IN ($placeholders)",
-            $collection_names
+            "SELECT collection_id
+             FROM {$product_collections_table}
+             WHERE product_id = %d",
+            $product_id
         )
     );
 
-    if ($wpdb->last_error) {
-        custom_log('DB ERROR: ' . $wpdb->last_error);
-        return [];
-    }
+    $existing_ids = array_map('intval', $existing_ids);
 
-    // Reset product associations
-    $wpdb->delete($product_collections_table, ['product_id' => $product_id], ['%d']);
+    // ENSURE COLLECTIONS EXIST
+    if ($collection_names) {
 
-    if ($wpdb->last_error) {
-        custom_log('DB ERROR: ' . $wpdb->last_error);
-        return [];
-    }
+        $placeholders = implode(',', array_fill(0, count($collection_names), '(%s)'));
 
-    // Insert new relations
-    foreach ($collection_ids as $collection_id) {
-        $wpdb->insert(
-            $product_collections_table,
-            [
-                'product_id' => $product_id,
-                'collection_id' => $collection_id
-            ],
-            ['%d', '%d']
+        $wpdb->query(
+            $wpdb->prepare(
+                "INSERT IGNORE INTO {$collections_table} (name)
+                 VALUES {$placeholders}",
+                $collection_names
+            )
         );
 
-        if ($wpdb->last_error) {
-            custom_log('DB ERROR: ' . $wpdb->last_error);
+        // GET IDS FOR PROVIDED NAMES
+        $in = implode(',', array_fill(0, count($collection_names), '%s'));
+
+        $new_ids = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT id
+                 FROM {$collections_table}
+                 WHERE name IN ($in)",
+                $collection_names
+            )
+        );
+    } else {
+        $new_ids = [];
+    }
+
+    $new_ids = array_map('intval', $new_ids);
+
+    //  DETERMINE DIFF
+    $to_add = array_diff($new_ids, $existing_ids);
+    $to_remove = array_diff($existing_ids, $new_ids);
+
+    // DELETE REMOVED RELATIONS
+    if ($to_remove) {
+        $placeholders = implode(',', array_fill(0, count($to_remove), '%d'));
+
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$product_collections_table}
+                 WHERE product_id = %d
+                 AND collection_id IN ($placeholders)",
+                array_merge([$product_id], $to_remove)
+            )
+        );
+    }
+
+    // INSERT NEW RELATIONS
+    if ($to_add) {
+        $values = [];
+        $placeholders = [];
+
+        foreach ($to_add as $id) {
+            $placeholders[] = '(%d,%d)';
+            $values[] = $product_id;
+            $values[] = $id;
+        }
+
+        $wpdb->query(
+            $wpdb->prepare(
+                "INSERT INTO {$product_collections_table}
+                 (product_id, collection_id)
+                 VALUES " . implode(',', $placeholders),
+                $values
+            )
+        );
+    }
+
+    return $new_ids;
+}
+
+function migrate_product_categories_batch()
+{
+    // At the VERY start of the function:
+    $paged = (int) get_option('brand_migration_page', 1);
+    custom_log("=== Migration Started. Current Page: $paged ===");
+
+    $batch_size = 200;
+
+    $brand_terms = [
+        'OMEGA',
+        'MIDO',
+        'Longines',
+        'Glashütte Original',
+        'Girard-Perregaux',
+        'Faberge',
+        'Corum',
+        'Breguet',
+        'Blancpain',
+        'Bell & Ross',
+        'Rolex',
+        'Roger Dubuis',
+        'Harry Winston',
+        'Greubel Forsey',
+        'Roberto Coin',
+        'Pomellato',
+        'Montecristo',
+        'Mikimoto',
+        'Messika',
+        'Cammilli Firenze',
+        'Wellendorff',
+        'Piero Milano',
+        'Peroni & Parise',
+        'Gismondi',
+        'Gioielliamo',
+        'Fullord',
+        'Bulgari'
+    ];
+
+    $query = new WP_Query([
+        'post_type' => 'product',
+        'posts_per_page' => $batch_size,
+        'paged' => $paged,
+        'fields' => 'ids',
+        'no_found_rows' => true,
+        'orderby' => 'ID',
+        'order' => 'ASC',
+        'post_status' => 'any'
+    ]);
+
+    if (!$query->posts) {
+        delete_option('brand_migration_page');
+        custom_log('Brand migration completed.');
+        return;
+    }
+
+    foreach ($query->posts as $product_id) {
+
+        $categories = wp_get_post_terms($product_id, 'product_cat');
+
+        $brands = [];
+        $collections = [];
+
+        foreach ($categories as $cat) {
+
+            // Check ancestors
+            $ancestors = get_ancestors($cat->term_id, 'product_cat');
+            $is_parent_jewellery = false;
+            if (!empty($ancestors)) {
+                foreach ($ancestors as $ancestor_id) {
+                    $ancestor = get_term($ancestor_id, 'product_cat');
+                    if ($ancestor && strtolower($ancestor->slug) === 'jewellery') {
+                        $is_parent_jewellery = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($is_parent_jewellery) continue;
+            $cat_name = trim($cat->name);
+            $cat_name = html_entity_decode($cat_name, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            if ($cat_name === 'Montecristo JWL' || $cat_name === 'OCTOCRAFT' || $cat_name === 'TOSCO') {
+                $cat_name = 'Montecristo';
+            }
+
+            if ($cat_name == 'Uncategorized' || $cat_name == 'Fine Jewellery' || $cat_name == 'Jewellery' || $cat_name == 'Watches') {
+                continue;
+            }
+
+            if (in_array($cat_name, $brand_terms)) {
+
+                $brand = get_term_by('name', $cat_name, 'product_brand');
+
+                if (!$brand) {
+                    $brand = wp_insert_term($cat_name, 'product_brand');
+
+                    if (!is_wp_error($brand)) {
+                        $brand_id = $brand['term_id'];
+                    }
+                } else {
+                    $brand_id = $brand->term_id;
+                }
+
+                if (!empty($brand_id)) {
+                    $brands[] = (int) $brand_id;
+                }
+            } else {
+
+                $collection = term_exists($cat_name, 'collection');
+
+                if (!$collection) {
+                    $collection = wp_insert_term($cat_name, 'collection');
+                    if (!is_wp_error($collection)) {
+                        $collection_id = (int) $collection['term_id'];
+                    }
+                } else {
+                    $collection_id = (int) $collection['term_id'];
+                }
+
+                if (!empty($collection_id)) {
+                    $collections[] = $collection_id;
+                }
+            }
+        }
+
+        // IF we want to assign empty brands
+        // if (empty($brands)) {
+
+        //     $default_brand = term_exists('Montecristo', 'product_brand');
+
+        //     if (!$default_brand) {
+        //         $default_brand = wp_insert_term('Montecristo', 'product_brand');
+        //         if (!is_wp_error($default_brand)) {
+        //             $default_brand_id = (int) $default_brand['term_id'];
+        //         }
+        //     } else {
+        //         // term_exists returns array
+        //         $default_brand_id = (int) $collection['term_id'];
+        //     }
+
+        //     if (!empty($default_brand_id)) {
+        //         $brands[] = $default_brand_id;
+        //     }
+        // }
+
+        if (!empty($brands)) {
+
+            wp_set_object_terms($product_id, $brands, 'product_brand');
+
+            update_post_meta(
+                $product_id,
+                'rank_math_primary_product_brand',
+                $brands[0]
+            );
+
+            if (count($brands) > 1) {
+                custom_log('Multiple brands on product: ' . $product_id);
+            }
+        }
+
+        if (!empty($collections)) {
+            wp_set_object_terms($product_id, $collections, 'collection');
         }
     }
 
-    return $collection_ids;
+    $next_page = $paged + 1;
+
+    update_option('brand_migration_page', $next_page, false);
+
+    custom_log('Brand migration batch completed. Page: ' . $paged);
 }
+
+add_action('init', function () {
+
+    if (!isset($_GET['run_brand_migration'])) {
+        return;
+    }
+
+    migrate_product_categories_batch();
+
+    echo "Batch processed. Refresh page to continue.";
+    exit;
+}, 11);
+
+function migrate_product_collections()
+{
+    global $wpdb;
+
+    $batch_size = 200;
+    $table_name = "{$wpdb->prefix}mji_product_inventory_units";
+    $brands_table = "{$wpdb->prefix}mji_brands";
+
+    // At the VERY start of the function:
+    $paged = (int) get_option('brand_migration_page', 1);
+    custom_log("=== Migration Started. Current Page: $paged ===");
+
+    $query = new WP_Query([
+        'post_type' => 'product',
+        'posts_per_page' => $batch_size,
+        'paged' => $paged,
+        'fields' => 'ids',
+        'no_found_rows' => true,
+        'orderby' => 'ID',
+        'order' => 'ASC',
+        'post_status' => 'any'
+    ]);
+
+    if (!$query->posts) {
+        delete_option('brand_migration_page');
+        custom_log('Collection migration completed.');
+        return;
+    }
+
+    foreach ($query->posts as $product_id) {
+        $brand_id = get_post_meta($product_id, 'rank_math_primary_product_brand', true);
+        $brand = get_term($brand_id, 'product_brand');
+        $brand = $brand->name;
+        $brand_id = get_brand_model_id($brands_table, $brand);
+
+        try {
+            $wpdb->update(
+                $table_name,
+                [
+                    'brand_id' => $brand_id,
+                ],
+                ['wc_product_id' => $product_id],
+                ['%d'],
+                ['%d']
+            );
+        } catch (Exception $e) {
+            custom_log("Error " . $e->getMessage());
+        }
+    }
+
+    $next_page = $paged + 1;
+    update_option('brand_migration_page', $next_page, false);
+    custom_log('Collection batch completed. Page: ' . $paged);
+}
+
+add_action('init', function () {
+
+    if (!isset($_GET['run_brand_db_migration'])) {
+        return;
+    }
+
+    migrate_product_collections();
+
+    echo "Batch processed. Refresh page to continue.";
+    exit;
+}, 11);
