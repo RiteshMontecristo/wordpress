@@ -714,9 +714,18 @@ function delete_invoice($order_id)
             );
             check_wpdb_error($wpdb);
 
+            $reference_num = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT reference_num 
+                 FROM {$orders_table}
+                 WHERE id = %d",
+                    $order_id
+                )
+            )->reference_num;
+
             $wpdb->query($wpdb->prepare(
-                "DELETE FROM {$inventory_history_table} WHERE inventory_unit_id IN ($placeholders)",
-                $inventory_ids
+                "DELETE FROM {$inventory_history_table} WHERE reference_num = %s",
+                $reference_num
             ));
             check_wpdb_error($wpdb);
 
