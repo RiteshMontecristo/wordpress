@@ -219,3 +219,10 @@
     }
   }
 }
+
+@media print {
+  button,
+  input {
+    display: none !important;
+  }
+}

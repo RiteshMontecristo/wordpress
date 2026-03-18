@@ -18,6 +18,7 @@ const allRefundItemsCheckbox = refundForm?.querySelectorAll(
   ".return-item-checkbox",
 );
 const allPaymentsMethod = refundForm?.querySelectorAll(".payment-item");
+const mainPrintBtn = document.querySelector("#main-print-btn");
 
 const GST = 0.05,
   PST = 0.07;
@@ -223,11 +224,11 @@ function createRefundReceipt(data, type) {
 
   const printBtn = el.querySelector("#print-receipt");
   const closeReceiptBtn = el.querySelector("#close-reciept");
-  printBtn?.addEventListener("click", printReceipt);
+  printBtn?.addEventListener("click", (e) => printReceipt(e, el.outerHTML));
   closeReceiptBtn.addEventListener("click", (e) => closeReceipt(e, type));
 }
 
-function printReceipt(e) {
+function printReceipt(e, el) {
   e.preventDefault();
 
   const printWindow = window.open("", "_blank");
@@ -240,7 +241,7 @@ function printReceipt(e) {
               <link rel="stylesheet" href="${cssPath}" onload="window.__cssLoaded = true;" />
             </head>
             <body>
-              ${creditContainer.outerHTML}
+              ${el}
             </body>
         </html>
     `);
@@ -277,3 +278,9 @@ function closeReceipt(e, type) {
     refundEl.classList.remove("refund");
   }
 }
+
+mainPrintBtn?.addEventListener("click", (e) => {
+  const invoice = document.querySelector(".invoice");
+
+  printReceipt(e, invoice.outerHTML);
+});

@@ -274,7 +274,7 @@ function render_invoice($results)
 ?>
     <div class="wrap">
         <div class="invoice">
-            <h2>Invoice #<?= esc_html($order->reference_num) ?></h2>
+            <h2>Sale Invoice #<?= esc_html($order->reference_num) ?></h2>
 
             <!-- Customer & Invoice Info -->
             <div style="margin-bottom:20px;">
@@ -399,6 +399,7 @@ function render_invoice($results)
                 <?php submit_button('Delete Invoice', 'primary', 'delete_invoice'); ?>
                 <button type="button" class="button issue_credit" id="issue_credit">Issue credit</button>
                 <button type="button" class="button issue_refund" id="issue_refund">Issue refund</button>
+                <button type="button" class="button print" id="main-print-btn">Print</button>
             </form>
         </div>
 
@@ -1014,7 +1015,7 @@ function render_layaway_invoice($invoice)
     $purchased_date = date('Y-m-d', $purchased_date);
     $type = $invoice->type;
 ?>
-    <div style="max-width:700px;">
+    <div class="invoice" style="max-width:700px;">
 
         <h2><?php echo ucfirst(esc_html($type)); ?> Invoice #<?php echo esc_html($invoice->reference_num); ?></h2>
 
@@ -1101,6 +1102,7 @@ function render_layaway_invoice($invoice)
                 <button type="submit" class="button button-danger">
                     Delete <?php echo ucfirst(esc_html($type)); ?>
                 </button>
+                <button type="button" class="button print" id="main-print-btn">Print</button>
             </form>
         <?php else : ?>
 
@@ -1138,6 +1140,7 @@ function render_layaway_invoice($invoice)
                 </tfoot>
             </table>
 
+            <button type="button" class="button print" id="main-print-btn">Print</button>
         <?php endif; ?>
     </div>
 <?php
@@ -1288,7 +1291,7 @@ function render_refund_invoice($invoice)
     $purchased_date = strtotime($purchased_date);
     $purchased_date = date('Y-m-d', $purchased_date);
 ?>
-    <div style="max-width:700px;">
+    <div class="invoice" style="max-width:700px;">
 
         <h2>Refund Invoice #<?php echo esc_html($invoice->reference_num); ?></h2>
 
@@ -1367,7 +1370,10 @@ function render_refund_invoice($invoice)
             <button type="submit" class="button button-danger">
                 Delete Refund
             </button>
+            <button type="button" class="button print" id="main-print-btn">Print</button>
         </form>
+
+
     </div>
 <?php
 }
