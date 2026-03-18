@@ -2,26 +2,38 @@ document
   .getElementById("exportInventory")
   ?.addEventListener("click", function () {
     const table = document.getElementById("inventoryTable");
-    const rows = table.querySelectorAll("tr");
-    const csv = [];
-
-    rows.forEach(function (row) {
-      const cols = row.querySelectorAll("th, td");
-      const rowData = [];
-      cols.forEach(function (col) {
-        const text = col.innerText.trim();
-        rowData.push('"' + text + '"');
-      });
-      csv.push(rowData.join(","));
+    table.querySelectorAll("td").forEach((td) => {
+      td.innerHTML = td.innerHTML.replace(/<br\s*\/?>/gi, "\n");
     });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(table);
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
 
-    const csvString = csv.join("\n");
-    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download =
-      "inventory_report_" + new Date().toISOString().slice(0, 10) + ".csv";
-    link.click();
+    XLSX.writeFile(
+      wb,
+      "inventory_report_" + new Date().toISOString().slice(0, 10) + ".xlsx",
+    );
+
+    // const rows = table.querySelectorAll("tr");
+    // const csv = [];
+
+    // rows.forEach(function (row) {
+    //   const cols = row.querySelectorAll("th, td");
+    //   const rowData = [];
+    //   cols.forEach(function (col) {
+    //     const text = col.innerText.trim();
+    //     rowData.push('"' + text + '"');
+    //   });
+    //   csv.push(rowData.join(","));
+    // });
+
+    // const csvString = csv.join("\n");
+    // const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    // const link = document.createElement("a");
+    // link.href = URL.createObjectURL(blob);
+    // link.download =
+    //   "inventory_report_" + new Date().toISOString().slice(0, 10) + ".csv";
+    // link.click();
   });
 
 document

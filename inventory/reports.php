@@ -500,6 +500,8 @@ function reports_get_inventory_result()
 
     $inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
     $models_table = $wpdb->prefix . 'mji_models';
+    $products_collections_table = $wpdb->prefix . 'mji_products_collections';
+    $collections_table = $wpdb->prefix . 'mji_collections';
     $customers_table = $wpdb->prefix . 'mji_customers';
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
     $payments_table = $wpdb->prefix . 'mji_payments';
@@ -520,7 +522,8 @@ function reports_get_inventory_result()
 
     if (!empty($search_text)) {
         $like = '%' . $wpdb->esc_like($search_text) . '%';
-        $where[] = "(i.sku LIKE %s OR i.serial LIKE %s OR m.name LIKE %s)";
+        $where[] = "(i.sku LIKE %s OR i.serial LIKE %s OR m.name LIKE %s OR collections.collections LIKE %s)";
+        $params[] = $like;
         $params[] = $like;
         $params[] = $like;
         $params[] = $like;
@@ -560,6 +563,17 @@ function reports_get_inventory_result()
     -- Join model
     LEFT JOIN {$models_table} m
         ON m.id = i.model_id
+    -- Join collections
+    LEFT JOIN (
+        SELECT
+            pc.product_id,
+            GROUP_CONCAT(c.name) as collections
+        FROM {$products_collections_table} pc
+        JOIN {$collections_table} c
+            ON c.id = pc.collection_id
+        GROUP BY pc.product_id
+    ) collections
+    ON collections.product_id = i.wc_product_id
 
     -- if left join is needed then update the 1=1 to latest_status.id IS NOT NULL 
     -- Latest status as of report end date
@@ -577,7 +591,8 @@ function reports_get_inventory_result()
     ) latest_status
         ON latest_status.inventory_unit_id = i.id
 
-    LEFT JOIN (SELECT
+    LEFT JOIN (
+        SELECT
             ish.inventory_unit_id,
             JSON_ARRAYAGG(
                 JSON_OBJECT(
@@ -602,20 +617,21 @@ function reports_get_inventory_result()
             ORDER BY inventory_unit_id, created_at
         ) AS ish
         
-    -- Get FIRST payment per reference_num
-    LEFT JOIN (
-        SELECT 
-            reference_num,
-            customer_id,
-            salesperson_id,
-            ROW_NUMBER() OVER (PARTITION BY reference_num ) AS rn
-        FROM {$payments_table}
-    ) p ON p.reference_num = ish.reference_num AND p.rn = 1
-    -- Get customer name
-    LEFT JOIN {$customers_table} c ON c.id = p.customer_id
-    -- Get salesperson name
-    LEFT JOIN {$salespeople_table} s ON s.id = p.salesperson_id
-    GROUP BY ish.inventory_unit_id) status_events 
+        -- Get FIRST payment per reference_num
+        LEFT JOIN (
+            SELECT 
+                reference_num,
+                customer_id,
+                salesperson_id,
+                ROW_NUMBER() OVER (PARTITION BY reference_num ) AS rn
+            FROM {$payments_table}
+        ) p ON p.reference_num = ish.reference_num AND p.rn = 1
+        -- Get customer name
+        LEFT JOIN {$customers_table} c ON c.id = p.customer_id
+        -- Get salesperson name
+        LEFT JOIN {$salespeople_table} s ON s.id = p.salesperson_id
+        GROUP BY ish.inventory_unit_id
+    ) status_events 
     ON status_events.inventory_unit_id = i.id
     WHERE 1=1 {$where_clause}
     LIMIT 200

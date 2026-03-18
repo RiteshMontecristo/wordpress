@@ -99,10 +99,19 @@ function enqueue_admin_scripts()
         true
     );
 
+    // SheetJS library from CDN
+    wp_enqueue_script(
+        'sheetjs',
+        'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js',
+        array(),
+        '0.18.7',
+        true
+    );
+
     wp_enqueue_script(
         'admin-script',
         get_stylesheet_directory_uri() . '/inventory/scripts/index.js',
-        array('zebra-printer', 'zebra-printer-2'),
+        array('zebra-printer', 'zebra-printer-2', 'sheetjs'),
         '1.0.0',
         true
     );
