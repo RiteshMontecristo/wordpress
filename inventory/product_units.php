@@ -431,6 +431,7 @@ function delete_inventory_unit()
     $order_items_table = $wpdb->prefix . 'mji_order_items';
     $return_items_table = $wpdb->prefix . 'mji_return_items';
 
+    $wpdb->query('START TRANSACTION');
     try {
         if ($unit_id) {
 
@@ -459,24 +460,31 @@ function delete_inventory_unit()
                 );
             }
 
+            // Deletes the product_collections_table and inventory history with the inventory unit as its a cascade
             $result = $wpdb->delete(
                 $table_name,
                 ['id' => $unit_id],
             );
 
             if ($result === false) {
-                custom_log('Database error: ' . $wpdb->last_error);
-                wp_send_json_error(
-                    [
-                        'message' => 'Error deleting inventory unit:' . $wpdb->last_error,
-                    ]
-                );
-            } else {
-                wc_update_product_stock($variant_id ?: $product_id, 1, 'decrease');
+                throw new Exception($wpdb->last_error);
             }
+            wc_update_product_stock($variant_id ?: $product_id, 1, 'decrease');
+
+            // Resync the deletion
+            $product_collection = get_the_terms($product_id, 'collection');
+            if ($product_collection && !is_wp_error($product_collection)) {
+                $product_collection_names = wp_list_pluck($product_collection, 'name');
+                sync_product_collections($product_id, $product_collection_names);
+            } else {
+                sync_product_collections($product_id, array());
+            }
+
+            $wpdb->query('COMMIT');
             wp_send_json_success($result);
         }
     } catch (Exception $e) {
+        $wpdb->query('ROLLBACK');
         custom_log("Error " . $e->getMessage());
         wp_send_json_error(['message' => 'Error deleting inventory unit: ' . $e->getMessage()]);
     }
@@ -650,7 +658,6 @@ function create_inventory_units()
         } else {
             sku_exists_anywhere($sku);
 
-
             $result = $wpdb->insert(
                 $table_name,
                 [
@@ -741,6 +748,13 @@ function create_inventory_units()
                 }
 
                 wc_delete_product_transients($product_id);
+            }
+            $product_collection = get_the_terms($product_id, 'collection');
+            if ($product_collection && !is_wp_error($product_collection)) {
+                $product_collection_names = wp_list_pluck($product_collection, 'name');
+                sync_product_collections($product_id, $product_collection_names);
+            } else {
+                sync_product_collections($product_id, array());
             }
             $wpdb->query('COMMIT');
             wp_send_json_success($result);
