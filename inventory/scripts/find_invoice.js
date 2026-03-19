@@ -17,6 +17,9 @@ const submitRefundReturnBtn = refundForm?.querySelector("#submit_return");
 const allRefundItemsCheckbox = refundForm?.querySelectorAll(
   ".return-item-checkbox",
 );
+const allRefundItemsPrice = refundForm?.querySelectorAll(
+  ".refund_price",
+);
 const allPaymentsMethod = refundForm?.querySelectorAll(".payment-item");
 const mainPrintBtn = document.querySelector("#main-print-btn");
 
@@ -45,6 +48,11 @@ allRefundItemsCheckbox?.forEach((checkbox) => {
     updateTotals(allRefundItemsCheckbox, refundForm),
   );
 });
+allRefundItemsPrice?.forEach((inputPrice) => {
+  inputPrice?.addEventListener("change", () =>
+    updateTotals(allRefundItemsCheckbox, refundForm),
+  );
+});
 refundForm?.addEventListener("submit", (e) =>
   sumbitForm(e, refundForm, "refund"),
 );
@@ -59,7 +67,10 @@ function updateTotals(checkboxEl, formEl) {
   [gst, pst, subtotal, total] = [0, 0, 0];
   checkboxEl.forEach((cb) => {
     if (cb.checked) {
-      const itemsSubtotal = parseFloat(cb.dataset.subtotal || 0);
+      const returnItemDiv = cb.closest("div.return-item");
+      const itemsSubtotal = parseFloat(
+        returnItemDiv.querySelector("input[type='number']").value,
+      );
       subtotal += itemsSubtotal;
 
       if (cb.dataset.gst) {
@@ -103,7 +114,7 @@ async function sumbitForm(e, form, type) {
     submitCreditReturnBtn.disabled = true;
   } else {
     submitRefundReturnBtn.disabled = true;
-    if (!formData.has("refund_items[]")) {
+    if (!formData.has("refund_items[]") || !formData.has("refund_services[]")) {
       errors++;
       alert("Please select at least one item!!");
     }
@@ -146,7 +157,6 @@ async function sumbitForm(e, form, type) {
   }
 }
 
-// Need to work on these
 function createRefundReceipt(data, type) {
   const el = type == "credit" ? creditContainer : refundContainer;
   type = type.charAt(0).toUpperCase() + type.slice(1);

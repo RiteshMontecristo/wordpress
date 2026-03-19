@@ -443,6 +443,7 @@ function render_invoice($results)
                                                         <?php endif; ?>
                                                     </p>
                                                 </div>
+                                            </label>
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
@@ -487,7 +488,7 @@ function render_invoice($results)
         </div>
 
         <!-- Refund items -->
-        <div class="hidden" id="refund">
+        <div class="" id="refund">
             <div class="refund-container">
                 <?php if (!empty($items) || !empty($services)): ?>
                     <div class="return-section">
@@ -500,7 +501,8 @@ function render_invoice($results)
                             <!-- Items -->
                             <?php if (!empty($items)): ?>
                                 <div class="return-items">
-                                    <?php foreach ($items as $item): ?>
+                                    <?php foreach ($items as $item):
+                                    ?>
                                         <div class="return-item">
                                             <input type="checkbox" class="return-item-checkbox"
                                                 name="refund_items[]" id="refund_items[<?= $item->id ?>]" value="<?= $item->id ?>" data-subtotal="<?= $item->sale_price ?>" data-gst="<?= $calculate_gst ?>" data-pst="<?= $calculate_pst ?>">
@@ -524,8 +526,39 @@ function render_invoice($results)
                                                         <?php if (!empty($item->discount_amount) && $item->discount_amount != 0): ?>
                                                             Discount: <?= esc_html($item->discount_amount) ?>
                                                         <?php endif; ?>
+                                                        <input class="refund_price" name="refund_prices[<?= $item->id ?>]" step="0.01" type="number" value="<?= $item->sale_price ?>" max="<?= $item->sale_price ?>" />
                                                     </p>
                                                 </div>
+                                            </label>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- services -->
+                            <?php if (!empty($services)): ?>
+                                <div class="return-items">
+                                    <?php foreach ($services as $service):
+                                    ?>
+                                        <div class="return-item">
+                                            <input type="checkbox" class="return-item-checkbox"
+                                                name="refund_services[]" id="refund_services[<?= $service->id ?>]" value="<?= $service->id ?>" data-subtotal="<?= $service->sold_price ?>" data-gst="<?= $calculate_gst ?>" data-pst="<?= $calculate_pst ?>">
+                                            <label for="refund_services[<?= $service->id ?>]" class="item-content">
+                                                <?= wc_placeholder_img([150, 150]); ?>
+                                                <div class="item-info">
+                                                    <p class="item-details">
+                                                        <?= esc_html($service->category) ?><br>
+                                                        <?php if (!empty($service->description)): ?>
+                                                            Description: <?= esc_html($service->description) ?><br>
+                                                        <?php endif; ?>
+
+                                                        <?php if (!empty($service->sold_price)): ?>
+                                                            Sale Price: <?= esc_html($service->sold_price) ?><br>
+                                                        <?php endif; ?>
+
+                                                        <input class="refund_price" name="refund_prices[<?= $service->id ?>]" step="0.01" type="number" value="<?= $service->sold_price ?>" max="<?= $service->sold_price ?>" />
+                                                </div>
+                                            </label>
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
@@ -1685,6 +1718,10 @@ function sanitize_and_validate_return($post_data)
         'alipay',
         'wire'
     ];
+    $refund_items_data = [];
+    $refund_services_data = [];
+    // $refund_item_data = [];
+    // $refund_item_data = [];
 
     $payment_data = [];
     foreach ($allowed_payment_methods as $method) {
@@ -1695,8 +1732,10 @@ function sanitize_and_validate_return($post_data)
 
     $sanitized = [
         'order_id'              => absint($data['order_id'] ?? 0),
-        'return_items'          =>  is_array($data['return_items'] ?? null) ? array_map('absint', $data['return_items']) : [],
-        'refund_items'          => is_array($data['refund_items'] ?? null)  ? array_map('absint', $data['refund_items']) : [],
+        'return_items_ids'      => is_array($data['return_items'] ?? null) ? array_map('absint', $data['return_items']) : [],
+        'refund_items_ids'      => is_array($data['refund_items'] ?? null) ? array_map('absint', $data['refund_items']) : [],
+        'refund_services_ids'   => is_array($data['refund_services'] ?? null) ? array_map('absint', $data['refund_services']) : [],
+        'refund_prices'         => is_array($data['refund_prices'] ?? null) ? array_map('floatval', $data['refund_prices']) : [],
         'payment'               => $payment_data,
         'gst_total'             => round((float) ($data['gst'] ?? 0), 2),
         'pst_total'             => round((float) ($data['pst'] ?? 0), 2),
@@ -1708,14 +1747,42 @@ function sanitize_and_validate_return($post_data)
         'reason'                => sanitize_textarea_field($data['reason'] ?? $data['refund-reason'] ?? ''),
     ];
 
+
+    $refund_items_data = [];
+    $refund_services_data = [];
+    $filtered_refund_prices = [];
+
+    if (!empty($sanitized['refund_prices'])) {
+        foreach ($sanitized['refund_prices'] as $id => $amount) {
+            // normalize
+            $id = (int) $id;
+
+            // skip invalid amounts
+            if ($amount <= 0) {
+                continue;
+            }
+
+            if (in_array($id, $sanitized['refund_items_ids'], true)) {
+                $refund_items_data[$id] = $amount;
+                $filtered_refund_prices[$id] = $amount;
+            } elseif (in_array($id, $sanitized['refund_services_ids'], true)) {
+                $refund_services_data[$id] = $amount;
+                $filtered_refund_prices[$id] = $amount;
+            }
+        }
+    }
+
+    $sanitized['refund_items_data'] = $refund_items_data;
+    $sanitized['refund_services_data'] = $refund_services_data;
+    $sanitized['refund_prices'] = $filtered_refund_prices;
     $errors = [];
 
     if ($sanitized['order_id'] <= 0) {
         $errors['message'] = 'Invalid order ID';
     }
 
-    if (empty($sanitized['return_items']) && empty($sanitized['refund_items'])) {
-        $errors['message'] = 'No return items provided';
+    if (empty($sanitized['return_items_ids']) && empty($sanitized['refund_items_ids']) && empty($sanitized['refund_services_ids'])) {
+        $errors['message'] = 'No return items/services provided';
     }
 
     $date = DateTime::createFromFormat('Y-m-d', $sanitized['date']);
@@ -1759,19 +1826,160 @@ function get_order_items($order_id)
     ));
 }
 
+function get_order_services($order_id)
+{
+    global $wpdb;
+    $services_table = $wpdb->prefix . "mji_services";
+    return $wpdb->get_col($wpdb->prepare(
+        "SELECT id FROM $services_table WHERE order_id = %d",
+        $order_id
+    ));
+}
+
 function order_items_valid($order_item_ids, $selected_item_ids)
 {
     return empty(array_diff($selected_item_ids, $order_item_ids));
 }
 
-function check_already_returned($item_ids)
+function check_already_returned($order_item_ids, $current_return_items_data = [])
 {
     global $wpdb;
     $return_items_table = $wpdb->prefix . "mji_return_items";
-    $count = $wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM $return_items_table WHERE order_item_id IN (" . implode(',', $item_ids) . ")",
+    $order_items_table = $wpdb->prefix . "mji_order_items";
+    $results = $wpdb->get_results($wpdb->prepare(
+        "SELECT order_item_id, SUM(unit_price) AS total_returned_price, MAX(oi.sale_price) AS sale_price 
+        FROM $return_items_table ri
+        JOIN $order_items_table oi ON ri.order_item_id = oi.id 
+        WHERE order_item_id IN (" . implode(',', $order_item_ids) . ") 
+        GROUP BY order_item_id",
     ));
-    return $count > 0;
+
+    $existing_returns = [];
+    foreach ($results as $row) {
+        $existing_returns[$row->order_item_id] = $row;
+    }
+
+    foreach ($current_return_items_data as $id => $incoming_amount) {
+        if (isset($existing_returns[$id])) {
+            $db_data = $existing_returns[$id];
+
+            // Use round() to avoid floating-point precision issues with currency
+            $already_returned = round((float)$db_data->total_returned_price, 2);
+            $max_allowed = round((float)$db_data->sale_price, 2);
+
+            if (($already_returned + $incoming_amount) > $max_allowed) {
+                wp_send_json_error(['message' => "Order ID {$id} returned amount is greater than the ordered amount as there is already a return for this item"], 409);
+            }
+        }
+    }
+}
+
+// NEED TO WORK ON THIS
+function check_service_already_returned($order_item_ids, $current_return_services_data = [])
+{
+    global $wpdb;
+    $return_items_table = $wpdb->prefix . "mji_return_items";
+    $order_items_table = $wpdb->prefix . "mji_order_items";
+    $results = $wpdb->get_results($wpdb->prepare(
+        "SELECT order_item_id, SUM(unit_price) AS total_returned_price, MAX(oi.sale_price) AS sale_price 
+        FROM $return_items_table ri
+        JOIN $order_items_table oi ON ri.order_item_id = oi.id 
+        WHERE order_item_id IN (" . implode(',', $order_item_ids) . ") 
+        GROUP BY order_item_id",
+    ));
+
+    $existing_returns = [];
+    foreach ($results as $row) {
+        $existing_returns[$row->order_item_id] = $row;
+    }
+
+    foreach ($current_return_services_data as $item) {
+        $id = $item['id'];
+        $incoming_amount = $item['amount'];
+
+        if (isset($existing_returns[$id])) {
+            $db_data = $existing_returns[$id];
+
+            // Use round() to avoid floating-point precision issues with currency
+            $already_returned = round((float)$db_data->total_returned_price, 2);
+            $max_allowed = round((float)$db_data->sale_price, 2);
+
+            if (($already_returned + $incoming_amount) > $max_allowed) {
+                wp_send_json_error(['message' => "Order ID {$id} returned amount is greater than the ordered amount"], 409);
+            }
+        }
+    }
+}
+
+function check_items_price($order_item_ids, $current_return_items_data)
+{
+    global $wpdb;
+    $order_items_table = $wpdb->prefix . "mji_order_items";
+    $results = $wpdb->get_results($wpdb->prepare(
+        "SELECT id, sale_price
+        FROM $order_items_table  
+        WHERE id IN (" . implode(',', $order_item_ids) . ")",
+    ));
+
+    foreach ($results as $row) {
+        // fetch the price that was sent
+        $return_item_amount = $current_return_items_data[$row->id];
+        $order_item_amount = $row->sale_price;
+
+        if ($return_item_amount > $order_item_amount) {
+            wp_send_json_error(['message' => "Order ID {$row->id} return amount is greater than the original ordered item amount"], 409);
+        }
+    }
+}
+
+function check_tax_is_correct($data)
+{
+
+    $GST_RATE = 0.05;
+    $PST_RATE = 0.07;
+
+    $gst_total = 0;
+    $pst_total = 0;
+    $subtotal = 0;
+    $total = 0;
+    $payment_total = 0;
+    $refund_prices = $data['refund_prices'];
+
+    foreach ($refund_prices as $id => $prices) {
+        $subtotal += $prices;
+        if ($data->gst_total > 0) {
+            $gst_total += round($prices * $GST_RATE, 2);
+        }
+        if ($data->pst_total > 0) {
+            $pst_total += round($prices * $PST_RATE, 2);
+        }
+    }
+
+    $total = $subtotal + $gst_total + $pst_total;
+
+    if (abs($data['gst_total'] - $gst_total) > 0.01) {
+        wp_send_json_error(['message' => 'GST total mismatch. Provided GST: ' . $data['gst_total'] . ' and calculated GST:' . $gst_total], 422);
+    }
+
+    if (abs($data['pst_total'] - $pst_total) > 0.01) {
+        wp_send_json_error(['message' => 'PST total mismatch. Provided PST: ' . $data['pst_total'] . ' and calculated PST:' . $pst_total], 422);
+    }
+
+    if (abs($data['subtotal'] - $subtotal) > 0.01) {
+        wp_send_json_error(['message' => 'Subtotal mismatch. Provided subtotal: ' . $data['subtotal'] . ' and calculated subtotal:' . $subtotal], 422);
+    }
+
+    if (abs($data['total'] - $total) > 0.01) {
+        wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and calculated total:' . $total], 422);
+    }
+
+    foreach ($data['payment'] as $type => $amount) {
+        $payment_total += $amount;
+    }
+
+    if (abs($payment_total - $total) > 0.01) {
+        wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and calculated total:' . $total], 422);
+    }
 }
 
 function insert_return_transactions($data, $order)
@@ -2061,47 +2269,7 @@ function insert_refund_transactions($data, $order)
             ON o.id = oi.order_id
         WHERE oi.id IN (" . implode(',', $order_item_ids) . ")"
     );
-    $gst_total = 0;
-    $pst_total = 0;
-    $subtotal = 0;
-    $total = 0;
-    $payment_total = 0;
 
-    foreach ($order_items as $item) {
-        $subtotal += (float)$item->sale_price;
-        if ($item->gst_total > 0) {
-            $gst_total += round($item->sale_price * $GST_RATE, 2);
-        }
-        if ($item->pst_total > 0) {
-            $pst_total += round($item->sale_price * $PST_RATE, 2);
-        }
-    }
-
-    foreach (array_values($data['payment']) as $payment) {
-        $payment_total += $payment;
-    }
-
-    $total = $gst_total + $pst_total + $subtotal;
-
-    if (abs($data['gst_total'] - $gst_total) > 0.01) {
-        wp_send_json_error(['message' => 'GST total mismatch. Provided GST: ' . $data['gst_total'] . ' and calculated GST:' . $gst_total], 422);
-    }
-
-    if (abs($data['pst_total'] - $pst_total) > 0.01) {
-        wp_send_json_error(['message' => 'PST total mismatch. Provided PST: ' . $data['pst_total'] . ' and calculated PST:' . $pst_total], 422);
-    }
-
-    if (abs($data['subtotal'] - $subtotal) > 0.01) {
-        wp_send_json_error(['message' => 'Subtotal mismatch. Provided subtotal: ' . $data['subtotal'] . ' and calculated subtotal:' . $subtotal], 422);
-    }
-
-    if (abs($data['total'] - $total) > 0.01) {
-        wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and calculated total:' . $total], 422);
-    }
-
-    if (abs($data['total'] - $payment_total) > 0.01) {
-        wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and payment total:' . $payment_total], 422);
-    }
 
     $restored_stock = [];
     $wpdb->query('START TRANSACTION');
@@ -2111,14 +2279,14 @@ function insert_refund_transactions($data, $order)
         $wpdb->insert(
             $return_table,
             [
-                'order_id'    => $data['order_id'],
-                'reference_num'   => $data['reference'],
-                'return_date' => $data['date'],
-                'reason'      => $data['reason'],
-                'subtotal'    => $subtotal,
-                'gst_total'   => $gst_total,
-                'pst_total'   => $pst_total,
-                'total'       => $total,
+                'order_id'      => $data['order_id'],
+                'reference_num' => $data['reference'],
+                'return_date'   => $data['date'],
+                'reason'        => $data['reason'],
+                'subtotal'      => $data['subtotal'],
+                'gst_total'     => $data['gst_total'],
+                'pst_total'     => $data['pst_total'],
+                'total'         => $data['total'],
             ],
             ['%d', '%s', '%s', '%s', '%f', '%f', '%f', '%f']
         );
@@ -2127,22 +2295,23 @@ function insert_refund_transactions($data, $order)
         if (!$return_id) {
             throw new RuntimeException("Failed to insert return: " . $wpdb->last_error);
         }
-        // Inert into return item
-        foreach ($order_items as $item) {
-            $success = $wpdb->insert(
-                $return_items_table,
-                [
-                    'return_id'     => $return_id,
-                    'order_item_id' => $item->order_item_id,
-                    'product_inventory_unit_id' => $item->product_inventory_unit_id,
-                    'unit_price' => $item->sale_price,
-                ],
-                ['%d', '%d', '%d', '%f']
-            );
-            if (!$success) {
-                throw new RuntimeException("Failed to insert return item: " . $wpdb->last_error);
-            }
-        }
+        // Inert into return item 
+        // TODO WORK ON THIS TOMORROW
+        // foreach ($data['refund_items_ids'] as $item) {
+        //     $success = $wpdb->insert(
+        //         $return_items_table,
+        //         [
+        //             'return_id'     => $return_id,
+        //             'order_item_id' => $item->order_item_id,
+        //             'product_inventory_unit_id' => $item->product_inventory_unit_id,
+        //             'unit_price' => $item->sale_price,
+        //         ],
+        //         ['%d', '%d', '%d', '%f']
+        //     );
+        //     if (!$success) {
+        //         throw new RuntimeException("Failed to insert return item: " . $wpdb->last_error);
+        //     }
+        // }
 
         foreach ($data["payment"] as $method => $amount) {
             $success = $wpdb->insert(
@@ -2278,16 +2447,29 @@ function create_refund_return()
 
     // get the order item ids to see if they match the items order id
     $order_item_ids = get_order_items($data['order_id']);
-
-    if (! order_items_valid($order_item_ids, $data['refund_items'])) {
+    if (! order_items_valid($order_item_ids, $data['refund_items_ids'])) {
         wp_send_json_error(['message' => 'One or more return items are invalid'], 422);
     }
 
-    $already_returned = check_already_returned($data['refund_items']);
-    if ($already_returned) {
-        wp_send_json_error(['message' => 'Some selected items have already been returned'], 409);
+    $order_service_ids = get_order_services($data['order_id']);
+    if (! order_items_valid($order_service_ids, $data['refund_services_ids'])) {
+        wp_send_json_error(['message' => 'One or more return items are invalid'], 422);
     }
 
+    if (!empty($data['refund_items_data'])) {
+        // Checking if the item was returned and if returned the sum should be lower than the original item amount 
+        check_already_returned($data['refund_items_ids'], $data['refund_items_data']);
+        // Checking if the returned item amount is lower than the original item amount 
+        check_items_price($data['refund_items_ids'], $data['refund_items_data']);
+    }
+
+    // if (!empty($data['refund_services_data'])) {
+    //     check_already_returned($data['refund_services'], $data['refund_services_data']);
+    // }
+
+
+    check_tax_is_correct($data);
+    return;
     insert_refund_transactions($data, $order);
 }
 
