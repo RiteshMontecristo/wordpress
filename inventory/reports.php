@@ -43,6 +43,14 @@ function reports_page()
                 class="nav-tab <?php echo $active_tab === 'layaway' ? 'nav-tab-active' : ''; ?>">
                 Layaway Report
             </a>
+            <a href="<?php echo esc_url($layaway_url); ?>"
+                class="nav-tab <?php echo $active_tab === 'financial' ? 'nav-tab-active' : ''; ?>">
+                Financial Report
+            </a>
+            <a href="<?php echo esc_url($layaway_url); ?>"
+                class="nav-tab <?php echo $active_tab === 'out-of-status' ? 'nav-tab-active' : ''; ?>">
+                Out of status Report
+            </a>
         </h2>
 
         <?php if ($active_tab === 'sales') {
@@ -114,6 +122,12 @@ function reports_render_sales_filters()
                     <?= mji_store_dropdown(false) ?>
                 </td>
             </tr>
+            <tr>
+                <th scope="row"><label for="brands">Brand</label></th>
+                <td>
+                    <?= mji_brands_dropdown(false) ?>
+                </td>
+            </tr>
         </table>
 
         <?php submit_button('Generate Report'); ?>
@@ -140,6 +154,7 @@ function reports_get_sales_results()
 
     $salesperson = !empty($_GET['salesperson']) ? intval($_GET['salesperson']) : null;
     $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
+    $brand = !empty($_GET['brands']) ? intval($_GET['brands']) : null;
 
     $orders_table = $wpdb->prefix . 'mji_orders';
     $order_items = $wpdb->prefix . 'mji_order_items';
@@ -148,6 +163,7 @@ function reports_get_sales_results()
     $customers_table = $wpdb->prefix . 'mji_customers';
     $service_table = $wpdb->prefix . 'mji_services';
     $models_table = $wpdb->prefix . 'mji_models';
+    $brands_table = $wpdb->prefix . 'mji_brands';
     $returns_table = $wpdb->prefix . 'mji_returns';
 
     $where1 = ["o.created_at BETWEEN %s AND %s"];
@@ -161,6 +177,11 @@ function reports_get_sales_results()
     if ($location !== null) {
         $where1[] = "pi.location_id = %d";
         $params1[] = $location;
+    }
+
+    if ($brand !== null) {
+        $where1[] = "pi.brand_id = %d";
+        $params1[] = $brand;
     }
 
     $query1 = "
@@ -177,6 +198,7 @@ function reports_get_sales_results()
                     pi.serial AS serial,
                     m.name AS model_name,
                     pi.location_id,
+                    pi.brand_id,
                     COALESCE(oi.sale_price, 0) AS retail_paid,
                     COALESCE(oi.discount_amount, 0) AS discount_amount,
                     COALESCE(pi.cost_price, 0) AS cost_price,
@@ -189,6 +211,7 @@ function reports_get_sales_results()
                 INNER JOIN $salespeople_table s ON o.salesperson_id = s.id
                 INNER JOIN $customers_table c ON o.customer_id = c.id
                 LEFT JOIN $models_table m on m.id = pi.model_id
+                LEFT JOIN $brands_table b on b.id = pi.brand_id
                 LEFT JOIN $returns_table r on r.order_id = o.id
                 WHERE " . implode(" AND ", $where1) . "
             ";
@@ -218,8 +241,9 @@ function reports_get_sales_results()
                     NULL AS product_variant_id,
                     category AS sku,
                     NULL AS serial,
-                    NULL AS sku,
                     NULL AS model_name,
+                    NULL AS location_id,
+                    NULL AS brand_id,
                     COALESCE(si.sold_price, 0) as retail_paid,
                     COALESCE(0, 0) as discount_amount,
                     COALESCE(si.cost_price, 0) as cost_price,
@@ -233,16 +257,20 @@ function reports_get_sales_results()
                 WHERE " . implode(" AND ", $where2) . "
             ";
 
-    $query = "
+
+    if ($brand !== null) {
+        $results = $wpdb->get_results($wpdb->prepare($query1, $params1));
+    } else {
+        $query = "
         ($query1)
         UNION ALL
         ($query2)
         ORDER BY sold_date ASC
     ";
 
-    $params = array_merge($params1, $params2);
-    $results = $wpdb->get_results($wpdb->prepare($query, ...$params));
-
+        $params = array_merge($params1, $params2);
+        $results = $wpdb->get_results($wpdb->prepare($query, ...$params));
+    }
     return $results;
 }
 
