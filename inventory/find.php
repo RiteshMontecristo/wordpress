@@ -208,7 +208,8 @@ function reports_search_sales_results($reference_num)
         if ($wpdb->last_error) {
             throw new Exception($wpdb->last_error);
         }
-        if (!$order) return null;
+        if (!$order)
+            return null;
 
         $order_id = $order->id;
         $items = $wpdb->get_results($wpdb->prepare("
@@ -251,8 +252,8 @@ function reports_search_sales_results($reference_num)
         }
 
         return [
-            'order'    => $order,
-            'items'    => $items,
+            'order' => $order,
+            'items' => $items,
             'services' => $services,
             'payments' => $payments
         ];
@@ -268,7 +269,6 @@ function render_invoice($results)
     $services = $results['services'];
     $payments = $results['payments'];
     $notes = $results['order']->notes;
-
     $calculate_gst = $order->gst_total > 0 ? true : false;
     $calculate_pst = $order->pst_total > 0 ? true : false;
 ?>
@@ -278,9 +278,13 @@ function render_invoice($results)
 
             <!-- Customer & Invoice Info -->
             <div style="margin-bottom:20px;">
-                <p><strong>Customer:</strong> <?= esc_html($order->customer_first_name . ' ' . $order->customer_last_name) ?></p>
-                <p><strong>Address:</strong> <?= esc_html($order->street_address . ', ' . $order->city . ', ' . $order->province . ' ' . $order->postal_code . ', ' . $order->country) ?></p>
-                <p><strong>Served by:</strong> <?= esc_html($order->salesperson_first_name . ' ' . $order->salesperson_last_name) ?></p>
+                <p><strong>Customer:</strong>
+                    <?= esc_html($order->customer_first_name . ' ' . $order->customer_last_name) ?></p>
+                <p><strong>Address:</strong>
+                    <?= esc_html($order->street_address . ', ' . $order->city . ', ' . $order->province . ' ' . $order->postal_code . ', ' . $order->country) ?>
+                </p>
+                <p><strong>Served by:</strong>
+                    <?= esc_html($order->salesperson_first_name . ' ' . $order->salesperson_last_name) ?></p>
                 <p><strong>Date:</strong> <?= esc_html(date('F j, Y', strtotime($order->created_at))) ?></p>
             </div>
 
@@ -312,7 +316,7 @@ function render_invoice($results)
                                         continue;
                                     }
 
-                                    $image_url  = esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($item->wc_product_id), 'thumbnail'));
+                                    $image_url = esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($item->wc_product_id), 'thumbnail'));
                                     if ($is_variant) {
                                         $description = $product->get_description();
                                     } else {
@@ -322,12 +326,15 @@ function render_invoice($results)
                                     $item->image_url = $image_url;
                                     echo "<img src='{$image_url}' alt='product image' />";
                                     echo "<p>";
-                                    if (!empty($item->sku)) echo "<b>SKU: " . esc_html($item->sku) . "</b><br/>";
+                                    if (!empty($item->sku))
+                                        echo "<b>SKU: " . esc_html($item->sku) . "</b><br/>";
                                     echo nl2br($description);
-                                    if (!empty($item->serial)) echo "<br />Serial: " . esc_html($item->serial);
-                                    if (!empty($item->notes)) echo "<br />Notes: " . esc_html($item->notes);
+                                    if (!empty($item->serial))
+                                        echo "<br />Serial: " . esc_html($item->serial);
+                                    if (!empty($item->notes))
+                                        echo "<br />Notes: " . esc_html($item->notes);
                                     echo "<br />Price: " . esc_html($item->sale_price);
-                                    echo  "</p>";
+                                    echo "</p>";
                                     ?>
                                 </td>
                             </tr>
@@ -345,8 +352,10 @@ function render_invoice($results)
                                 <td>
                                     <?php
                                     $parts = [];
-                                    if (!empty($service->category)) $parts[] = esc_html($service->category);
-                                    if (!empty($service->description)) $parts[] = esc_html($service->description);
+                                    if (!empty($service->category))
+                                        $parts[] = esc_html($service->category);
+                                    if (!empty($service->description))
+                                        $parts[] = esc_html($service->description);
                                     echo implode(' <br />  ', $parts);
                                     echo "<br /> Price: " . $service->sold_price;
                                     ?>
@@ -393,7 +402,8 @@ function render_invoice($results)
             </div>
 
             <!-- Delete Invoice Button -->
-            <form method="post" style="margin-top:20px; position: relative; z-index:1;" onsubmit="return confirm('Are you sure you want to delete this invoice?');">
+            <form method="post" style="margin-top:20px; position: relative; z-index:1;"
+                onsubmit="return confirm('Are you sure you want to delete this invoice?');">
                 <input type="hidden" name="order_id" value="<?= intval($order->id) ?>">
                 <input type="hidden" name="action" value="delete_invoice">
                 <?php submit_button('Delete Invoice', 'primary', 'delete_invoice'); ?>
@@ -404,7 +414,7 @@ function render_invoice($results)
         </div>
 
         <!-- Credit items -->
-        <div class="hidden" id="credit">
+        <div class="" id="credit">
             <div class="credit-container">
                 <?php if (!empty($items) || !empty($services)): ?>
                     <div class="return-section">
@@ -419,12 +429,16 @@ function render_invoice($results)
                                 <div class="return-items">
                                     <?php foreach ($items as $item): ?>
                                         <div class="return-item">
-                                            <input type="checkbox" class="return-item-checkbox"
-                                                name="return_items[]" id="return_items[<?= $item->id ?>]" value="<?= $item->id ?>" data-subtotal="<?= $item->sale_price ?>" data-gst="<?= $calculate_gst ?>" data-pst="<?= $calculate_pst ?>">
+                                            <input type="checkbox" class="return-item-checkbox" name="return_items[]"
+                                                id="return_items[<?= $item->id ?>]" value="<?= $item->id ?>"
+                                                data-subtotal="<?= $item->sale_price ?>" data-gst="<?= $calculate_gst ?>"
+                                                data-pst="<?= $calculate_pst ?>">
                                             <label for="return_items[<?= $item->id ?>]" class="item-content">
-                                                <img class="item-image" src="<?= $item->image_url ?>" alt="<?= esc_attr($product->get_name()) ?>">
+                                                <img class="item-image" src="<?= $item->image_url ?>"
+                                                    alt="<?= esc_attr($product->get_name()) ?>">
                                                 <div class="item-info">
                                                     <p class="item-details">
+                                                        Order ID: <?= esc_html($item->order_id) ?><br>
                                                         <?= esc_html($product->get_name()) ?><br>
                                                         <?php if (!empty($item->sku)): ?>
                                                             SKU: <?= esc_html($item->sku) ?><br>
@@ -441,7 +455,43 @@ function render_invoice($results)
                                                         <?php if (!empty($item->discount_amount) && $item->discount_amount != 0): ?>
                                                             Discount: <?= esc_html($item->discount_amount) ?>
                                                         <?php endif; ?>
+                                                        <input class="refund_price" name="refund_prices[<?= $item->id ?>]" step="0.01"
+                                                            type="number" value="<?= $item->sale_price ?>"
+                                                            max="<?= $item->sale_price ?>" />
                                                     </p>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- services -->
+                            <?php if (!empty($services)): ?>
+                                <div class="return-items">
+                                    <?php foreach ($services as $service):
+                                    ?>
+                                        <div class="return-item">
+                                            <input type="checkbox" class="return-item-checkbox" name="return_services[]"
+                                                id="return_services[<?= $service->id ?>]" value="<?= $service->id ?>"
+                                                data-subtotal="<?= $service->sold_price ?>" data-gst="<?= $calculate_gst ?>"
+                                                data-pst="<?= $calculate_pst ?>">
+                                            <label for="return_services[<?= $service->id ?>]" class="item-content">
+                                                <?= wc_placeholder_img([150, 150]); ?>
+                                                <div class="item-info">
+                                                    <p class="item-details">
+                                                        <?= esc_html($service->category) ?><br>
+                                                        <?php if (!empty($service->description)): ?>
+                                                            Description: <?= esc_html($service->description) ?><br>
+                                                        <?php endif; ?>
+
+                                                        <?php if (!empty($service->sold_price)): ?>
+                                                            Sale Price: <?= esc_html($service->sold_price) ?><br>
+                                                        <?php endif; ?>
+
+                                                        <input class="refund_price" name="refund_prices[<?= $service->id ?>]"
+                                                            step="0.01" type="number" value="<?= $service->sold_price ?>"
+                                                            max="<?= $service->sold_price ?>" />
                                                 </div>
                                             </label>
                                         </div>
@@ -455,6 +505,14 @@ function render_invoice($results)
                                     <div class="form-group">
                                         <label for="reference">Reference Number:</label>
                                         <input type="text" id="reference" name="reference" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="item_returned">Item Returned:</label>
+                                        <select id="item_returned" name="item_returned">
+                                            <option value="yes">Yes</option>
+                                            <option value="no">No</option>
+                                        </select>
                                     </div>
 
                                     <div class="form-group">
@@ -504,12 +562,16 @@ function render_invoice($results)
                                     <?php foreach ($items as $item):
                                     ?>
                                         <div class="return-item">
-                                            <input type="checkbox" class="return-item-checkbox"
-                                                name="refund_items[]" id="refund_items[<?= $item->id ?>]" value="<?= $item->id ?>" data-subtotal="<?= $item->sale_price ?>" data-gst="<?= $calculate_gst ?>" data-pst="<?= $calculate_pst ?>">
+                                            <input type="checkbox" class="return-item-checkbox" name="refund_items[]"
+                                                id="refund_items[<?= $item->id ?>]" value="<?= $item->id ?>"
+                                                data-subtotal="<?= $item->sale_price ?>" data-gst="<?= $calculate_gst ?>"
+                                                data-pst="<?= $calculate_pst ?>">
                                             <label for="refund_items[<?= $item->id ?>]" class="item-content">
-                                                <img class="item-image" src="<?= $item->image_url ?>" alt="<?= esc_attr($product->get_name()) ?>">
+                                                <img class="item-image" src="<?= $item->image_url ?>"
+                                                    alt="<?= esc_attr($product->get_name()) ?>">
                                                 <div class="item-info">
                                                     <p class="item-details">
+                                                        Order ID: <?= esc_html($item->order_id) ?><br>
                                                         <?= esc_html($product->get_name()) ?><br>
                                                         <?php if (!empty($item->sku)): ?>
                                                             SKU: <?= esc_html($item->sku) ?><br>
@@ -526,7 +588,9 @@ function render_invoice($results)
                                                         <?php if (!empty($item->discount_amount) && $item->discount_amount != 0): ?>
                                                             Discount: <?= esc_html($item->discount_amount) ?>
                                                         <?php endif; ?>
-                                                        <input class="refund_price" name="refund_prices[<?= $item->id ?>]" step="0.01" type="number" value="<?= $item->sale_price ?>" max="<?= $item->sale_price ?>" />
+                                                        <input class="refund_price" name="refund_prices[<?= $item->id ?>]" step="0.01"
+                                                            type="number" value="<?= $item->sale_price ?>"
+                                                            max="<?= $item->sale_price ?>" />
                                                     </p>
                                                 </div>
                                             </label>
@@ -541,8 +605,10 @@ function render_invoice($results)
                                     <?php foreach ($services as $service):
                                     ?>
                                         <div class="return-item">
-                                            <input type="checkbox" class="return-item-checkbox"
-                                                name="refund_services[]" id="refund_services[<?= $service->id ?>]" value="<?= $service->id ?>" data-subtotal="<?= $service->sold_price ?>" data-gst="<?= $calculate_gst ?>" data-pst="<?= $calculate_pst ?>">
+                                            <input type="checkbox" class="return-item-checkbox" name="refund_services[]"
+                                                id="refund_services[<?= $service->id ?>]" value="<?= $service->id ?>"
+                                                data-subtotal="<?= $service->sold_price ?>" data-gst="<?= $calculate_gst ?>"
+                                                data-pst="<?= $calculate_pst ?>">
                                             <label for="refund_services[<?= $service->id ?>]" class="item-content">
                                                 <?= wc_placeholder_img([150, 150]); ?>
                                                 <div class="item-info">
@@ -556,7 +622,9 @@ function render_invoice($results)
                                                             Sale Price: <?= esc_html($service->sold_price) ?><br>
                                                         <?php endif; ?>
 
-                                                        <input class="refund_price" name="refund_prices[<?= $service->id ?>]" step="0.01" type="number" value="<?= $service->sold_price ?>" max="<?= $service->sold_price ?>" />
+                                                        <input class="refund_price" name="refund_prices[<?= $service->id ?>]"
+                                                            step="0.01" type="number" value="<?= $service->sold_price ?>"
+                                                            max="<?= $service->sold_price ?>" />
                                                 </div>
                                             </label>
                                         </div>
@@ -573,8 +641,17 @@ function render_invoice($results)
                                     </div>
 
                                     <div class="form-group">
+                                        <label for="item_returned">Item Returned:</label>
+                                        <select id="item_returned" name="item_returned">
+                                            <option value="yes">Yes</option>
+                                            <option value="no">No</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
                                         <label for="refund-date">Date:</label>
-                                        <input type="date" id="refund-date" name="refund-date" value="<?php echo date('Y-m-d'); ?>">
+                                        <input type="date" id="refund-date" name="refund-date"
+                                            value="<?php echo date('Y-m-d'); ?>">
                                     </div>
 
                                     <div class="form-group">
@@ -679,15 +756,15 @@ function delete_invoice($order_id)
 
     global $wpdb;
 
-    $orders_table      = $wpdb->prefix . 'mji_orders';
+    $orders_table = $wpdb->prefix . 'mji_orders';
     $order_items_table = $wpdb->prefix . 'mji_order_items';
-    $inventory_table   = $wpdb->prefix . 'mji_product_inventory_units';
-    $inventory_history_table   = $wpdb->prefix . 'mji_inventory_status_history';
-    $service_table     = $wpdb->prefix . 'mji_services';
-    $payments_table    = $wpdb->prefix . 'mji_payments';
-    $layaways_table    = $wpdb->prefix . 'mji_layaways';
-    $credits_table     = $wpdb->prefix . 'mji_credits';
-    $returns_table     = $wpdb->prefix . 'mji_returns';
+    $inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
+    $inventory_history_table = $wpdb->prefix . 'mji_inventory_status_history';
+    $service_table = $wpdb->prefix . 'mji_services';
+    $payments_table = $wpdb->prefix . 'mji_payments';
+    $layaways_table = $wpdb->prefix . 'mji_layaways';
+    $credits_table = $wpdb->prefix . 'mji_credits';
+    $returns_table = $wpdb->prefix . 'mji_returns';
 
     $wpdb->query('SET autocommit = 0');
     $wpdb->query('START TRANSACTION');
@@ -913,7 +990,8 @@ function search_layaway_results($reference_num)
         $results = $wpdb->get_row($sql_layaway);
         check_wpdb_error($wpdb);
 
-        if (!$results) return null;
+        if (!$results)
+            return null;
 
         // Payments used to fill the layaway/credit
         $sql_payments = $wpdb->prepare("
@@ -926,7 +1004,7 @@ function search_layaway_results($reference_num)
             WHERE reference_num = %s
         ", $reference_num);
 
-        $payments  = $wpdb->get_results($sql_payments);
+        $payments = $wpdb->get_results($sql_payments);
         check_wpdb_error($wpdb);
 
         $results->payment = $payments;
@@ -944,7 +1022,7 @@ function search_layaway_results($reference_num)
                     WHERE p.layaway_id = %d AND transaction_type = 'layaway_redemption'
                 ", $results->layaway_id);
 
-            $usage  = $wpdb->get_results($sql_layaway_used);
+            $usage = $wpdb->get_results($sql_layaway_used);
             check_wpdb_error($wpdb);
             $results->type = 'layaway';
         } elseif ($results->credit_id) {
@@ -957,7 +1035,7 @@ function search_layaway_results($reference_num)
                     WHERE p.credit_id = %d AND transaction_type = 'credit_redemption'
                 ", $results->credit_id);
 
-            $usage  = $wpdb->get_results($sql_credit_used);
+            $usage = $wpdb->get_results($sql_credit_used);
             check_wpdb_error($wpdb);
 
             $sql_return_items = $wpdb->prepare("
@@ -971,7 +1049,7 @@ function search_layaway_results($reference_num)
                     WHERE r.reference_num = %s
                 ", $reference_num);
 
-            $return_items  = $wpdb->get_results($sql_return_items);
+            $return_items = $wpdb->get_results($sql_return_items);
 
             check_wpdb_error($wpdb);
 
@@ -1080,10 +1158,12 @@ function render_layaway_invoice($invoice)
                 echo "<div>";
                 echo "<img src='{$item["image_url"]}' alt='product image' />";
                 echo "<p>";
-                if (!empty($item["sku"])) echo "<b>SKU: " . esc_html($item["sku"]) . "</b><br/>";
+                if (!empty($item["sku"]))
+                    echo "<b>SKU: " . esc_html($item["sku"]) . "</b><br/>";
                 echo nl2br($item["description"]);
-                if (!empty($item["serial"])) echo "<br />Serial: " . esc_html($item["serial"]);
-                echo  "</p>";
+                if (!empty($item["serial"]))
+                    echo "<br />Serial: " . esc_html($item["serial"]);
+                echo "</p>";
                 echo "</div>";
             endforeach;
         endif;
@@ -1102,8 +1182,8 @@ function render_layaway_invoice($invoice)
                 <?php
                 $total_paid = 0.00;
 
-                if (!empty($invoice->payment)) :
-                    foreach ($invoice->payment as $payment) :
+                if (!empty($invoice->payment)):
+                    foreach ($invoice->payment as $payment):
                         $amount = (float) $payment->amount;
                         $total_paid += $amount;
                 ?>
@@ -1113,7 +1193,7 @@ function render_layaway_invoice($invoice)
                         </tr>
                     <?php
                     endforeach;
-                else :
+                else:
                     ?>
                     <tr>
                         <td colspan="2" align="center">No payments found</td>
@@ -1129,9 +1209,10 @@ function render_layaway_invoice($invoice)
         </table>
 
         <?php
-        if (empty($invoice->usage)) :
+        if (empty($invoice->usage)):
         ?>
-            <form method="post" onsubmit="return confirm('Delete this <?php echo esc_html($type === 'credit' ? 'credit' : 'layaway'); ?>? This cannot be undone.');">
+            <form method="post"
+                onsubmit="return confirm('Delete this <?php echo esc_html($type === 'credit' ? 'credit' : 'layaway'); ?>? This cannot be undone.');">
                 <?php wp_nonce_field('delete_' . $type . '_action', 'delete_' . $type . '_nonce'); ?>
                 <input type="hidden" name="action" value="delete_<?php echo esc_attr($type); ?>">
 
@@ -1146,9 +1227,10 @@ function render_layaway_invoice($invoice)
                 </button>
                 <button type="button" class="button print" id="main-print-btn">Print</button>
             </form>
-        <?php else : ?>
+        <?php else: ?>
 
-            <p><i>We can not delete the <?= $type ?> as it has been used, Will have to delete the invoices using this layaway before we can delete this.</i></p>
+            <p><i>We can not delete the <?= $type ?> as it has been used, Will have to delete the invoices using this layaway
+                    before we can delete this.</i></p>
             <h3><?php echo ucfirst(esc_html($type)); ?> Usage</h3>
 
             <table border="1" cellpadding="6" cellspacing="0" width="100%">
@@ -1163,7 +1245,7 @@ function render_layaway_invoice($invoice)
                     <?php
                     $total = 0.00;
 
-                    foreach ($invoice->usage as $used) :
+                    foreach ($invoice->usage as $used):
                         $amount = (float) $used->amount;
                         $total += $amount;
                     ?>
@@ -1197,10 +1279,13 @@ function search_refund_results($reference_num)
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
     $returns_table = $wpdb->prefix . 'mji_returns';
     $return_items_table = $wpdb->prefix . 'mji_return_items';
+    $order_items_table = $wpdb->prefix . 'mji_order_items';
+    $services_table = $wpdb->prefix . 'mji_services';
+    $return_services_table = $wpdb->prefix . 'mji_return_services';
     $product_inventory_units_table = $wpdb->prefix . 'mji_product_inventory_units';
 
     try {
-        $sql_layaway = $wpdb->prepare("
+        $sql_payments = $wpdb->prepare("
             SELECT
                 p.reference_num,
                 p.payment_date,
@@ -1223,10 +1308,11 @@ function search_refund_results($reference_num)
             AND p.transaction_type = 'refund'
         ", $reference_num);
 
-        $results = $wpdb->get_row($sql_layaway);
+        $results = $wpdb->get_row($sql_payments);
         check_wpdb_error($wpdb);
 
-        if (!$results) return null;
+        if (!$results)
+            return null;
 
         $sql_payment = $wpdb->prepare("
             SELECT
@@ -1241,21 +1327,24 @@ function search_refund_results($reference_num)
         check_wpdb_error($wpdb);
 
         $results->payment = $payment;
-        $sql_get_return_items =  $wpdb->prepare("
+
+        $sql_get_return_items = $wpdb->prepare("
             SELECT
                 r.reference_num,
                 p.wc_product_id,
                 p.wc_product_variant_id,
                 p.sku,
-                p.serial
+                p.serial,
+                ri.unit_price,
+                oi.sale_price
             FROM {$returns_table} r
             JOIN {$return_items_table} ri ON r.id = ri.return_id
+            JOIN {$order_items_table} oi ON oi.id = ri.order_item_id
             JOIN {$product_inventory_units_table} p ON p.id = ri.product_inventory_unit_id
             WHERE r.reference_num = %s
         ", "$reference_num");
 
         $return_items = $wpdb->get_results($sql_get_return_items);
-        check_wpdb_error($wpdb);
 
         if ($return_items) {
             $items = [];
@@ -1282,12 +1371,31 @@ function search_refund_results($reference_num)
                     "serial" => $return_item->serial,
                     "description" => $description,
                     "image_url" => $image_url,
+                    "sold_price" => $return_item->sale_price,
+                    "returned_price" => $return_item->unit_price
                 ];
 
                 array_push($items, $item);
             }
             $results->items = $items;
         }
+
+        $sql_get_return_services = $wpdb->prepare("
+            SELECT
+                r.reference_num,
+                s.category,
+                s.description,
+                s.sold_price,
+                rs.price
+            FROM {$returns_table} r
+            JOIN {$return_services_table} rs ON r.id = rs.return_id
+            JOIN {$services_table} s ON s.id = rs.service_id
+            WHERE r.reference_num = %s
+        ", "$reference_num");
+        $return_services = $wpdb->get_results($sql_get_return_services);
+        check_wpdb_error($wpdb);
+
+        $results->return_services = $return_services;
         return $results;
     } catch (Exception $e) {
         custom_log($e->getMessage());
@@ -1356,10 +1464,29 @@ function render_refund_invoice($invoice)
                 echo "<div>";
                 echo "<img src='{$item["image_url"]}' alt='product image' />";
                 echo "<p>";
-                if (!empty($item["sku"])) echo "<b>SKU: " . esc_html($item["sku"]) . "</b><br/>";
+                if (!empty($item["sku"]))
+                    echo "<b>SKU: " . esc_html($item["sku"]) . "</b>";
                 echo nl2br($item["description"]);
-                if (!empty($item["serial"])) echo "<br />Serial: " . esc_html($item["serial"]);
-                echo  "</p>";
+                if (!empty($item["serial"]))
+                    echo "<br />Serial: " . esc_html($item["serial"]);
+                echo "<br />Sold Price: " . esc_html($item["sold_price"]);
+                echo "<br />Returned Price: " . esc_html($item["returned_price"]);
+                echo "</p>";
+                echo "</div>";
+            endforeach;
+        endif;
+
+        if (!empty($invoice->return_services)):
+            echo "<h3>Services:</h3>";
+            foreach ($invoice->return_services as $service):
+                echo "<div>";
+                echo "<p>";
+                echo "<b>Category: " . esc_html($service->category) . "</b>";
+                if (!empty($service->description))
+                    echo "<br />Description: " . esc_html($service->description);
+                echo "<br />Sold Price: " . esc_html($service->sold_price);
+                echo "<br />Returned Price: " . esc_html($service->price);
+                echo "</p>";
                 echo "</div>";
             endforeach;
         endif;
@@ -1378,8 +1505,8 @@ function render_refund_invoice($invoice)
                 <?php
                 $total_paid = 0.00;
 
-                if (!empty($invoice->payment)) :
-                    foreach ($invoice->payment as $payment) :
+                if (!empty($invoice->payment)):
+                    foreach ($invoice->payment as $payment):
                         $amount = (float) $payment->amount;
                         $total_paid += $amount;
                 ?>
@@ -1389,7 +1516,7 @@ function render_refund_invoice($invoice)
                         </tr>
                     <?php
                     endforeach;
-                else :
+                else:
                     ?>
                     <tr>
                         <td colspan="2" align="center">No payments found</td>
@@ -1429,8 +1556,8 @@ function delete_layaway($layaway_id)
 
     global $wpdb;
 
-    $layaways_table      = $wpdb->prefix . 'mji_layaways';
-    $payments_table    = $wpdb->prefix . 'mji_payments';
+    $layaways_table = $wpdb->prefix . 'mji_layaways';
+    $payments_table = $wpdb->prefix . 'mji_payments';
     $wpdb->query('START TRANSACTION');
 
     try {
@@ -1595,6 +1722,7 @@ function delete_refund($reference_num)
     $payments_table = $wpdb->prefix . 'mji_payments';
     $return_table = $wpdb->prefix . "mji_returns";
     $return_items_table = $wpdb->prefix . "mji_return_items";
+    $return_services_table = $wpdb->prefix . "mji_return_services";
     $inventory_status_history_table = $wpdb->prefix . "mji_inventory_status_history";
     $product_inventory_units_table = $wpdb->prefix . "mji_product_inventory_units";
     $restored_stock = [];
@@ -1606,13 +1734,16 @@ function delete_refund($reference_num)
 
         $returns = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT r.id, ri.product_inventory_unit_id, p.wc_product_id, p.wc_product_variant_id
+                "SELECT r.id, ri.product_inventory_unit_id, p.wc_product_id, p.wc_product_variant_id, ish.from_status, ish.to_status
                     FROM {$return_table} r
                     JOIN {$return_items_table} ri
                         ON r.id = ri.return_id
                     JOIN {$product_inventory_units_table} p
                         ON ri.product_inventory_unit_id = p.id
-                    WHERE reference_num = %s",
+                    JOIN {$inventory_status_history_table} ish 
+                        ON ish.inventory_unit_id = ri.product_inventory_unit_id
+                        AND ish.reference_num = r.reference_num
+                    WHERE R.reference_num = %s",
                 $reference_num
             )
         );
@@ -1621,31 +1752,36 @@ function delete_refund($reference_num)
         if ($returns) {
             $wpdb->delete($inventory_status_history_table, ['reference_num' => $reference_num], ['%s']);
             check_wpdb_error($wpdb);
-            $wpdb->delete($return_table, ['reference_num' => $reference_num], ['%s']);
-            check_wpdb_error($wpdb);
             $wpdb->delete($return_items_table, ['return_id' => $returns[0]->id], ['%d']);
+            check_wpdb_error($wpdb);
+            $wpdb->delete($return_services_table, ['return_id' => $returns[0]->id], ['%d']);
+            check_wpdb_error($wpdb);
+            $wpdb->delete($return_table, ['reference_num' => $reference_num], ['%s']);
             check_wpdb_error($wpdb);
 
             foreach ($returns as $return) {
-                $wpdb->update($product_inventory_units_table, ["status" => "sold"], ['id' => $return->product_inventory_unit_id], ['%s'], ['%d']);
-                check_wpdb_error($wpdb);
 
-                $product_id = $return->wc_product_variant_id ?: $return->wc_product_id;
-                $product = wc_get_product($product_id);
-                if (!$product) {
-                    throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
+                if ($return->from_status == "sold"  && $return->to_status == "in_stock") {
+                    $wpdb->update($product_inventory_units_table, ["status" => "sold"], ['id' => $return->product_inventory_unit_id], ['%s'], ['%d']);
+                    check_wpdb_error($wpdb);
+
+                    $product_id = $return->wc_product_variant_id ?: $return->wc_product_id;
+                    $product = wc_get_product($product_id);
+                    if (!$product) {
+                        throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
+                    }
+
+                    $product->set_stock_quantity($product->get_stock_quantity() - 1);
+                    $product->save();
+                    $restored_stock[] = $product_id;
                 }
-
-                $product->set_stock_quantity($product->get_stock_quantity() - 1);
-                $product->save();
-                $restored_stock[] = $product_id;
             }
         }
 
         $wpdb->query('COMMIT');
         return [
             'success' => true,
-            "message" => "Credit successfully deleted."
+            "message" => "Refund successfully deleted."
         ];
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
@@ -1665,32 +1801,6 @@ function delete_refund($reference_num)
         ];
     }
 }
-
-function create_credit_return()
-{
-    $data = sanitize_and_validate_return($_POST);
-
-    $order = order_exists($data['order_id']);
-    if (!$order) {
-        wp_send_json_error(['message' => 'Order does not exist'], 404);
-    }
-
-    // get the order item ids to see if they match the items order id
-    $order_item_ids = get_order_items($data['order_id']);
-
-    if (! order_items_valid($order_item_ids, $data['return_items'])) {
-        wp_send_json_error(['message' => 'One or more return items are invalid'], 422);
-    }
-
-    $already_returned = check_already_returned($data['return_items']);
-    if ($already_returned) {
-        wp_send_json_error(['message' => 'Some selected items have already been returned'], 409);
-    }
-
-    insert_return_transactions($data, $order);
-}
-
-add_action('wp_ajax_create_credit_return', 'create_credit_return');
 
 function sanitize_payment_amount($value)
 {
@@ -1720,8 +1830,6 @@ function sanitize_and_validate_return($post_data)
     ];
     $refund_items_data = [];
     $refund_services_data = [];
-    // $refund_item_data = [];
-    // $refund_item_data = [];
 
     $payment_data = [];
     foreach ($allowed_payment_methods as $method) {
@@ -1733,6 +1841,7 @@ function sanitize_and_validate_return($post_data)
     $sanitized = [
         'order_id'              => absint($data['order_id'] ?? 0),
         'return_items_ids'      => is_array($data['return_items'] ?? null) ? array_map('absint', $data['return_items']) : [],
+        'return_services_ids'   => is_array($data['return_services'] ?? null) ? array_map('absint', $data['return_services']) : [],
         'refund_items_ids'      => is_array($data['refund_items'] ?? null) ? array_map('absint', $data['refund_items']) : [],
         'refund_services_ids'   => is_array($data['refund_services'] ?? null) ? array_map('absint', $data['refund_services']) : [],
         'refund_prices'         => is_array($data['refund_prices'] ?? null) ? array_map('floatval', $data['refund_prices']) : [],
@@ -1743,10 +1852,10 @@ function sanitize_and_validate_return($post_data)
         'total'                 => round((float) ($data['total'] ?? 0), 2),
         'reference'             => sanitize_text_field($data['reference'] ?? $data['refund-reference'] ?? ''),
         'original_reference'    => sanitize_text_field($data['original_reference'] ?? ''),
-        'date'                  => sanitize_text_field($data['date'] ?? $data['refund-date'] ??  ''),
+        'item_returned'         => sanitize_text_field($data['item_returned']) == 'yes' ? true : false,
+        'date'                  => sanitize_text_field($data['date'] ?? $data['refund-date'] ?? ''),
         'reason'                => sanitize_textarea_field($data['reason'] ?? $data['refund-reason'] ?? ''),
     ];
-
 
     $refund_items_data = [];
     $refund_services_data = [];
@@ -1762,10 +1871,10 @@ function sanitize_and_validate_return($post_data)
                 continue;
             }
 
-            if (in_array($id, $sanitized['refund_items_ids'], true)) {
+            if (in_array($id, $sanitized['return_items_ids'], true) || in_array($id, $sanitized['refund_items_ids'], true)) {
                 $refund_items_data[$id] = $amount;
                 $filtered_refund_prices[$id] = $amount;
-            } elseif (in_array($id, $sanitized['refund_services_ids'], true)) {
+            } elseif (in_array($id, $sanitized['return_services_ids'], true) || in_array($id, $sanitized['refund_services_ids'], true)) {
                 $refund_services_data[$id] = $amount;
                 $filtered_refund_prices[$id] = $amount;
             }
@@ -1781,16 +1890,16 @@ function sanitize_and_validate_return($post_data)
         $errors['message'] = 'Invalid order ID';
     }
 
-    if (empty($sanitized['return_items_ids']) && empty($sanitized['refund_items_ids']) && empty($sanitized['refund_services_ids'])) {
+    if (empty($sanitized['return_items_ids']) && empty($sanitized['return_services_ids']) && empty($sanitized['refund_items_ids']) && empty($sanitized['refund_services_ids'])) {
         $errors['message'] = 'No return items/services provided';
     }
 
     $date = DateTime::createFromFormat('Y-m-d', $sanitized['date']);
-    if (! $date || $date->format('Y-m-d') !== $sanitized['date']) {
+    if (!$date || $date->format('Y-m-d') !== $sanitized['date']) {
         $errors['message'] = 'Invalid date format';
     }
 
-    if (! empty($errors)) {
+    if (!empty($errors)) {
         wp_send_json_error([
             'message' => $errors['message'],
         ], 422);
@@ -1841,7 +1950,8 @@ function order_items_valid($order_item_ids, $selected_item_ids)
     return empty(array_diff($selected_item_ids, $order_item_ids));
 }
 
-function check_already_returned($order_item_ids, $current_return_items_data = [])
+// Check if item was already returned partially, if partial return then check total return doesnt exceed original amount
+function check_already_returned($order_item_ids, $current_return_items_data)
 {
     global $wpdb;
     $return_items_table = $wpdb->prefix . "mji_return_items";
@@ -1864,8 +1974,8 @@ function check_already_returned($order_item_ids, $current_return_items_data = []
             $db_data = $existing_returns[$id];
 
             // Use round() to avoid floating-point precision issues with currency
-            $already_returned = round((float)$db_data->total_returned_price, 2);
-            $max_allowed = round((float)$db_data->sale_price, 2);
+            $already_returned = round((float) $db_data->total_returned_price, 2);
+            $max_allowed = round((float) $db_data->sale_price, 2);
 
             if (($already_returned + $incoming_amount) > $max_allowed) {
                 wp_send_json_error(['message' => "Order ID {$id} returned amount is greater than the ordered amount as there is already a return for this item"], 409);
@@ -1874,35 +1984,33 @@ function check_already_returned($order_item_ids, $current_return_items_data = []
     }
 }
 
-// NEED TO WORK ON THIS
-function check_service_already_returned($order_item_ids, $current_return_services_data = [])
+function check_service_already_returned($order_services_ids, $current_return_services_data)
 {
     global $wpdb;
-    $return_items_table = $wpdb->prefix . "mji_return_items";
-    $order_items_table = $wpdb->prefix . "mji_order_items";
+    $return_services_table = $wpdb->prefix . "mji_return_services";
+    $services_table = $wpdb->prefix . "mji_services";
+
     $results = $wpdb->get_results($wpdb->prepare(
-        "SELECT order_item_id, SUM(unit_price) AS total_returned_price, MAX(oi.sale_price) AS sale_price 
-        FROM $return_items_table ri
-        JOIN $order_items_table oi ON ri.order_item_id = oi.id 
-        WHERE order_item_id IN (" . implode(',', $order_item_ids) . ") 
-        GROUP BY order_item_id",
+        "SELECT service_id, SUM(price) AS total_returned_price, MAX(s.sold_price) AS sale_price 
+        FROM $return_services_table rs
+        JOIN $services_table s ON rs.service_id = s.id 
+        WHERE service_id IN (" . implode(',', $order_services_ids) . ") 
+        GROUP BY service_id",
     ));
 
     $existing_returns = [];
     foreach ($results as $row) {
-        $existing_returns[$row->order_item_id] = $row;
+        $existing_returns[$row->service_id] = $row;
     }
 
-    foreach ($current_return_services_data as $item) {
-        $id = $item['id'];
-        $incoming_amount = $item['amount'];
+    foreach ($current_return_services_data as $id => $incoming_amount) {
 
         if (isset($existing_returns[$id])) {
             $db_data = $existing_returns[$id];
 
             // Use round() to avoid floating-point precision issues with currency
-            $already_returned = round((float)$db_data->total_returned_price, 2);
-            $max_allowed = round((float)$db_data->sale_price, 2);
+            $already_returned = round((float) $db_data->total_returned_price, 2);
+            $max_allowed = round((float) $db_data->sale_price, 2);
 
             if (($already_returned + $incoming_amount) > $max_allowed) {
                 wp_send_json_error(['message' => "Order ID {$id} returned amount is greater than the ordered amount"], 409);
@@ -1911,13 +2019,16 @@ function check_service_already_returned($order_item_ids, $current_return_service
     }
 }
 
-function check_items_price($order_item_ids, $current_return_items_data)
+// Check if item total return doesnt exceed original amount
+function check_items_price($order_item_ids, $current_return_items_data, $item_returned)
 {
     global $wpdb;
     $order_items_table = $wpdb->prefix . "mji_order_items";
+    $product_inventory_units_table = $wpdb->prefix . "mji_product_inventory_units";
     $results = $wpdb->get_results($wpdb->prepare(
-        "SELECT id, sale_price
-        FROM $order_items_table  
+        "SELECT oi.id, oi.sale_price, p.status
+        FROM $order_items_table oi
+        JOIN $product_inventory_units_table p ON p.id = oi.product_inventory_unit_id
         WHERE id IN (" . implode(',', $order_item_ids) . ")",
     ));
 
@@ -1926,8 +2037,33 @@ function check_items_price($order_item_ids, $current_return_items_data)
         $return_item_amount = $current_return_items_data[$row->id];
         $order_item_amount = $row->sale_price;
 
+        if ($row->status == "in_stock" && $item_returned) {
+            wp_send_json_error(['message' => "Order ID {$row->id} already returned, Please check previous returns"], 409);
+        }
+
         if ($return_item_amount > $order_item_amount) {
             wp_send_json_error(['message' => "Order ID {$row->id} return amount is greater than the original ordered item amount"], 409);
+        }
+    }
+}
+
+function check_services_price($service_item_ids, $current_service_items_data)
+{
+    global $wpdb;
+    $order_services_table = $wpdb->prefix . "mji_services";
+    $results = $wpdb->get_results($wpdb->prepare(
+        "SELECT *
+        FROM $order_services_table  
+        WHERE id IN (" . implode(',', $service_item_ids) . ")",
+    ));
+
+    foreach ($results as $row) {
+        // fetch the price that was sent
+        $return_service_amount = $current_service_items_data[$row->id];
+        $order_service_amount = $row->sold_price;
+
+        if ($return_service_amount > $order_service_amount) {
+            wp_send_json_error(['message' => "Order ID {$row->id} return amount is greater than the original ordered services amount"], 409);
         }
     }
 }
@@ -1947,10 +2083,10 @@ function check_tax_is_correct($data)
 
     foreach ($refund_prices as $id => $prices) {
         $subtotal += $prices;
-        if ($data->gst_total > 0) {
+        if ($data['gst_total'] > 0) {
             $gst_total += round($prices * $GST_RATE, 2);
         }
-        if ($data->pst_total > 0) {
+        if ($data['pst_total'] > 0) {
             $pst_total += round($prices * $PST_RATE, 2);
         }
     }
@@ -1973,83 +2109,40 @@ function check_tax_is_correct($data)
         wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and calculated total:' . $total], 422);
     }
 
-    foreach ($data['payment'] as $type => $amount) {
-        $payment_total += $amount;
-    }
+    // Will be empty when its credit
+    if (!empty($data['payment'])) {
+        foreach ($data['payment'] as $type => $amount) {
+            $payment_total += $amount;
+        }
 
-    if (abs($payment_total - $total) > 0.01) {
-        wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and calculated total:' . $total], 422);
+        if (abs($payment_total - $total) > 0.01) {
+            wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and calculated total:' . $total], 422);
+        }
     }
 }
 
-function insert_return_transactions($data, $order)
+function insert_return_transactions($data, $order, $type)
 {
     global $wpdb;
 
-    $GST_RATE = 0.05;
-    $PST_RATE = 0.07;
     $return_table = $wpdb->prefix . "mji_returns";
     $customer_table = $wpdb->prefix . "mji_customers";
     $return_items_table = $wpdb->prefix . "mji_return_items";
+    $return_services_table = $wpdb->prefix . "mji_return_services";
     $payment_table = $wpdb->prefix . "mji_payments";
     $credit_table = $wpdb->prefix . "mji_credits";
     $inventory_status_history_table = $wpdb->prefix . "mji_inventory_status_history";
     $product_inventory_units_table = $wpdb->prefix . "mji_product_inventory_units";
     $mji_order_items_table = $wpdb->prefix . "mji_order_items";
     $mji_orders_table = $wpdb->prefix . "mji_orders";
-    $order_item_ids = $data['return_items'];
+    $services_table = $wpdb->prefix . "mji_services";
+
+    // change this based on the the refund or credit
+    $returned_items_ids = $type == 'refund' ? $data['refund_items_ids'] : $data['return_items_ids'];
+    $returned_services_ids = $type == 'refund' ? $data['refund_services_ids'] : $data['return_services_ids'];
     $items_data = [];
-
-    $order_items = $wpdb->get_results(
-        "SELECT 
-            oi.id AS order_item_id,
-            oi.sale_price,
-            oi.product_inventory_unit_id,
-            pi.wc_product_id,
-            pi.wc_product_variant_id,
-            pi.sku,
-            pi.serial,
-            o.gst_total,
-            o.pst_total
-        FROM $mji_order_items_table oi
-        JOIN $product_inventory_units_table pi
-            ON pi.id = oi.product_inventory_unit_id
-        JOIN $mji_orders_table o
-            ON o.id = oi.order_id
-        WHERE oi.id IN (" . implode(',', $order_item_ids) . ")"
-    );
-    $gst_total = 0;
-    $pst_total = 0;
-    $subtotal = 0;
-    $total = 0;
-
-    foreach ($order_items as $item) {
-        $subtotal += (float)$item->sale_price;
-        if ($item->gst_total > 0) {
-            $gst_total += round($item->sale_price * $GST_RATE, 2);
-        }
-        if ($item->pst_total > 0) {
-            $pst_total += round($item->sale_price * $PST_RATE, 2);
-        }
-    }
-
-    $total = $gst_total + $pst_total + $subtotal;
-
-    if (abs($data['gst_total'] - $gst_total) > 0.01) {
-        wp_send_json_error(['message' => 'GST total mismatch. Provided GST: ' . $data['gst_total'] . ' and calculated GST:' . $gst_total], 422);
-    }
-
-    if (abs($data['pst_total'] - $pst_total) > 0.01) {
-        wp_send_json_error(['message' => 'PST total mismatch. Provided PST: ' . $data['pst_total'] . ' and calculated PST:' . $pst_total], 422);
-    }
-
-    if (abs($data['subtotal'] - $subtotal) > 0.01) {
-        wp_send_json_error(['message' => 'Subtotal mismatch. Provided subtotal: ' . $data['subtotal'] . ' and calculated subtotal:' . $subtotal], 422);
-    }
-
-    if (abs($data['total'] - $total) > 0.01) {
-        wp_send_json_error(['message' => 'Total mismatch. Provided total: ' . $data['total'] . ' and calculated total:' . $total], 422);
-    }
+    $services_data = [];
+    $mapped_product_inventory_unit_id = [];
 
     $restored_stock = [];
     $wpdb->query('START TRANSACTION');
@@ -2059,234 +2152,14 @@ function insert_return_transactions($data, $order)
         $wpdb->insert(
             $return_table,
             [
-                'order_id'    => $data['order_id'],
-                'reference_num'   => $data['reference'],
-                'return_date' => $data['date'],
-                'reason'      => $data['reason'],
-                'subtotal'    => $subtotal,
-                'gst_total'   => $gst_total,
-                'pst_total'   => $pst_total,
-                'total'       => $total,
-            ],
-            ['%d', '%s', '%s', '%s', '%f', '%f', '%f', '%f']
-        );
-        $return_id = $wpdb->insert_id;
-
-        if (!$return_id) {
-            throw new RuntimeException("Failed to insert return: " . $wpdb->last_error);
-        }
-        // Inert into return item
-        foreach ($order_items as $item) {
-            $success = $wpdb->insert(
-                $return_items_table,
-                [
-                    'return_id'     => $return_id,
-                    'order_item_id' => $item->order_item_id,
-                    'product_inventory_unit_id' => $item->product_inventory_unit_id,
-                    'unit_price' => $item->sale_price,
-                ],
-                ['%d', '%d', '%d', '%f']
-            );
-            if (!$success) {
-                throw new RuntimeException("Failed to insert return item: " . $wpdb->last_error);
-            }
-        }
-
-        // Issue credit to customer in payements
-        $success = $wpdb->insert(
-            $credit_table,
-            [
-                'customer_id'       => $order->customer_id,
-                'location_id'       => $order->location_id,
-                'reference_num'     => $data['reference'],
-                'total_amount'      => $total,
-                'remaining_amount'  => $total,
-                'status'            => "active",
-                'created_at'        => $data['date'],
-            ],
-            ['%d', '%d', '%s', '%f', '%f', '%s', '%s']
-        );
-        $credit_id = $wpdb->insert_id;
-
-        if (!$credit_id) {
-            throw new RuntimeException("Failed to insert credit: " . $wpdb->last_error);
-        }
-        $success = $wpdb->insert(
-            $payment_table,
-            [
-                'customer_id'       => $order->customer_id,
-                'salesperson_id'    => $order->salesperson_id,
-                'location_id'       => $order->location_id,
-                'order_id'          => $data['order_id'],
-                'credit_id'         => $credit_id,
-                'reference_num'     => $data['reference'],
-                'method'            => 'credit',
-                'amount'            => $total,
-                'transaction_type'  => 'credit_deposit',
-                'payment_date'      => $data['date'],
-                'notes'             => $data['reason'],
-            ],
-            ['%d', '%d', '%d', '%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s']
-        );
-
-        if (!$success) {
-            throw new RuntimeException("Failed to insert payment: " . $wpdb->last_error);
-        }
-
-        // Change the item status in inventory_status_history, product_inventory_units table and also woocommerce stock  
-        foreach ($order_items as $item) {
-
-            $items_info = [];
-
-            $success = $wpdb->insert(
-                $inventory_status_history_table,
-                [
-                    'inventory_unit_id' => $item->product_inventory_unit_id,
-                    'from_status'       => "sold",
-                    'to_status'         => "in_stock",
-                    'reference_num'     => $data['reference'],
-                    'created_at'        => $data['date'],
-                ],
-                ['%d', '%s', '%s', '%s', '%s']
-            );
-
-            if (!$success) {
-                throw new RuntimeException("Failed to insert in status history table: " . $wpdb->last_error);
-            }
-
-            $success = $wpdb->update(
-                $product_inventory_units_table,
-                [
-                    'status' => 'in_stock',
-                ],
-                ['id' => $item->product_inventory_unit_id],
-                ['%s'],
-                ['%d']
-            );
-
-            if ($success === false) {
-                throw new RuntimeException("Failed to update product inventory units table: " . $wpdb->last_error);
-            }
-
-            $product_id = $item->wc_product_variant_id ?: $item->wc_product_id;
-            $product = wc_get_product($product_id);
-            if (!$product) {
-                throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
-            }
-            $image_url = wp_get_attachment_image_url($product->get_image_id(), 'thumbnail');
-            $items_info['image_url'] = $image_url;
-            $items_info['sku'] = $item->sku;
-            $items_info['serial'] = $item->serial;
-            $items_info['price'] = $item->sale_price;
-            if ($item->wc_product_variant_id) {
-                $items_info['description'] = $product->get_description();
-            } else {
-                $items_info['description'] = $product->get_short_description();
-            }
-            $items_data[] = $items_info;
-            $product->set_stock_quantity($product->get_stock_quantity() + 1);
-            $product->save();
-            $restored_stock[] = $product_id;
-        }
-        $wpdb->query('COMMIT');
-
-        $totals = [
-            'subtotal' => $data['subtotal'],
-            'gst' => $data['gst_total'],
-            'pst' => $data['pst_total'],
-            'total' => $data['total'],
-        ];
-
-        // Grab customer and salesperson info for the print receipt
-        $customer_id = $order->customer_id;
-        $salesperson_id = $order->salesperson_id;
-        $all_salepeople = mji_get_salespeople();
-        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id);
-
-
-        $query = $wpdb->prepare("SELECT * FROM $customer_table WHERE id = %d", $customer_id);
-        $customer_info = $wpdb->get_row($query);
-
-        wp_send_json_success([
-            'items' => $items_data,
-            'totals' => $totals,
-            'reference_num' => $data['reference'],
-            'salesperson' => $salesperson,
-            'customer_info' => $customer_info,
-            'date' => $data['date'],
-            'original_reference' => $data['original_reference'],
-            'reason' => $data['reason']
-        ]);
-    } catch (Exception $e) {
-
-        // restore WooCommerce stock
-        foreach ($restored_stock as $product_id) {
-            $product = wc_get_product($product_id);
-            if ($product) {
-                $product->set_stock_quantity($product->get_stock_quantity() - 1);
-                $product->save();
-            }
-        }
-
-        custom_log($e->getMessage());
-        $wpdb->query('ROLLBACK');
-        wp_send_json_error(['message' => $e->getMessage()]);
-    }
-}
-
-function insert_refund_transactions($data, $order)
-{
-    global $wpdb;
-
-    $GST_RATE = 0.05;
-    $PST_RATE = 0.07;
-    $return_table = $wpdb->prefix . "mji_returns";
-    $customer_table = $wpdb->prefix . "mji_customers";
-    $return_items_table = $wpdb->prefix . "mji_return_items";
-    $payment_table = $wpdb->prefix . "mji_payments";
-    $inventory_status_history_table = $wpdb->prefix . "mji_inventory_status_history";
-    $product_inventory_units_table = $wpdb->prefix . "mji_product_inventory_units";
-    $mji_order_items_table = $wpdb->prefix . "mji_order_items";
-    $mji_orders_table = $wpdb->prefix . "mji_orders";
-    $order_item_ids = !empty($data['return_items']) ? $data['return_items'] : $data['refund_items'];
-    $items_data = [];
-
-    $order_items = $wpdb->get_results(
-        "SELECT 
-            oi.id AS order_item_id,
-            oi.sale_price,
-            oi.product_inventory_unit_id,
-            pi.wc_product_id,
-            pi.wc_product_variant_id,
-            pi.sku,
-            pi.serial,
-            o.gst_total,
-            o.pst_total
-        FROM $mji_order_items_table oi
-        JOIN $product_inventory_units_table pi
-            ON pi.id = oi.product_inventory_unit_id
-        JOIN $mji_orders_table o
-            ON o.id = oi.order_id
-        WHERE oi.id IN (" . implode(',', $order_item_ids) . ")"
-    );
-
-
-    $restored_stock = [];
-    $wpdb->query('START TRANSACTION');
-    try {
-
-        // Insert into returns
-        $wpdb->insert(
-            $return_table,
-            [
-                'order_id'      => $data['order_id'],
+                'order_id' => $data['order_id'],
                 'reference_num' => $data['reference'],
-                'return_date'   => $data['date'],
-                'reason'        => $data['reason'],
-                'subtotal'      => $data['subtotal'],
-                'gst_total'     => $data['gst_total'],
-                'pst_total'     => $data['pst_total'],
-                'total'         => $data['total'],
+                'return_date' => $data['date'],
+                'reason' => $data['reason'],
+                'subtotal' => $data['subtotal'],
+                'gst_total' => $data['gst_total'],
+                'pst_total' => $data['pst_total'],
+                'total' => $data['total'],
             ],
             ['%d', '%s', '%s', '%s', '%f', '%f', '%f', '%f']
         );
@@ -2295,40 +2168,66 @@ function insert_refund_transactions($data, $order)
         if (!$return_id) {
             throw new RuntimeException("Failed to insert return: " . $wpdb->last_error);
         }
-        // Inert into return item 
-        // TODO WORK ON THIS TOMORROW
-        // foreach ($data['refund_items_ids'] as $item) {
-        //     $success = $wpdb->insert(
-        //         $return_items_table,
-        //         [
-        //             'return_id'     => $return_id,
-        //             'order_item_id' => $item->order_item_id,
-        //             'product_inventory_unit_id' => $item->product_inventory_unit_id,
-        //             'unit_price' => $item->sale_price,
-        //         ],
-        //         ['%d', '%d', '%d', '%f']
-        //     );
-        //     if (!$success) {
-        //         throw new RuntimeException("Failed to insert return item: " . $wpdb->last_error);
-        //     }
-        // }
 
-        foreach ($data["payment"] as $method => $amount) {
+        if ($type == "refund") {
+            foreach ($data["payment"] as $method => $amount) {
+                $success = $wpdb->insert(
+                    $payment_table,
+                    [
+                        'customer_id' => $order->customer_id,
+                        'salesperson_id' => $order->salesperson_id,
+                        'location_id' => $order->location_id,
+                        'order_id' => $data['order_id'],
+                        'reference_num' => $data['reference'],
+                        'method' => $method,
+                        'amount' => $amount,
+                        'transaction_type' => 'refund',
+                        'payment_date' => $data['date'],
+                        'notes' => $data['reason'],
+                    ],
+                    ['%d', '%d', '%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s']
+                );
+
+                if (!$success) {
+                    throw new RuntimeException("Failed to insert payment: " . $wpdb->last_error);
+                }
+            }
+        } else {
+            // Issue credit to customer in payements
+            $success = $wpdb->insert(
+                $credit_table,
+                [
+                    'customer_id' => $order->customer_id,
+                    'location_id' => $order->location_id,
+                    'reference_num' => $data['reference'],
+                    'total_amount' => $data['total'],
+                    'remaining_amount' => $data['total'],
+                    'status' => "active",
+                    'created_at' => $data['date'],
+                ],
+                ['%d', '%d', '%s', '%f', '%f', '%s', '%s']
+            );
+            $credit_id = $wpdb->insert_id;
+
+            if (!$credit_id) {
+                throw new RuntimeException("Failed to insert credit: " . $wpdb->last_error);
+            }
             $success = $wpdb->insert(
                 $payment_table,
                 [
-                    'customer_id'       => $order->customer_id,
-                    'salesperson_id'    => $order->salesperson_id,
-                    'location_id'       => $order->location_id,
-                    'order_id'          => $data['order_id'],
-                    'reference_num'     => $data['reference'],
-                    'method'            => $method,
-                    'amount'            => $amount,
-                    'transaction_type'  => 'refund',
-                    'payment_date'      => $data['date'],
-                    'notes'             => $data['reason'],
+                    'customer_id' => $order->customer_id,
+                    'salesperson_id' => $order->salesperson_id,
+                    'location_id' => $order->location_id,
+                    'order_id' => $data['order_id'],
+                    'credit_id' => $credit_id,
+                    'reference_num' => $data['reference'],
+                    'method' => 'credit',
+                    'amount' => $data['total'],
+                    'transaction_type' => 'credit_deposit',
+                    'payment_date' => $data['date'],
+                    'notes' => $data['reason'],
                 ],
-                ['%d', '%d', '%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s']
+                ['%d', '%d', '%d', '%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s']
             );
 
             if (!$success) {
@@ -2336,61 +2235,159 @@ function insert_refund_transactions($data, $order)
             }
         }
 
-        // Change the item status in inventory_status_history, product_inventory_units table and also woocommerce stock  
-        foreach ($order_items as $item) {
-
-            $items_info = [];
-
-            $success = $wpdb->insert(
-                $inventory_status_history_table,
-                [
-                    'inventory_unit_id' => $item->product_inventory_unit_id,
-                    'from_status'       => "sold",
-                    'to_status'         => "in_stock",
-                    'reference_num'     => $data['reference'],
-                    'created_at'        => $data['date'],
-                ],
-                ['%d', '%s', '%s', '%s', '%s']
+        if (!empty($returned_items_ids)) {
+            $order_items = $wpdb->get_results(
+                "SELECT 
+                    oi.id AS id,
+                    oi.sale_price,
+                    oi.product_inventory_unit_id,
+                    pi.wc_product_id,
+                    pi.wc_product_variant_id,
+                    pi.sku,
+                    pi.serial,
+                    o.gst_total,
+                    o.pst_total
+                FROM $mji_order_items_table oi
+                JOIN $product_inventory_units_table pi
+                    ON pi.id = oi.product_inventory_unit_id
+                JOIN $mji_orders_table o
+                    ON o.id = oi.order_id
+                WHERE oi.id IN (" . implode(',', $returned_items_ids) . ")"
             );
 
-            if (!$success) {
-                throw new RuntimeException("Failed to insert in status history table: " . $wpdb->last_error);
+            // Change the item status in inventory_status_history, product_inventory_units table and also woocommerce stock  
+            foreach ($order_items as $item) {
+
+                $items_info = [];
+                $mapped_product_inventory_unit_id[$item->id] = $item->product_inventory_unit_id;
+
+                if ($data['item_returned']) {
+                    $success = $wpdb->insert(
+                        $inventory_status_history_table,
+                        [
+                            'inventory_unit_id' => $item->product_inventory_unit_id,
+                            'from_status' => "sold",
+                            'to_status' => "in_stock",
+                            'reference_num' => $data['reference'],
+                            'created_at' => $data['date'],
+                            'notes' => $data['reason']
+                        ],
+                        ['%d', '%s', '%s', '%s', '%s']
+                    );
+
+                    if (!$success) {
+                        throw new RuntimeException("Failed to insert in status history table: " . $wpdb->last_error);
+                    }
+
+                    $success = $wpdb->update(
+                        $product_inventory_units_table,
+                        [
+                            'status' => 'in_stock',
+                        ],
+                        ['id' => $item->product_inventory_unit_id],
+                        ['%s'],
+                        ['%d']
+                    );
+
+                    if ($success === false) {
+                        throw new RuntimeException("Failed to update product inventory units table: " . $wpdb->last_error);
+                    }
+                } else {
+                    $success = $wpdb->insert(
+                        $inventory_status_history_table,
+                        [
+                            'inventory_unit_id' => $item->product_inventory_unit_id,
+                            'from_status' => "sold",
+                            'to_status' => "sold",
+                            'reference_num' => $data['reference'],
+                            'created_at' => $data['date'],
+                            'notes' => $data['reason'] ?: "Partial refund/credit"
+                        ],
+                        ['%d', '%s', '%s', '%s', '%s']
+                    );
+
+                    if (!$success) {
+                        throw new RuntimeException("Failed to insert in status history table: " . $wpdb->last_error);
+                    }
+                }
+
+                $product_id = $item->wc_product_variant_id ?: $item->wc_product_id;
+                $product = wc_get_product($product_id);
+                if (!$product) {
+                    throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
+                }
+                $image_url = wp_get_attachment_image_url($product->get_image_id(), 'thumbnail');
+                $items_info['image_url'] = $image_url;
+                $items_info['sku'] = $item->sku;
+                $items_info['serial'] = $item->serial;
+                $items_info['price'] = $item->sale_price;
+                if ($item->wc_product_variant_id) {
+                    $items_info['description'] = $product->get_description();
+                } else {
+                    $items_info['description'] = $product->get_short_description();
+                }
+                $items_data[$item->id] = $items_info;
+                $data['item_returned'] && $product->set_stock_quantity($product->get_stock_quantity() + 1);
+                $product->save();
+                $restored_stock[] = $product_id;
             }
 
-            $success = $wpdb->update(
-                $product_inventory_units_table,
-                [
-                    'status' => 'in_stock',
-                ],
-                ['id' => $item->product_inventory_unit_id],
-                ['%s'],
-                ['%d']
-            );
-
-            if ($success === false) {
-                throw new RuntimeException("Failed to update product inventory units table: " . $wpdb->last_error);
+            // Insert into return item 
+            foreach ($data['refund_items_data'] as $id => $price) {
+                $success = $wpdb->insert(
+                    $return_items_table,
+                    [
+                        'return_id' => $return_id,
+                        'order_item_id' => $id,
+                        'product_inventory_unit_id' => $mapped_product_inventory_unit_id[$id],
+                        'unit_price' => $price,
+                    ],
+                    ['%d', '%d', '%d', '%f']
+                );
+                if (!$success) {
+                    throw new RuntimeException("Failed to insert return item: " . $wpdb->last_error);
+                }
+                $items_data[$id]["returned_price"] = $price;
             }
-
-            $product_id = $item->wc_product_variant_id ?: $item->wc_product_id;
-            $product = wc_get_product($product_id);
-            if (!$product) {
-                throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
-            }
-            $image_url = wp_get_attachment_image_url($product->get_image_id(), 'thumbnail');
-            $items_info['image_url'] = $image_url;
-            $items_info['sku'] = $item->sku;
-            $items_info['serial'] = $item->serial;
-            $items_info['price'] = $item->sale_price;
-            if ($item->wc_product_variant_id) {
-                $items_info['description'] = $product->get_description();
-            } else {
-                $items_info['description'] = $product->get_short_description();
-            }
-            $items_data[] = $items_info;
-            $product->set_stock_quantity($product->get_stock_quantity() + 1);
-            $product->save();
-            $restored_stock[] = $product_id;
         }
+
+        if (!empty($returned_services_ids)) {
+            $service_results = $wpdb->get_results(
+                "SELECT 
+                    id,
+                    category,
+                    description,
+                    sold_price
+                FROM $services_table
+                WHERE id IN (" . implode(',', $returned_services_ids) . ")"
+            );
+
+            foreach ($service_results as $service) {
+                $service_arr = [];
+                $service_arr['category'] = $service->category;
+                $service_arr['description'] = $service->description;
+                $service_arr['sold_price'] = $service->sold_price;
+
+                $services_data[$service->id] = $service_arr;
+            }
+
+            foreach ($data['refund_services_data'] as $id => $price) {
+                $success = $wpdb->insert(
+                    $return_services_table,
+                    [
+                        'return_id' => $return_id,
+                        'service_id' => $id,
+                        'price' => $price,
+                    ],
+                    ['%d', '%d', '%f']
+                );
+                if (!$success) {
+                    throw new RuntimeException("Failed to insert return item: " . $wpdb->last_error);
+                }
+                $services_data[$id]["returned_price"] = $price;
+            }
+        }
+
         $wpdb->query('COMMIT');
 
         $totals = [
@@ -2410,7 +2407,8 @@ function insert_refund_transactions($data, $order)
         $customer_info = $wpdb->get_row($query);
 
         wp_send_json_success([
-            'items' => $items_data,
+            'items' => array_values($items_data),
+            'services' => array_values($services_data),
             'totals' => $totals,
             'reference_num' => $data['reference'],
             'salesperson' => $salesperson,
@@ -2421,20 +2419,55 @@ function insert_refund_transactions($data, $order)
         ]);
     } catch (Exception $e) {
 
-        // restore WooCommerce stock
-        foreach ($restored_stock as $product_id) {
-            $product = wc_get_product($product_id);
-            if ($product) {
-                $product->set_stock_quantity($product->get_stock_quantity() - 1);
-                $product->save();
+        if ($data['item_returned']) {
+            // restore WooCommerce stock
+            foreach ($restored_stock as $product_id) {
+                $product = wc_get_product($product_id);
+                if ($product) {
+                    $product->set_stock_quantity($product->get_stock_quantity() - 1);
+                    $product->save();
+                }
             }
         }
-
         custom_log($e->getMessage());
         $wpdb->query('ROLLBACK');
         wp_send_json_error(['message' => $e->getMessage()]);
     }
 }
+
+function create_credit_return()
+{
+    $data = sanitize_and_validate_return($_POST);
+
+    $order = order_exists($data['order_id']);
+    if (!$order) {
+        wp_send_json_error(['message' => 'Order does not exist'], 404);
+    }
+
+    // get the order item ids to see if they match the items order id
+    $order_item_ids = get_order_items($data['order_id']);
+    if (!order_items_valid($order_item_ids, $data['return_items_ids'])) {
+        wp_send_json_error(['message' => 'One or more return items are invalid'], 422);
+    }
+
+    $order_service_ids = get_order_services($data['order_id']);
+    if (!order_items_valid($order_service_ids, $data['refund_services_ids'])) {
+        wp_send_json_error(['message' => 'One or more return items are invalid'], 422);
+    }
+
+    if (!empty($data['refund_items_data'])) {
+        check_already_returned($data['return_items_ids'], $data['refund_items_data']);
+        check_items_price($data['return_items_ids'], $data['refund_items_data'], $data['item_returned']);
+    }
+
+    if (!empty($data['refund_services_data'])) {
+        check_service_already_returned($data['return_services_ids'], $data['refund_services_data']);
+        check_services_price($data['return_services_ids'], $data['refund_services_data']);
+    }
+    check_tax_is_correct($data);
+    insert_return_transactions($data, $order, "credit");
+}
+add_action('wp_ajax_create_credit_return', 'create_credit_return');
 
 function create_refund_return()
 {
@@ -2447,30 +2480,26 @@ function create_refund_return()
 
     // get the order item ids to see if they match the items order id
     $order_item_ids = get_order_items($data['order_id']);
-    if (! order_items_valid($order_item_ids, $data['refund_items_ids'])) {
+    if (!order_items_valid($order_item_ids, $data['refund_items_ids'])) {
         wp_send_json_error(['message' => 'One or more return items are invalid'], 422);
     }
 
     $order_service_ids = get_order_services($data['order_id']);
-    if (! order_items_valid($order_service_ids, $data['refund_services_ids'])) {
+    if (!order_items_valid($order_service_ids, $data['refund_services_ids'])) {
         wp_send_json_error(['message' => 'One or more return items are invalid'], 422);
     }
 
     if (!empty($data['refund_items_data'])) {
-        // Checking if the item was returned and if returned the sum should be lower than the original item amount 
         check_already_returned($data['refund_items_ids'], $data['refund_items_data']);
-        // Checking if the returned item amount is lower than the original item amount 
-        check_items_price($data['refund_items_ids'], $data['refund_items_data']);
+        check_items_price($data['refund_items_ids'], $data['refund_items_data'], $data['item_returned']);
     }
 
-    // if (!empty($data['refund_services_data'])) {
-    //     check_already_returned($data['refund_services'], $data['refund_services_data']);
-    // }
-
+    if (!empty($data['refund_services_data'])) {
+        check_service_already_returned($data['refund_services_ids'], $data['refund_services_data']);
+        check_services_price($data['refund_services_ids'], $data['refund_services_data']);
+    }
 
     check_tax_is_correct($data);
-    return;
-    insert_refund_transactions($data, $order);
+    insert_return_transactions($data, $order, "refund");
 }
-
 add_action('wp_ajax_create_refund_return', 'create_refund_return');

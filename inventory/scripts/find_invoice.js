@@ -7,6 +7,7 @@ const creditContainer = creditEl?.querySelector(".credit-container");
 const creditForm = document?.querySelector('form[name="credit_invoice"]');
 const submitCreditReturnBtn = creditForm?.querySelector("#submit_return");
 const allItemsCheckbox = creditForm?.querySelectorAll(".return-item-checkbox");
+const allCreditItemsPrice = creditForm?.querySelectorAll(".refund_price");
 
 const issueRefundBtn = document?.querySelector("#issue_refund");
 const refundEl = document?.querySelector("#refund");
@@ -17,9 +18,7 @@ const submitRefundReturnBtn = refundForm?.querySelector("#submit_return");
 const allRefundItemsCheckbox = refundForm?.querySelectorAll(
   ".return-item-checkbox",
 );
-const allRefundItemsPrice = refundForm?.querySelectorAll(
-  ".refund_price",
-);
+const allRefundItemsPrice = refundForm?.querySelectorAll(".refund_price");
 const allPaymentsMethod = refundForm?.querySelectorAll(".payment-item");
 const mainPrintBtn = document.querySelector("#main-print-btn");
 
@@ -33,6 +32,11 @@ issueCreditBtn?.addEventListener("click", (e) => toggleDisplayEl(e, creditEl));
 cancelCreditBtn?.addEventListener("click", (e) => toggleDisplayEl(e, creditEl));
 allItemsCheckbox?.forEach((checkbox) => {
   checkbox.addEventListener("change", () =>
+    updateTotals(allItemsCheckbox, creditForm),
+  );
+});
+allCreditItemsPrice?.forEach((inputPrice) => {
+  inputPrice?.addEventListener("change", () =>
     updateTotals(allItemsCheckbox, creditForm),
   );
 });
@@ -107,14 +111,14 @@ async function sumbitForm(e, form, type) {
   let errors = 0;
 
   if (type == "credit") {
-    if (!formData.has("return_items[]")) {
+    if (!formData.has("return_items[]") && !formData.has("return_services[]")) {
       errors++;
       alert("Please select at least one item!!");
     }
     submitCreditReturnBtn.disabled = true;
   } else {
     submitRefundReturnBtn.disabled = true;
-    if (!formData.has("refund_items[]") || !formData.has("refund_services[]")) {
+    if (!formData.has("refund_items[]") && !formData.has("refund_services[]")) {
       errors++;
       alert("Please select at least one item!!");
     }
@@ -186,8 +190,7 @@ function createRefundReceipt(data, type) {
       <table class="receipt-table">
         <thead>
           <tr>
-            <th>Item</th>
-            <th>Price</th>
+            <th colspan="2">Item</th>
           </tr>
         </thead>
         <tbody>
@@ -195,16 +198,33 @@ function createRefundReceipt(data, type) {
             .map(
               (el) => `
             <tr>
-              <td class="item">
+              <td colspan="2" class="item">
                 <img class="item-image" src="${el.image_url}" />
                 <br />
                 ${el.description.split("•").join("<br />•")}
                 <br />
                 SKU: ${el.sku}
                 <br />
-                Serial: ${el.serial ? el.serial : ""}
+                ${el.serial ? "Serial: " + el.serial + "<br />" : ""}
+                Sold Price: ${el.price}
+                <br />
+                Returned Price: ${el.returned_price}
               </td>
-              <td class="item-price">${el.price}</td>
+            </tr>
+          `,
+            )
+            .join("")}
+          ${data.services
+            .map(
+              (el) => `
+            <tr>
+              <td colspan="2" class="item">
+              ${el.category} <br />
+              ${el.description ? "Description: " + el.description + "<br />" : ""}
+              Sold Price: ${el.sold_price}
+              <br />
+              Returned Price: ${el.returned_price}
+              </td>
             </tr>
           `,
             )
