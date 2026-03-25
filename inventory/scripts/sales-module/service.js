@@ -31,7 +31,7 @@ export const ServiceSelector = {
     });
 
     this.serviceForm.addEventListener("submit", (e) =>
-      this.submitServiceForm(e)
+      this.submitServiceForm(e),
     );
   },
 
@@ -101,6 +101,10 @@ export const ServiceSelector = {
 
     this.resetServiceInuts();
 
-    document.dispatchEvent(new CustomEvent("displayCart"));
+    document.dispatchEvent(
+      new CustomEvent("displayCart", {
+        detail: { fetchLayaways: true },
+      }),
+    );
   },
 };
