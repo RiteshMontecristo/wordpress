@@ -44,6 +44,14 @@ function reports_page()
                 Layaway Report
             </a>
             <a href="<?php echo esc_url($layaway_url); ?>"
+                class="nav-tab <?php echo $active_tab === 'layaway' ? 'nav-tab-active' : ''; ?>">
+                Credit Report
+            </a>
+            <a href="<?php echo esc_url($layaway_url); ?>"
+                class="nav-tab <?php echo $active_tab === 'layaway' ? 'nav-tab-active' : ''; ?>">
+                Refund Report
+            </a>
+            <a href="<?php echo esc_url($layaway_url); ?>"
                 class="nav-tab <?php echo $active_tab === 'financial' ? 'nav-tab-active' : ''; ?>">
                 Financial Report
             </a>
@@ -300,6 +308,8 @@ function reports_render_sales_report($results)
                         <th>Date</th>
                         <th>Item</th>
                         <th>SKU</th>
+                        <th>Model</th>
+                        <th>Serial</th>
                         <th>Cost</th>
                         <th>Retail</th>
                         <th>Retail Paid</th>
@@ -371,7 +381,9 @@ function reports_render_sales_report($results)
                 echo '<td>' . $row->invoice . '</td>';
                 echo '<td style="white-space: nowrap;">' . $date . '</td>';
                 echo '<td>' . $name . '</td>';
-                echo '<td>' . $row->sku . '<br/>' . $row->model_name . '<br />' . $row->serial . '</td>';
+                echo '<td>' . $row->sku . '</td>';
+                echo '<td>' . $row->model_name  . '</td>';
+                echo '<td>' . $row->serial . '</td>';
                 echo '<td>$' . number_format($row->cost_price, 2) . '</td>';
                 echo '<td>$' . number_format($row->retail_price, 2) . '</td>';
                 echo '<td>$' . number_format($retail_paid, 2) . '</td>';
@@ -387,8 +399,10 @@ function reports_render_sales_report($results)
                 echo '<td>' . $image . '</td>';
                 echo '<td>' . $row->invoice . '<br>(' . $row->return_reference_num . ')</td>';
                 echo '<td style="white-space: nowrap;">' . $date . '</td>';
-                echo '<td>' . $name . ' <strong>(Returned for credit)</strong></td>';
-                echo '<td>-' . $row->sku . ' <strong>(RETURNED)</strong><br/>' . $row->model_name . '<br />' . $row->serial . '</td>';
+                echo '<td>' . $name . ' <strong>(Returned)</strong></td>';
+                echo '<td>' . $row->sku . '</td>';
+                echo '<td>' . $row->model_name  . '</td>';
+                echo '<td>' . $row->serial . '</td>';
                 echo '<td>-$' . number_format($row->cost_price, 2) . '</td>';
                 echo '<td>-$' . number_format($row->retail_price, 2) . '</td>';
                 echo '<td>-$' . number_format($retail_paid, 2) . '</td>';
@@ -712,7 +726,9 @@ function reports_render_inventory_report($results)
             <tr>
                 <th>Image</th>
                 <th>Product</th>
-                <th>SKU / Model / Serial</th>
+                <th>SKU</th>
+                <th>Model</th>
+                <th>Serial</th>
                 <th>Status</th>
                 <th>Cost Price</th>
                 <th>Retail Price</th>
@@ -755,7 +771,9 @@ function reports_render_inventory_report($results)
         echo '<tr>';
         echo '<td><img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($image_url) . '" alt="' . esc_attr($product->get_name()) . '"></td>';
         echo '<td>' . nl2br(esc_html($desc)) . '</td>';
-        echo '<td>' . esc_html($sku) . '<br>' . esc_html($model) . '<br>' . esc_html($serial) . '</td>';
+        echo '<td>' . esc_html($sku) . '</td>';
+        echo '<td>' . esc_html($model) . '</td>';
+        echo '<td>' . esc_html($serial) . '</td>';
         echo '<td>' . esc_html($product_status) . '</td>';
         echo '<td>' . number_format($cost_price, 2) . '</td>';
         echo '<td>' . number_format($retail_price, 2) . '</td>';
@@ -816,9 +834,9 @@ function reports_render_inventory_report($results)
     // Table footer with totals
     echo '<tfoot>
             <tr style="font-weight:bold; position:sticky; bottom:0; background:#fff; box-shadow:0 -2px 5px rgba(0,0,0,0.1);">
-                <td colspan="5">Total (' . $total_count . ' items)</td>
-                <td>' . number_format($total_cost_price, 2) . '</td>
-                <td>' . number_format($total_retail_price, 2) . '</td>
+                <td colspan="7">Total (' . $total_count . ' items)</td>
+                <td>Total Cost ' . number_format($total_cost_price, 2) . '</td>
+                <td>Total Retail ' . number_format($total_retail_price, 2) . '</td>
             </tr>
           </tfoot>';
 

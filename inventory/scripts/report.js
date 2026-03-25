@@ -2,9 +2,6 @@ document
   .getElementById("exportInventory")
   ?.addEventListener("click", function () {
     const table = document.getElementById("inventoryTable");
-    table.querySelectorAll("td").forEach((td) => {
-      td.innerHTML = td.innerHTML.replace(/<br\s*\/?>/gi, "\n");
-    });
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.table_to_sheet(table);
     XLSX.utils.book_append_sheet(wb, ws, "Inventory");
