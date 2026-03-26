@@ -47,7 +47,10 @@ function my_load_scripts()
         get_stylesheet_directory_uri() . '/splidejs/splide.min.js',
         array(),
         '1.0.0',
-        true
+        array(
+            'in_footer' => true,
+            'strategy'  => 'defer',
+        )
     );
 
     if (is_singular('mc-rolex') || is_singular('mc-rolex-product')) {
@@ -71,7 +74,10 @@ function my_load_scripts()
         get_stylesheet_directory_uri() . '/scripts/index.js',
         array('splidejs-script'),
         '1.0.0',
-        true
+        array(
+            'in_footer' => true,
+            'strategy'  => 'defer',
+        )
     );
 
     wp_localize_script('normal-script', 'ajax_object_another', array(
