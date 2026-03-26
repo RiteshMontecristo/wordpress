@@ -173,6 +173,8 @@ function reports_get_sales_results()
     $models_table = $wpdb->prefix . 'mji_models';
     $brands_table = $wpdb->prefix . 'mji_brands';
     $returns_table = $wpdb->prefix . 'mji_returns';
+    $return_items_table = $wpdb->prefix . 'mji_return_items';
+    $return_services_table = $wpdb->prefix . 'mji_return_services';
 
     $where1 = ["o.created_at BETWEEN %s AND %s"];
     $params1 = [$start_date, $end_date];
@@ -211,8 +213,17 @@ function reports_get_sales_results()
                     COALESCE(oi.discount_amount, 0) AS discount_amount,
                     COALESCE(pi.cost_price, 0) AS cost_price,
                     COALESCE(pi.retail_price, 0) AS retail_price,
-                    r.reference_num AS return_reference_num,
-                    'TEST' AS description
+                    NULL AS description,
+                    CASE 
+                        WHEN COUNT(retn.id) > 0 
+                        THEN JSON_ARRAYAGG(
+                            JSON_OBJECT(
+                                'reference_num', retn.reference_num,
+                                'refund_amount', retn.unit_price
+                            )
+                        )
+                        ELSE NULL
+                    END AS returns
                 FROM $orders_table o
                 INNER JOIN $order_items oi ON o.id = oi.order_id
                 INNER JOIN $inventory_table pi ON oi.product_inventory_unit_id = pi.id
@@ -220,8 +231,19 @@ function reports_get_sales_results()
                 INNER JOIN $customers_table c ON o.customer_id = c.id
                 LEFT JOIN $models_table m on m.id = pi.model_id
                 LEFT JOIN $brands_table b on b.id = pi.brand_id
-                LEFT JOIN $returns_table r on r.order_id = o.id
+                LEFT JOIN (
+                    SELECT r.id, r.order_id, r.reference_num, ri.unit_price
+                    FROM $returns_table r
+                    JOIN $return_items_table ri ON ri.return_id = r.id
+                ) retn ON retn.order_id = o.id
                 WHERE " . implode(" AND ", $where1) . "
+                GROUP BY
+                    o.id,
+                    oi.id,
+                    pi.id,
+                    s.id,
+                    c.id,
+                    m.id
             ";
 
     $where2 = ["o.created_at BETWEEN %s AND %s"];
@@ -256,13 +278,31 @@ function reports_get_sales_results()
                     COALESCE(0, 0) as discount_amount,
                     COALESCE(si.cost_price, 0) as cost_price,
                     COALESCE(si.sold_price, 0) as retail_price,
-                    NULL AS return_reference_num,
-                    si.description AS description
+                    si.description AS description,
+                    CASE 
+                        WHEN COUNT(retn.id) > 0
+                        THEN JSON_ARRAYAGG(
+                            JSON_OBJECT(
+                                'reference_num', retn.reference_num,
+                                'refund_amount', retn.price
+                            )
+                        )
+                        ELSE NULL
+                    END AS returns
                 FROM $orders_table o
                 INNER JOIN $service_table si ON si.order_id = o.id
                 INNER JOIN $salespeople_table s ON o.salesperson_id = s.id
                 INNER JOIN $customers_table c ON o.customer_id = c.id
+                LEFT JOIN (
+                    SELECT r.id, r.order_id, r.reference_num, rs.price
+                    FROM $returns_table r
+                    JOIN $return_services_table rs ON rs.return_id = r.id
+                ) retn ON retn.order_id = o.id
                 WHERE " . implode(" AND ", $where2) . "
+                GROUP BY
+                    o.id,
+                    s.id,
+                    c.id
             ";
 
 
@@ -335,16 +375,58 @@ function reports_render_sales_report($results)
             $dt = new DateTime($row->sold_date);
             $date = $dt->format('Y-m-d');
             $placeholder_image = wc_placeholder_img([50, 50]);
+            // Build the invoice display with returns
+            $invoice_display = esc_html($row->invoice);
+            $total_current_retail_paid = $row->retail_paid;
+            $retail_paid_display = "$" . number_format($row->retail_paid, 2);
+
+            if (!empty($row->returns) && $row->returns !== 'null') {
+                $returns = json_decode($row->returns);
+
+                if (json_last_error() === JSON_ERROR_NONE && is_array($returns) && count($returns) > 0) {
+
+                    foreach ($returns as $return) {
+                        if (!empty($return->reference_num)) {
+                            $invoice_display .= '<br />-' . esc_html($return->reference_num);
+                        }
+                        if (!empty($return->refund_amount)) {
+                            $retail_paid_display .= '<br />-$' . number_format($return->refund_amount, 2);
+                            $total_current_retail_paid -= $return->refund_amount;
+                        }
+                    }
+
+                    $invoice_display .= '</small>';
+                }
+            }
+
+            $discount_percent = 0;
+            $profit = 0;
+            $margin_percent = 0;
+
+            if ($total_current_retail_paid > 0) {
+                $discount_percent = $row->retail_price ? ($row->discount_amount / $row->retail_price) * 100 : 0;
+                $profit = $total_current_retail_paid - $row->cost_price;
+                $margin_percent = $total_current_retail_paid ? ($profit / $total_current_retail_paid) * 100 : 0;
+
+                // Calculate totals
+                $total_cost += $row->cost_price;
+                $total_retail += $row->retail_price;
+                $total_retail_paid += $total_current_retail_paid;
+                $total_profit += $profit;
+            }
+
             if (!$product) {
                 echo '<tr>';
                 echo '<td>' . $placeholder_image . '</td>';
-                echo '<td>' . $row->invoice . '</td>';
+                echo '<td>' . $invoice_display . '</td>';
                 echo '<td>' . $date . '</td>';
                 echo '<td>' . $name . '</td>';
-                echo '<td>Service</td>';
+                echo '<td></td>';
+                echo '<td></td>';
+                echo '<td></td>';
                 echo '<td>' . number_format($row->cost_price, 2) . '</td>';
                 echo '<td>' . number_format($row->retail_price, 2) . '</td>';
-                echo '<td>' . number_format($retail_paid, 2) . '</td>';
+                echo '<td>' . $retail_paid_display . '</td>';
                 echo '<td>' . number_format($row->discount_amount, 2) . '</td>';
                 echo '<td>' . number_format(0, 2) . '%</td>';
                 echo '<td>' . number_format($profit, 2) . '</td>';
@@ -355,6 +437,7 @@ function reports_render_sales_report($results)
                 continue; // Skip invalid products
             }
 
+            $image = $product->get_image([50, 50]);
             $name = $product->get_name();
 
             if ($product->is_type('variation')) {
@@ -364,56 +447,24 @@ function reports_render_sales_report($results)
                 }
             }
 
-            $discount_percent = $row->retail_price ? ($row->discount_amount / $row->retail_price) * 100 : 0;
-            $profit = $retail_paid - $row->cost_price;
-            $margin_percent = $retail_paid ? ($profit / $retail_paid) * 100 : 0;
-            $image = $product->get_image([50, 50]);
-
-            if (is_empty($row->return_reference_num)) {
-                // Calculate totals
-                $total_cost += $row->cost_price;
-                $total_retail += $row->retail_price;
-                $total_retail_paid += $retail_paid;
-                $total_profit += $profit;
-
-                echo '<tr>';
-                echo '<td>' . $image . '</td>';
-                echo '<td>' . $row->invoice . '</td>';
-                echo '<td style="white-space: nowrap;">' . $date . '</td>';
-                echo '<td>' . $name . '</td>';
-                echo '<td>' . $row->sku . '</td>';
-                echo '<td>' . $row->model_name  . '</td>';
-                echo '<td>' . $row->serial . '</td>';
-                echo '<td>$' . number_format($row->cost_price, 2) . '</td>';
-                echo '<td>$' . number_format($row->retail_price, 2) . '</td>';
-                echo '<td>$' . number_format($retail_paid, 2) . '</td>';
-                echo '<td>$' . number_format($row->discount_amount, 2) . '</td>';
-                echo '<td>' . number_format($discount_percent, 2) . '%</td>';
-                echo '<td>' . number_format($profit, 2) . '</td>';
-                echo '<td>' . number_format($margin_percent, 2) . '%</td>';
-                echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
-                echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
-                echo '</tr>';
-            } else {
-                echo '<tr>';
-                echo '<td>' . $image . '</td>';
-                echo '<td>' . $row->invoice . '<br>(' . $row->return_reference_num . ')</td>';
-                echo '<td style="white-space: nowrap;">' . $date . '</td>';
-                echo '<td>' . $name . ' <strong>(Returned)</strong></td>';
-                echo '<td>' . $row->sku . '</td>';
-                echo '<td>' . $row->model_name  . '</td>';
-                echo '<td>' . $row->serial . '</td>';
-                echo '<td>-$' . number_format($row->cost_price, 2) . '</td>';
-                echo '<td>-$' . number_format($row->retail_price, 2) . '</td>';
-                echo '<td>-$' . number_format($retail_paid, 2) . '</td>';
-                echo '<td>-$' . number_format($row->discount_amount, 2) . '</td>';
-                echo '<td>-' . number_format($discount_percent, 2) . '%</td>';
-                echo '<td>-' . number_format($profit, 2) . '</td>';
-                echo '<td>-' . number_format($margin_percent, 2) . '%</td>';
-                echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
-                echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
-                echo '</tr>';
-            }
+            echo '<tr>';
+            echo '<td>' . $image . '</td>';
+            echo '<td style="white-space: nowrap;">' . $invoice_display . '</td>';
+            echo '<td style="white-space: nowrap;">' . $date . '</td>';
+            echo '<td>' . $name . '</td>';
+            echo '<td>' . $row->sku . '</td>';
+            echo '<td>' . $row->model_name  . '</td>';
+            echo '<td>' . $row->serial . '</td>';
+            echo '<td>$' . number_format($row->cost_price, 2) . '</td>';
+            echo '<td>$' . number_format($row->retail_price, 2) . '</td>';
+            echo '<td>' . $retail_paid_display . '</td>';
+            echo '<td>$' . number_format($row->discount_amount, 2) . '</td>';
+            echo '<td>' . number_format($discount_percent, 2) . '%</td>';
+            echo '<td>' . number_format($profit, 2) . '</td>';
+            echo '<td>' . number_format($margin_percent, 2) . '%</td>';
+            echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
+            echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
+            echo '</tr>';
         }
 
         echo '
