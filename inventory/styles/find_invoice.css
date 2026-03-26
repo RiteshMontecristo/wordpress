@@ -28,6 +28,8 @@
   background: white;
   padding: 2rem 4rem;
   width: 650px;
+  overflow: auto;
+  height: 80vh;
 }
 
 /* Return Section */
@@ -137,7 +139,8 @@
 }
 
 .refund-container,
-.credit-container {
+.credit-container,
+#layaway-refund {
   .payment-methods {
     margin-bottom: 1em;
 
@@ -208,7 +211,8 @@
     }
 
     tr td:last-child {
-      white-space: nowrap;
+      /* Removing this cause in item refund if the product details is too long it was causing the print to have scrollbar */
+      /* white-space: nowrap; */
     }
   }
 

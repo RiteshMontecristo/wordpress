@@ -4,7 +4,9 @@ const issueCreditBtn = document.querySelector("#issue_credit");
 const creditEl = document.querySelector("#credit");
 const cancelCreditBtn = creditEl?.querySelector(".button.cancel");
 const creditContainer = creditEl?.querySelector(".credit-container");
-const creditForm = document?.querySelector('form[name="credit_invoice"]');
+const creditForm = creditContainer?.querySelector(
+  'form[name="credit_invoice"]',
+);
 const submitCreditReturnBtn = creditForm?.querySelector("#submit_return");
 const allItemsCheckbox = creditForm?.querySelectorAll(".return-item-checkbox");
 const allCreditItemsPrice = creditForm?.querySelectorAll(".refund_price");
@@ -13,7 +15,9 @@ const issueRefundBtn = document?.querySelector("#issue_refund");
 const refundEl = document?.querySelector("#refund");
 const cancelRefundBtn = refundEl?.querySelector(".button.cancel");
 const refundContainer = refundEl?.querySelector(".refund-container");
-const refundForm = document?.querySelector('form[name="refund_invoice"]');
+const refundForm = refundContainer?.querySelector(
+  'form[name="refund_invoice"]',
+);
 const submitRefundReturnBtn = refundForm?.querySelector("#submit_return");
 const allRefundItemsCheckbox = refundForm?.querySelectorAll(
   ".return-item-checkbox",
@@ -314,3 +318,140 @@ mainPrintBtn?.addEventListener("click", (e) => {
 
   printReceipt(e, invoice.outerHTML);
 });
+
+// Refund Layaway/Credit section
+const layawayRefundEl = document.querySelector("#layaway-refund");
+const layawayRefundContainer =
+  layawayRefundEl?.querySelector(".refund-container");
+const layawayRefundForm = layawayRefundContainer?.querySelector(
+  'form[name="refund_invoice"]',
+);
+const cancelLayawayRefundForm = layawayRefundForm?.querySelector("#cancel");
+const issueLayawayRefundBtn = document.querySelector(
+  "#issue-layaway-refund-btn",
+);
+
+issueLayawayRefundBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  layawayRefundEl.classList.add("refund");
+});
+
+cancelLayawayRefundForm?.addEventListener("click", (e) => {
+  e.preventDefault();
+  layawayRefundEl.classList.remove("refund");
+});
+
+layawayRefundForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const formData = new FormData(layawayRefundForm);
+  const totalValue = Number(
+    layawayRefundForm.querySelector("input[name='total_value']").value,
+  );
+  const payments = layawayRefundForm.querySelectorAll("input[type='number']");
+  const salesperson = Number(
+    layawayRefundForm.querySelector("#salesperson").value,
+  );
+  let paymentTotal = 0;
+
+  for (let payment of payments) {
+    paymentTotal += Number(payment.value);
+  }
+
+  if (paymentTotal > totalValue) {
+    alert("Payment total greater than the layaway total");
+  }
+
+  if (!salesperson) {
+    alert("Please select salesperson");
+  }
+
+  try {
+    const response = await fetch(ajax_inventory.ajax_url, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+
+    console.log(data);
+    if (data.success) {
+      alert("Successfully created");
+      createLayawayRefundReceipt(data.data);
+    } else {
+      alert(data.data.message);
+    }
+  } catch (error) {
+    console.error("AJAX request failed:", error);
+  } finally {
+  }
+});
+
+function createLayawayRefundReceipt(data) {
+  const el = layawayRefundContainer;
+
+  el.innerHTML = `
+    <header class="receipt-header">
+      <div class="company">
+        <h2 class="title">Montecristo Jewellers</h2>
+        <p class="subtitle"><strong>${data.type == "credi2t" ? "Credit" : "Layaway"} Refund Receipt</strong></p>
+      </div>
+      <div class="customer">
+        <address>
+          <p class="customer-name">${data.customer_info.prefix} ${data.customer_info.first_name} ${data.customer_info.last_name}</p>
+          <p class="customer-address">${data.customer_info.street_address}, ${data.customer_info.city}, ${data.customer_info.province}, ${data.customer_info.postal_code}, ${data.customer_info.country}</p>
+          ${data.customer_info?.phone ? `<p class="customer-phone">${data.customer_info.phone}</p>` : ""}
+          <p class="customer-email">${data.customer_info?.email ?? ""}</p>
+        </address>
+      </div>
+      <div class="details">
+        <p class="reference-num">Reference # ${data.reference_num}</p>
+        <p class="sale-date">Returned on <time datetime="${data.date.data}">${data.date.date.split(" ")[0]}</time></p>
+        <p class="salesperson">Served by ${data.salesperson.first_name} ${data.salesperson.last_name}</p>
+      </div>
+    </header>
+
+    <main class="receipt-main">
+      <table class="receipt-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.payment_data
+            .map(
+              (el) => `
+            <tr>
+              <td class="item">
+              ${el.method}: ${el.amount}
+              </td>
+            </tr>
+          `,
+            )
+            .join("")}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td class="summary">
+              ${data.reason && `<p>${data.reason}</p>`}
+              <p>Refund for ${data.type == "credit" ? "Credit" : "Layaway"} #${data.original_reference}</p>
+              <p>Thank you for shopping at Montecristo Jewellers</p>
+              <strong>Total: $${formatCurrency(data.refund_total)}</strong>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </main>
+
+    <button class="button button-primary" id="print-receipt">Print</button>
+    <button class="button" id="close-reciept">Close</button>
+  `;
+
+  const printBtn = el.querySelector("#print-receipt");
+  const closeReceiptBtn = el.querySelector("#close-reciept");
+  printBtn?.addEventListener("click", (e) => printReceipt(e, el.outerHTML));
+  closeReceiptBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    layawayRefundEl.classList.remove("refund");
+  });
+}
