@@ -16,7 +16,7 @@ export const LayawaySelector = {
     this.layawayFormDiv = document.querySelector("#addLayawayForm");
     this.layawayForm = document.querySelector("form[name='add-layaway']");
     this.layawayFormSubmitButton = document.querySelector(
-      "form[name='add-layaway'] #submit-layaway"
+      "form[name='add-layaway'] #submit-layaway",
     );
 
     // Print the custoemr Layaway
@@ -40,7 +40,7 @@ export const LayawaySelector = {
         `${ajax_inventory.ajax_url}?action=getLayaway&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
         {
           method: "GET",
-        }
+        },
       )
         .then((response) => response.json())
         .then((res) => {
@@ -99,10 +99,10 @@ export const LayawaySelector = {
       const layawayDate = this.layawayForm.querySelector("#layaway-date").value;
 
       const receiptCustomerName = this.layawayReceipt.querySelector(
-        "#receiptCustomerName"
+        "#receiptCustomerName",
       );
       const receiptCustomerAddress = this.layawayReceipt.querySelector(
-        "#receiptCustomerAddress"
+        "#receiptCustomerAddress",
       );
       const layawayTotalDiv =
         this.layawayReceipt.querySelector("#layawayTotal");
@@ -110,6 +110,7 @@ export const LayawaySelector = {
       const paymentMethod = this.layawayReceipt.querySelector("#paymentMode");
       const receiptDate = this.layawayReceipt.querySelector("#receiptDate");
       const salesmanName = this.layawayReceipt.querySelector("#salesmanName");
+      const layawayNotes = this.layawayReceipt.querySelector("#layawayNotes");
 
       if (
         cash === "" &&
@@ -169,7 +170,9 @@ export const LayawaySelector = {
             AppState.creditTotal = result.data.layaway_sum.credit;
             receiptDate.innerHTML = result.data.payment_date;
             salesmanName.innerHTML = result.data.salesperson;
-
+            layawayNotes.textContent = result.data.notes
+              ? `Note: ${result.data.notes}`
+              : "";
             document.dispatchEvent(new CustomEvent("layaway:added"));
             this.layawayForm.reset();
           } else {
