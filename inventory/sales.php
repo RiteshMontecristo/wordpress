@@ -209,6 +209,7 @@ function inventory_page()
             </main>
 
             <footer>
+                <p id="layawayNotes"></p>
                 <p>Thank you for shopping at Montecristo Jewellers!!</p>
             </footer>
 
@@ -469,14 +470,15 @@ function get_layaway_sum($customer_id = null, $location_id = null)
             END)
             -
             SUM(CASE
-                WHEN transaction_type = 'layaway_redemption' THEN amount
+                WHEN transaction_type IN ('layaway_redemption', 'refund') THEN amount
                 ELSE 0
             END)
         ) AS net_layaway_balance
     FROM {$table_name}
-    WHERE transaction_type IN ('layaway_deposit', 'layaway_redemption')
+    WHERE transaction_type IN ('layaway_deposit', 'layaway_redemption', 'refund')
     AND customer_id = %d
     AND location_id = %d
+    AND (layaway_id IS NOT NULL OR credit_id IS NOT NULL)
     ", $customer, $location);
 
     $result = $wpdb->get_row($query);
@@ -491,14 +493,15 @@ function get_layaway_sum($customer_id = null, $location_id = null)
             END)
             -
             SUM(CASE
-                WHEN transaction_type = 'credit_redemption' THEN amount
+                WHEN transaction_type IN ('credit_redemption', 'refund') THEN amount
                 ELSE 0
             END)
         ) AS net_layaway_balance
     FROM {$table_name}
-    WHERE transaction_type IN ('credit_deposit', 'credit_redemption')
+    WHERE transaction_type IN ('credit_deposit', 'credit_redemption', 'refund')
     AND customer_id = %d
     AND location_id = %d
+    AND (layaway_id IS NOT NULL OR credit_id IS NOT NULL)
     ", $customer, $location);
 
     $result = $wpdb->get_row($query);
@@ -542,9 +545,10 @@ function get_layaway_list()
         FROM {$table_name} p
         LEFT JOIN {$salespeople_table} s
         ON p.salesperson_id = s.id
-        WHERE (transaction_type = 'layaway_deposit' OR transaction_type = 'layaway_redemption' OR transaction_type = 'credit_deposit' OR transaction_type = 'credit_redemption')
+        WHERE transaction_type IN ('layaway_deposit', 'layaway_redemption', 'credit_deposit', 'credit_redemption', 'refund')
         AND customer_id = %d
         AND location_id = %d
+        AND (layaway_id IS NOT NULL OR credit_id IS NOT NULL)
     ", $customer_id, $location_id);
 
     $layaway_items = $wpdb->get_results($query);
@@ -687,7 +691,8 @@ function add_layaway()
             'payment_date' => $payment_date,
             'payments' => $payments,
             'layaway_sum' => $layaway_sum,
-            'transaction_type' => $transaction_type
+            'transaction_type' => $transaction_type,
+            'notes' => $notes
         ];
 
         $wpdb->query('COMMIT');
