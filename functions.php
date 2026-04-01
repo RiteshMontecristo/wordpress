@@ -38,7 +38,7 @@ function rolex_stylesheet()
     wp_enqueue_style('dashicons');
 }
 
-add_action('wp_enqueue_scripts', 'rolex_stylesheet');
+// add_action('wp_enqueue_scripts', 'rolex_stylesheet');
 
 function my_load_scripts()
 {
@@ -53,21 +53,21 @@ function my_load_scripts()
         )
     );
 
-    if (is_singular('mc-rolex') || is_singular('mc-rolex-product')) {
-        wp_enqueue_script(
-            'rolex-script',
-            get_stylesheet_directory_uri() . '/scripts/rolex.js',
-            array('splidejs-script'),
-            '1.0.0',
-            array(
-                'strategy' => 'defer'
-            )
-        );
+    // if (is_singular('mc-rolex') || is_singular('mc-rolex-product')) {
+    //     wp_enqueue_script(
+    //         'rolex-script',
+    //         get_stylesheet_directory_uri() . '/scripts/rolex.js',
+    //         array('splidejs-script'),
+    //         '1.0.0',
+    //         array(
+    //             'strategy' => 'defer'
+    //         )
+    //     );
 
-        wp_localize_script('rolex-script', 'ajax_object', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-        ));
-    }
+    //     wp_localize_script('rolex-script', 'ajax_object', array(
+    //         'ajax_url' => admin_url('admin-ajax.php'),
+    //     ));
+    // }
 
     wp_enqueue_script(
         'normal-script',
@@ -149,7 +149,7 @@ function add_module_attribute($tag, $handle, $src)
 add_filter('script_loader_tag', 'add_module_attribute', 10, 3);
 
 // Adding CPT functions
-require get_stylesheet_directory() . '/cpt/rolex.php';
+// require get_stylesheet_directory() . '/cpt/rolex.php';
 
 // Adding CMB@ functions
 require_once get_stylesheet_directory() . '/cmb2/fields.php';
@@ -159,7 +159,6 @@ require get_stylesheet_directory() . '/woocommerce/function.php';
 
 require get_stylesheet_directory() . '/inventory/functions.php';
 
-// Remove breadcrumb for the rolex pages
 function remove_breadcrumb_for_cpt()
 {
     // if (is_singular('mc-rolex') || is_singular('mc-rolex-product') || is_product_tag() || is_product_category()) {
@@ -180,7 +179,7 @@ function rolex_register_menus()
         )
     );
 }
-add_action('init', 'rolex_register_menus');
+// add_action('init', 'rolex_register_menus');
 
 // grabbign the height and width of cloudinary iamges
 function get_image_sizes($image_url)
@@ -1279,45 +1278,3 @@ function conditional_recaptcha_script()
     }
 }
 add_action('wp_footer', 'conditional_recaptcha_script');
-
-// TO remove - combination of from the rolex product titles
-function remove_phrase_from_mc_rolex_titles()
-{
-    global $wpdb;
-
-    $phrase = ' - combination of';
-    $post_type = 'mc-rolex-product';
-
-    $query = $wpdb->prepare("
-        UPDATE {$wpdb->posts}
-        SET post_title = REPLACE(post_title, %s, '')
-        WHERE post_type = %s
-          AND post_status IN ('publish', 'draft', 'pending')
-    ", $phrase, $post_type);
-
-    $wpdb->query($query);
-}
-// add_action('init', 'remove_phrase_from_mc_rolex_titles');
-
-// Adding Rolex clock script
-function add_rolex_clock_script()
-{
-    if (is_front_page() && !is_admin()) {
-    ?>
-        <script id="rlxSmartClock">
-            (function(b, c, a, d, f, g, h, k, l, m, n) {
-                b[d] = b[d] || function(p) {
-                    delete b[d];
-                    p.create(c.getElementById(f), [g, h, k, l, m, n])
-                };
-                var e = c.getElementsByTagName(a)[0];
-                a = c.createElement(a);
-                a.async = !0;
-                a.src = "//clock.rolex.com/smart-clock/static/js/invoker.js";
-                e.parentNode.insertBefore(a, e)
-            })(window, document, "script", "rlxSmrtClck", "rlxSmartClock", "686eab0328edbc35d853b0340c2280ba", "en", "https://montecristo1978.com/rolex/", "richright", "dark", "gold");
-        </script>
-<?php
-    }
-}
-add_action('wp_footer', 'add_rolex_clock_script');

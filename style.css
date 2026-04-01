@@ -40,7 +40,8 @@ Text Domain: storefront-child
 
 @font-face {
   font-family: "the-seasons";
-  src: url("https://use.typekit.net/af/0726c3/00000000000000007758a678/31/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n4&v=3")
+  src:
+    url("https://use.typekit.net/af/0726c3/00000000000000007758a678/31/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n4&v=3")
       format("woff2"),
     url("https://use.typekit.net/af/0726c3/00000000000000007758a678/31/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n4&v=3")
       format("woff"),
@@ -54,7 +55,8 @@ Text Domain: storefront-child
 
 @font-face {
   font-family: "the-seasons";
-  src: url("https://use.typekit.net/af/2a403e/00000000000000007758a67a/31/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3")
+  src:
+    url("https://use.typekit.net/af/2a403e/00000000000000007758a67a/31/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3")
       format("woff2"),
     url("https://use.typekit.net/af/2a403e/00000000000000007758a67a/31/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3")
       format("woff"),
@@ -74,9 +76,10 @@ Text Domain: storefront-child
   font-display: swap;
   src: url(https://fonts.gstatic.com/s/lato/v24/S6uyw4BMUTPHjx4wXg.woff2)
     format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
 }
 
 body {
@@ -558,6 +561,10 @@ button.menu-toggle span::before {
 
   #masthead > .col-full .rolex-clock {
     display: block;
+  }
+  
+  #masthead .first-header {
+    height: 100px;
   }
 
   #masthead .first-header .mobile-icons {
@@ -1836,7 +1843,8 @@ sidebar .filter-hide h3::after {
 }
 
 .single-product .summary.entry-summary .entry-title {
-  font-family: "Source Sans Pro", "HelveticaNeue-Light", "Helvetica Neue Light",
+  font-family:
+    "Source Sans Pro", "HelveticaNeue-Light", "Helvetica Neue Light",
     "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
   font-size: 1.25rem;
   font-weight: 400;
@@ -2051,7 +2059,8 @@ montecristo-category
 }
 
 .single-product ul.products li.product .woocommerce-LoopProduct-link h2 {
-  font-family: "Source Sans Pro", "HelveticaNeue-Light", "Helvetica Neue Light",
+  font-family:
+    "Source Sans Pro", "HelveticaNeue-Light", "Helvetica Neue Light",
     "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
   color: #6d6d6d;
   line-height: 135%;
