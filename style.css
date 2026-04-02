@@ -562,7 +562,7 @@ button.menu-toggle span::before {
   #masthead > .col-full .rolex-clock {
     display: block;
   }
-  
+
   #masthead .first-header {
     height: 100px;
   }
@@ -1181,6 +1181,11 @@ button.menu-toggle span::before {
 @media (min-width: 768px) {
   .home .splide {
     height: fit-content;
+  }
+
+  .home .splide__slide img {
+    aspect-ratio: 1187 / 546;
+    object-position: 10% 90%;
   }
 
   .home .splide__pagination {

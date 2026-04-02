@@ -16,12 +16,7 @@
             <div class="preference">
                 <input type="checkbox" name="statistics" id="statistics" />
                 <label for="statistics">Statistics</label>
-                <p>Enables storage (such as cookies) related to analytics e.g. visit duration.</br>
-                    <strong>Rolex (Adobe Analytics and Content Square)</strong></br>
-                    Rolex Policy <a href="https://www.rolex.com/legal-notices/cookies.html" target="_blank">https://www.rolex.com/legal-notices/cookies.html</a></br>
-                    Adobe Analytics <a href="https://www.adobe.com/privacy/policy.html" target="_blank">https://www.adobe.com/privacy/policy.html</a></br>
-                    Content Square <a href="https://contentsquare.com/" target="_blank">https://contentsquare.com/</a>
-                </p>
+                <p>Enables storage (such as cookies) related to analytics e.g. visit duration.</p>
             </div>
             <div class="preference">
                 <input type="checkbox" name="marketing" id="marketing" />
