@@ -1,4 +1,7 @@
 <?php
+
+use function PHPSTORM_META\type;
+
 function reports_page()
 {
     $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'sales';
@@ -32,6 +35,17 @@ function reports_page()
         menu_page_url('reports-management', false)
     );
 
+    $refund_url = add_query_arg(
+        'tab',
+        'refund',
+        menu_page_url('reports-management', false)
+    );
+    $out_of_status_url = add_query_arg(
+        'tab',
+        'out-of-status',
+        menu_page_url('reports-management', false)
+    );
+
 ?>
     <div class="wrap">
         <h1>Reports</h1>
@@ -53,7 +67,7 @@ function reports_page()
                 class="nav-tab <?php echo $active_tab === 'credit' ? 'nav-tab-active' : ''; ?>">
                 Credit Report
             </a>
-            <a href="<?php echo esc_url($layaway_url); ?>"
+            <a href="<?php echo esc_url($refund_url); ?>"
                 class="nav-tab <?php echo $active_tab === 'refund' ? 'nav-tab-active' : ''; ?>">
                 Refund Report
             </a>
@@ -61,7 +75,7 @@ function reports_page()
                 class="nav-tab <?php echo $active_tab === 'financial' ? 'nav-tab-active' : ''; ?>">
                 Financial Report
             </a>
-            <a href="<?php echo esc_url($layaway_url); ?>"
+            <a href="<?php echo esc_url($out_of_status_url); ?>"
                 class="nav-tab <?php echo $active_tab === 'out-of-status' ? 'nav-tab-active' : ''; ?>">
                 Out of status Report
             </a>
@@ -76,6 +90,10 @@ function reports_page()
             reports_render_layaway_section();
         } elseif ($active_tab === 'credit') {
             reports_render_credit_section();
+        } elseif ($active_tab === 'refund') {
+            reports_render_refund_section();
+        } elseif ($active_tab === 'out-of-status') {
+            reports_render_out_of_status_section();
         }
         ?>
     </div>
@@ -183,6 +201,8 @@ function reports_get_sales_results()
     $models_table = $wpdb->prefix . 'mji_models';
     $brands_table = $wpdb->prefix . 'mji_brands';
     $returns_table = $wpdb->prefix . 'mji_returns';
+    $return_items_table = $wpdb->prefix . 'mji_return_items';
+    $return_services_table = $wpdb->prefix . 'mji_return_services';
 
     $where1 = ["o.created_at BETWEEN %s AND %s"];
     $params1 = [$start_date, $end_date];
@@ -221,8 +241,17 @@ function reports_get_sales_results()
                     COALESCE(oi.discount_amount, 0) AS discount_amount,
                     COALESCE(pi.cost_price, 0) AS cost_price,
                     COALESCE(pi.retail_price, 0) AS retail_price,
-                    r.reference_num AS return_reference_num,
-                    'TEST' AS description
+                    NULL AS description,
+                    CASE 
+                        WHEN COUNT(retn.id) > 0 
+                        THEN JSON_ARRAYAGG(
+                            JSON_OBJECT(
+                                'reference_num', retn.reference_num,
+                                'refund_amount', retn.unit_price
+                            )
+                        )
+                        ELSE NULL
+                    END AS returns
                 FROM $orders_table o
                 INNER JOIN $order_items oi ON o.id = oi.order_id
                 INNER JOIN $inventory_table pi ON oi.product_inventory_unit_id = pi.id
@@ -230,8 +259,19 @@ function reports_get_sales_results()
                 INNER JOIN $customers_table c ON o.customer_id = c.id
                 LEFT JOIN $models_table m on m.id = pi.model_id
                 LEFT JOIN $brands_table b on b.id = pi.brand_id
-                LEFT JOIN $returns_table r on r.order_id = o.id
+                LEFT JOIN (
+                    SELECT r.id, r.order_id, r.reference_num, ri.unit_price
+                    FROM $returns_table r
+                    JOIN $return_items_table ri ON ri.return_id = r.id
+                ) retn ON retn.order_id = o.id
                 WHERE " . implode(" AND ", $where1) . "
+                GROUP BY
+                    o.id,
+                    oi.id,
+                    pi.id,
+                    s.id,
+                    c.id,
+                    m.id
             ";
 
     $where2 = ["o.created_at BETWEEN %s AND %s"];
@@ -266,13 +306,31 @@ function reports_get_sales_results()
                     COALESCE(0, 0) as discount_amount,
                     COALESCE(si.cost_price, 0) as cost_price,
                     COALESCE(si.sold_price, 0) as retail_price,
-                    NULL AS return_reference_num,
-                    si.description AS description
+                    si.description AS description,
+                    CASE 
+                        WHEN COUNT(retn.id) > 0
+                        THEN JSON_ARRAYAGG(
+                            JSON_OBJECT(
+                                'reference_num', retn.reference_num,
+                                'refund_amount', retn.price
+                            )
+                        )
+                        ELSE NULL
+                    END AS returns
                 FROM $orders_table o
                 INNER JOIN $service_table si ON si.order_id = o.id
                 INNER JOIN $salespeople_table s ON o.salesperson_id = s.id
                 INNER JOIN $customers_table c ON o.customer_id = c.id
+                 LEFT JOIN (
+                    SELECT r.id, r.order_id, r.reference_num, rs.price
+                    FROM $returns_table r
+                    JOIN $return_services_table rs ON rs.return_id = r.id
+                ) retn ON retn.order_id = o.id
                 WHERE " . implode(" AND ", $where2) . "
+                GROUP BY
+                    o.id,
+                    s.id,
+                    c.id
             ";
 
 
@@ -345,16 +403,58 @@ function reports_render_sales_report($results)
             $dt = new DateTime($row->sold_date);
             $date = $dt->format('Y-m-d');
             $placeholder_image = wc_placeholder_img([50, 50]);
+
+            // Build the invoice display with returns
+            $invoice_display = esc_html($row->invoice);
+            $total_current_retail_paid = $row->retail_paid;
+            $retail_paid_display = "$" . number_format($row->retail_paid, 2);
+
+            if (!empty($row->returns) && $row->returns !== 'null') {
+                $returns = json_decode($row->returns);
+
+                if (json_last_error() === JSON_ERROR_NONE && is_array($returns) && count($returns) > 0) {
+
+                    foreach ($returns as $return) {
+                        if (!empty($return->reference_num)) {
+                            $invoice_display .= '<br />-' . esc_html($return->reference_num);
+                        }
+                        if (!empty($return->refund_amount)) {
+                            $retail_paid_display .= '<br />-$' . number_format($return->refund_amount, 2);
+                            $total_current_retail_paid -= $return->refund_amount;
+                        }
+                    }
+
+                    $invoice_display .= '</small>';
+                }
+            }
+
+            $discount_percent = 0;
+            $profit = 0;
+            $margin_percent = 0;
+
+            if ($total_current_retail_paid > 0) {
+                $discount_percent = $row->retail_price ? ($row->discount_amount / $row->retail_price) * 100 : 0;
+                $profit = $total_current_retail_paid - $row->cost_price;
+                $margin_percent = $total_current_retail_paid ? ($profit / $total_current_retail_paid) * 100 : 0;
+
+                // Calculate totals
+                $total_cost += $row->cost_price;
+                $total_retail += $row->retail_price;
+                $total_retail_paid += $total_current_retail_paid;
+                $total_profit += $profit;
+            }
             if (!$product) {
                 echo '<tr>';
                 echo '<td>' . $placeholder_image . '</td>';
-                echo '<td>' . $row->invoice . '</td>';
+                echo '<td>' . $invoice_display . '</td>';
                 echo '<td>' . $date . '</td>';
                 echo '<td>' . $name . '</td>';
-                echo '<td>Service</td>';
+                echo '<td></td>';
+                echo '<td></td>';
+                echo '<td></td>';
                 echo '<td>' . number_format($row->cost_price, 2) . '</td>';
                 echo '<td>' . number_format($row->retail_price, 2) . '</td>';
-                echo '<td>' . number_format($retail_paid, 2) . '</td>';
+                echo '<td>' . $retail_paid_display . '</td>';
                 echo '<td>' . number_format($row->discount_amount, 2) . '</td>';
                 echo '<td>' . number_format(0, 2) . '%</td>';
                 echo '<td>' . number_format($profit, 2) . '</td>';
@@ -365,6 +465,7 @@ function reports_render_sales_report($results)
                 continue; // Skip invalid products
             }
 
+            $image = $product->get_image([50, 50]);
             $name = $product->get_name();
 
             if ($product->is_type('variation')) {
@@ -374,67 +475,39 @@ function reports_render_sales_report($results)
                 }
             }
 
-            $discount_percent = $row->retail_price ? ($row->discount_amount / $row->retail_price) * 100 : 0;
-            $profit = $retail_paid - $row->cost_price;
-            $margin_percent = $retail_paid ? ($profit / $retail_paid) * 100 : 0;
-            $image = $product->get_image([50, 50]);
-
-            if (is_empty($row->return_reference_num)) {
-                // Calculate totals
-                $total_cost += $row->cost_price;
-                $total_retail += $row->retail_price;
-                $total_retail_paid += $retail_paid;
-                $total_profit += $profit;
-
-                echo '<tr>';
-                echo '<td>' . $image . '</td>';
-                echo '<td>' . $row->invoice . '</td>';
-                echo '<td style="white-space: nowrap;">' . $date . '</td>';
-                echo '<td>' . $name . '</td>';
-                echo '<td>' . $row->sku . '</td>';
-                echo '<td>' . $row->model_name . '</td>';
-                echo '<td>' . $row->serial . '</td>';
-                echo '<td>$' . number_format($row->cost_price, 2) . '</td>';
-                echo '<td>$' . number_format($row->retail_price, 2) . '</td>';
-                echo '<td>$' . number_format($retail_paid, 2) . '</td>';
-                echo '<td>$' . number_format($row->discount_amount, 2) . '</td>';
-                echo '<td>' . number_format($discount_percent, 2) . '%</td>';
-                echo '<td>' . number_format($profit, 2) . '</td>';
-                echo '<td>' . number_format($margin_percent, 2) . '%</td>';
-                echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
-                echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
-                echo '</tr>';
-            } else {
-                echo '<tr>';
-                echo '<td>' . $image . '</td>';
-                echo '<td>' . $row->invoice . '<br>(' . $row->return_reference_num . ')</td>';
-                echo '<td style="white-space: nowrap;">' . $date . '</td>';
-                echo '<td>' . $name . ' <strong>(Returned)</strong></td>';
-                echo '<td>' . $row->sku . '</td>';
-                echo '<td>' . $row->model_name . '</td>';
-                echo '<td>' . $row->serial . '</td>';
-                echo '<td>-$' . number_format($row->cost_price, 2) . '</td>';
-                echo '<td>-$' . number_format($row->retail_price, 2) . '</td>';
-                echo '<td>-$' . number_format($retail_paid, 2) . '</td>';
-                echo '<td>-$' . number_format($row->discount_amount, 2) . '</td>';
-                echo '<td>-' . number_format($discount_percent, 2) . '%</td>';
-                echo '<td>-' . number_format($profit, 2) . '</td>';
-                echo '<td>-' . number_format($margin_percent, 2) . '%</td>';
-                echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
-                echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
-                echo '</tr>';
-            }
+            echo '<tr>';
+            echo '<td>' . $image . '</td>';
+            echo '<td style="white-space: nowrap;">' . $invoice_display . '</td>';
+            echo '<td style="white-space: nowrap;">' . $date . '</td>';
+            echo '<td>' . $name . '</td>';
+            echo '<td>' . $row->sku . '</td>';
+            echo '<td>' . $row->model_name  . '</td>';
+            echo '<td>' . $row->serial . '</td>';
+            echo '<td>$' . number_format($row->cost_price, 2) . '</td>';
+            echo '<td>$' . number_format($row->retail_price, 2) . '</td>';
+            echo '<td>' . $retail_paid_display . '</td>';
+            echo '<td>$' . number_format($row->discount_amount, 2) . '</td>';
+            echo '<td>' . number_format($discount_percent, 2) . '%</td>';
+            echo '<td>' . number_format($profit, 2) . '</td>';
+            echo '<td>' . number_format($margin_percent, 2) . '%</td>';
+            echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
+            echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
+            echo '</tr>';
         }
 
+        $margin_percent = ($total_profit / $total_retail_paid) * 100;
         echo '
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <th>Total Cost: $' . number_format($total_cost, 2) . '</th>
+                        <th>Total Retail: $' . number_format($total_retail, 2) . '</th>
+                        <th>Total Paid: $' . number_format($total_retail_paid, 2) . '</th>
+                        <th>Total Profit: $' . number_format($total_profit, 2) . '</th>
+                        <th>Margin: ' . number_format($margin_percent, 2) . '%</th>
+                        <th> </th>
+                    </tr>
             </table>
-            <div> 
-                <strong>Total Cost: ' . number_format($total_cost, 2) . '</strong>
-                <strong>Total Retail: ' . number_format($total_retail, 2) . '</strong> 
-                <strong>Total Retail Paid: ' . number_format($total_retail_paid, 2) . '</strong>
-                <strong>Total Profit: ' . number_format($total_profit, 2) . '</strong>
-            </div>
         </div>
         ';
     } else {
@@ -876,8 +949,7 @@ function reports_render_layaway_section()
 }
 
 function reports_render_layaway_filters()
-{
-?>
+{ ?>
     <form method="get" action="">
         <input type="hidden" name="page" value="reports-management">
         <input type="hidden" name="tab" value="layaway">
@@ -947,7 +1019,7 @@ function reports_get_layaway_results()
     $end_date = date('Y-m-d H:i:s', $end_ts);
 
     $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
-    $query = !empty($_GET['query']) ? $_GET['query'] : 'layaway';
+    $query = !empty($_GET['query']) ? $_GET['query'] : 'depost';
 
     $payments_table = "{$wpdb->prefix}mji_payments";
     $customers_table = "{$wpdb->prefix}mji_customers";
@@ -1331,7 +1403,7 @@ function reports_get_credit_results()
     $end_date = date('Y-m-d H:i:s', $end_ts);
 
     $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
-    $query = !empty($_GET['query']) ? $_GET['query'] : 'layaway';
+    $query = !empty($_GET['query']) ? $_GET['query'] : 'deposit';
 
     $payments_table = "{$wpdb->prefix}mji_payments";
     $customers_table = "{$wpdb->prefix}mji_customers";
@@ -1626,6 +1698,352 @@ function reports_render_credit_report($results)
             }
         }
 
+        echo '</table>';
+        echo '</div>';
+    }
+}
+
+// Reports Refund Section
+function reports_render_refund_section()
+{
+    reports_render_refund_filters();
+
+    echo '<hr>';
+    if (isset($_GET['start_date'], $_GET['end_date'])) {
+        $results = reports_get_refund_results();
+        reports_render_refund_report($results);
+    }
+}
+
+function reports_render_refund_filters()
+{
+?>
+    <form method="get" action="">
+        <input type="hidden" name="page" value="reports-management">
+        <input type="hidden" name="tab" value="refund">
+
+        <table class="form-table">
+            <tr>
+                <th scope="row"><label for="start_date">Start Date</label></th>
+                <td>
+                    <?php
+                    if (isset($_GET['start_date'])) {
+                        $startDate = sanitize_text_field($_GET['start_date']);
+                    } else {
+                        $startDate = date("Y-m-01", strtotime("first day of last month"));
+                    }
+                    ?>
+                    <input type="date" name="start_date" id="start_date" value="<?= $startDate; ?>">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="end_date">End Date</label></th>
+                <td>
+                    <?php
+                    $endDate =
+                        isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : date("Y-m-t", strtotime("last month"));
+                    ?>
+                    <input type="date" name="end_date" id="end_date" value="<?= $endDate; ?>">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="location">Store</label></th>
+                <td>
+                    <?= mji_store_dropdown(false) ?>
+                </td>
+            </tr>
+        </table>
+
+        <?php submit_button('Generate Report'); ?>
+    </form>
+<?php
+}
+
+function reports_get_refund_results()
+{
+    global $wpdb;
+
+    $start_raw = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+    $end_raw = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+
+    $start_ts = strtotime($start_raw);
+    $end_ts = strtotime($end_raw);
+
+    if ($start_ts === false || $end_ts === false) {
+        return [];
+    }
+
+    $start_date = date('Y-m-d H:i:s', $start_ts);
+    $end_date = date('Y-m-d H:i:s', $end_ts);
+
+    $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
+
+    $payments_table = "{$wpdb->prefix}mji_payments";
+    $customers_table = "{$wpdb->prefix}mji_customers";
+    $salespeople_table = "{$wpdb->prefix}mji_salespeople";
+
+    $where = [];
+    $params = [];
+
+    if ($location !== null) {
+        $where[] = "location_id = %d";
+        $params[] = $location;
+    }
+
+    $where[] = "p.payment_date BETWEEN %s AND %s AND p.transaction_type = 'refund'";
+    $params[] = [$start_date, $end_date];
+    $sql_query = "
+            SELECT 
+               p.reference_num, p.transaction_type, p.payment_date, p.notes, c.first_name, c.last_name, s.first_name as salesperson_first_name, s.last_name as salesperson_last_name, 
+                JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'method', p.method,
+                        'amount', p.amount
+                    )
+                ) AS payment_details
+            FROM {$payments_table} p
+            JOIN {$customers_table} c ON p.customer_id = c.id
+            JOIN {$salespeople_table} s ON p.salesperson_id = s.id
+            WHERE " . implode(" AND ", $where) . "
+            GROUP BY p.reference_num, p.transaction_type, p.payment_date, p.notes, c.first_name, c.last_name, s.first_name, s.last_name
+            ORDER BY p.reference_num";
+
+
+    $results = $wpdb->get_results($wpdb->prepare($sql_query, ...$params));
+
+    $results['start_date'] = $start_date;
+    $results['end_date'] = $end_date;
+    $results['location'] = $location;
+    return $results;
+}
+
+function reports_render_refund_report($results)
+{
+    if ($results) {
+        $store_locations = mji_get_locations();
+        $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+        $location_name = $location_obj ? $location_obj->name : 'All Location';
+
+        $start_date = explode(" ", $results['start_date'])[0];
+        $end_date = explode(" ", $results['end_date'])[0];
+
+        echo '<div style="max-height:700px; overflow-y:auto; position:relative;">';
+        echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
+        echo '<button id="printInventory" class="button button-secondary" style="margin-bottom:10px;">Print Report</button>';
+
+        echo '<div id="report">';
+        echo '<header>';
+        echo '<h2>Refund Report for ' . esc_html($location_name) . ' - Montecristo Jewellers</h2>';
+        echo '<p>From ' . esc_html($start_date) . ' to ' . esc_html($end_date) . '</p>';
+        echo '</header>';
+
+        echo '<table id="inventoryTable" class="widefat ">';
+
+        echo '<thead>
+            <tr>
+                <th>Invoice</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Salesperson</th>
+                <th>Method</th>
+                <th>Amount</th>
+                <th>Notes</th>
+            </tr>
+          </thead>';
+        echo '<tbody>';
+        foreach ($results as $index => $row) {
+
+            if (!is_object($row))
+                continue;
+            $payments = json_decode($row->payment_details, true);
+            $rowspan = count($payments);
+            $first = true;
+            $payment_date = explode(" ", $row->payment_date)[0];
+            foreach ($payments as $payment) {
+
+                $isLast = ($index % 2 == 0) ? "group-end" : "";
+                echo "<tr class='{$isLast}'>";
+
+                if ($first) {
+                    echo "<td rowspan='{$rowspan}'>{$row->reference_num}</td>";
+                    echo "<td rowspan='{$rowspan}'>{$payment_date}</td>";
+                    echo "<td rowspan='{$rowspan}'>{$row->first_name} {$row->last_name}</td>";
+                    echo "<td rowspan='{$rowspan}'>{$row->salesperson_first_name} {$row->salesperson_last_name}</td>";
+                }
+
+                // Payment-specific columns (always printed)
+                echo "<td>{$payment['method']}</td>";
+                echo "<td>{$payment['amount']}</td>";
+
+                if ($first) {
+                    echo "<td rowspan='{$rowspan}'>{$row->notes}</td>";
+                    $first = false;
+                }
+                echo "</tr>";
+            }
+        }
+        echo '</table>';
+        echo '</div>';
+    }
+}
+
+// Reports Out of status Section
+function reports_render_out_of_status_section()
+{
+    reports_render_out_of_status_filters();
+
+    echo '<hr>';
+    if (isset($_GET['start_date'], $_GET['end_date'])) {
+        $results = reports_get_out_of_status_results();
+        reports_render_out_of_status_report($results);
+    }
+}
+
+function reports_render_out_of_status_filters()
+{
+?>
+    <form method="get" action="">
+        <input type="hidden" name="page" value="reports-management">
+        <input type="hidden" name="tab" value="out-of-status">
+
+        <table class="form-table">
+            <tr>
+                <th scope="row"><label for="start_date">Start Date</label></th>
+                <td>
+                    <?php
+                    if (isset($_GET['start_date'])) {
+                        $startDate = sanitize_text_field($_GET['start_date']);
+                    } else {
+                        $startDate = date("Y-m-01", strtotime("first day of last month"));
+                    }
+                    ?>
+                    <input type="date" name="start_date" id="start_date" value="<?= $startDate; ?>">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="end_date">End Date</label></th>
+                <td>
+                    <?php
+                    $endDate =
+                        isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : date("Y-m-t", strtotime("last month"));
+                    ?>
+                    <input type="date" name="end_date" id="end_date" value="<?= $endDate; ?>">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="location">Store</label></th>
+                <td>
+                    <?= mji_store_dropdown(false) ?>
+                </td>
+            </tr>
+        </table>
+
+        <?php submit_button('Generate Report'); ?>
+    </form>
+<?php
+}
+
+function reports_get_out_of_status_results()
+{
+    global $wpdb;
+
+    $start_raw = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+    $end_raw = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+
+    $start_ts = strtotime($start_raw);
+    $end_ts = strtotime($end_raw);
+
+    if ($start_ts === false || $end_ts === false) {
+        return [];
+    }
+
+    $start_date = date('Y-m-d H:i:s', $start_ts);
+    $end_date = date('Y-m-d H:i:s', $end_ts);
+
+    $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
+
+    $inventory_status_history_table = "{$wpdb->prefix}mji_inventory_status_history";
+    $product_units_table = "{$wpdb->prefix}mji_product_inventory_units";
+
+    $where[] = "created_at BETWEEN %s AND %s ";
+    $params[] = $start_date;
+    $params[] = $end_date;
+    $location_filter = '';
+
+    if ($location !== null) {
+        $location_filter = " AND i.location_id = %d";
+        $params[] = $location;
+    }
+
+    $sql_query = "
+            SELECT *
+            FROM (
+                SELECT *, 
+                    ROW_NUMBER() OVER (
+                        PARTITION BY inventory_unit_id 
+                        ORDER BY created_at DESC, id DESC
+                    ) as row_num
+                FROM {$inventory_status_history_table}
+                WHERE  " . implode(" AND ", $where) . "
+            ) t JOIN {$product_units_table} i ON t.inventory_unit_id = i.id
+            WHERE t.to_status NOT IN ('in_stock', 'sold') AND t.row_num = 1 {$location_filter}";
+
+    $results = $wpdb->get_results($wpdb->prepare($sql_query, ...$params));
+
+    $results['start_date'] = $start_date;
+    $results['end_date'] = $end_date;
+    $results['location'] = $location;
+    return $results;
+}
+
+function reports_render_out_of_status_report($results)
+{
+    if ($results) {
+        $store_locations = mji_get_locations();
+        $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+        $location_name = $location_obj ? $location_obj->name : 'All Location';
+
+        $start_date = explode(" ", $results['start_date'])[0];
+        $end_date = explode(" ", $results['end_date'])[0];
+
+        echo '<div style="max-height:700px; overflow-y:auto; position:relative;">';
+        echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
+        echo '<button id="printInventory" class="button button-secondary" style="margin-bottom:10px;">Print Report</button>';
+
+        echo '<div id="report">';
+        echo '<header>';
+        echo '<h2>Refund Report for ' . esc_html($location_name) . ' - Montecristo Jewellers</h2>';
+        echo '<p>From ' . esc_html($start_date) . ' to ' . esc_html($end_date) . '</p>';
+        echo '</header>';
+
+        echo '<table id="inventoryTable" class="widefat stripped">';
+
+        echo '<thead>
+            <tr>
+                <th>sku</th>
+                <th>serial</th>
+                <th>from_status</th>
+                <th>to_status</th>
+                <th>created_at</th>
+                <th>Notes</th>
+            </tr>
+          </thead>';
+        echo '<tbody>';
+        foreach ($results as $index => $row) {
+            if (!is_object($row))
+                continue;
+
+            $date = explode(" ", $row->created_at)[0];
+
+            echo "<tr>";
+            echo "<td>{$row->sku}</td>";
+            echo "<td>{$row->serial}</td>";
+            echo "<td>{$row->from_status}</td>";
+            echo "<td>{$row->to_status}</td>";
+            echo "<td>{$date}</td>";
+            echo "<td>{$row->notes}</td>";
+            echo "</tr>";
+        }
         echo '</table>';
         echo '</div>';
     }
