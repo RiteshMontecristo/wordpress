@@ -40,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const acceptAllCookies = () => {
-    document.cookie = `rlx-consent=true; path=/; max-age=31536000`;
     document.cookie = `gtm_ad_storage=granted; path=/; max-age=31536000`;
     document.cookie = `gtm_analytics_storage=granted; path=/; max-age=31536000`;
 
@@ -55,7 +54,6 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const declineAllCookies = () => {
-    document.cookie = `rlx-consent=false; path=/; max-age=31536000`;
     document.cookie = `gtm_ad_storage=denied; path=/; max-age=31536000`;
     document.cookie = `gtm_analytics_storage=denied; path=/; max-age=31536000`;
 
@@ -70,11 +68,6 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const acceptPartialCookies = () => {
-    const rolexConsent = statisticsCheckbox
-      ? statisticsCheckbox.checked
-      : false;
-
-    document.cookie = `rlx-consent=${rolexConsent}; path=/; max-age=31536000`;
     document.cookie = `gtm_ad_storage=${
       marketingCheckbox.checked ? "granted" : "denied"
     }; path=/; max-age=31536000`;
@@ -150,11 +143,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const documentCookies = getCookies();
     const gtmAdStorage = documentCookies["gtm_ad_storage"];
     const gtmAnalyticsStorage = documentCookies["gtm_analytics_storage"];
-    const rolexConsent = documentCookies["rlx-consent"];
 
     statisticsCheckbox.checked = gtmAnalyticsStorage === "granted";
     marketingCheckbox.checked = gtmAdStorage === "granted";
-    rolexCheckbox.checked = rolexConsent === "true";
   });
 
   // Display multiple options
@@ -168,7 +159,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // On load
   if (!hasUserGivenConsent()) {
-    document.cookie = `rlx-consent=false; path=/; max-age=31536000`;
     setTimeout(showBanner, 1000); // Optional delay
 
     // Set default GTM consent to denied (required before any tags fire)
