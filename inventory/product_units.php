@@ -588,6 +588,11 @@ function create_inventory_units()
         // If unit id present then update else need to create product unit
         if ($unit_id) {
             update_unit_sku($unit_id, $sku);
+
+            $old_variant_id = $wpdb->get_var(
+                $wpdb->prepare("SELECT wc_product_variant_id FROM $table_name WHERE id = %d", $unit_id)
+            );
+
             $result = $wpdb->update(
                 $table_name,
                 [
@@ -634,6 +639,11 @@ function create_inventory_units()
                     update_post_meta($variation_id, '_cost_price', $cost_price);
                 }
 
+                if ($old_variant_id !== $variation_id) {
+                    wc_update_product_stock($variation_id, 1, 'increase');
+                    wc_update_product_stock($old_variant_id, 1, 'decrease');
+                }
+                
                 // Deleting stale data so customer gets correct info
                 wc_delete_product_transients($variation_id);
                 wc_delete_product_transients($product_id);
