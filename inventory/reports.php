@@ -1,7 +1,5 @@
 <?php
 
-use function PHPSTORM_META\type;
-
 function reports_page()
 {
     $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'sales';
@@ -40,6 +38,13 @@ function reports_page()
         'refund',
         menu_page_url('reports-management', false)
     );
+
+    $financial_url = add_query_arg(
+        'tab',
+        'financial',
+        menu_page_url('reports-management', false)
+    );
+
     $out_of_status_url = add_query_arg(
         'tab',
         'out-of-status',
@@ -71,7 +76,7 @@ function reports_page()
                 class="nav-tab <?php echo $active_tab === 'refund' ? 'nav-tab-active' : ''; ?>">
                 Refund Report
             </a>
-            <a href="<?php echo esc_url($layaway_url); ?>"
+            <a href="<?php echo esc_url($financial_url); ?>"
                 class="nav-tab <?php echo $active_tab === 'financial' ? 'nav-tab-active' : ''; ?>">
                 Financial Report
             </a>
@@ -92,6 +97,8 @@ function reports_page()
             reports_render_credit_section();
         } elseif ($active_tab === 'refund') {
             reports_render_refund_section();
+        } elseif ($active_tab === 'financial') {
+            reports_render_financial_section();
         } elseif ($active_tab === 'out-of-status') {
             reports_render_out_of_status_section();
         }
@@ -1664,7 +1671,6 @@ function reports_render_credit_report($results)
                 $redeem_payment_details = json_decode($row->redeem_payment_details, true);
                 $redeem_payment_details_len = is_empty($redeem_payment_details) ? 0 : count($redeem_payment_details);
                 $rowspan = max(count($payments), $redeem_payment_details_len);
-                custom_log($row);
                 $isLast = ($index % 2 == 0) ? "group-end" : "";
 
                 for ($i = 0; $i < $rowspan; $i++) {
@@ -1882,6 +1888,429 @@ function reports_render_refund_report($results)
                 echo "</tr>";
             }
         }
+        echo '</table>';
+        echo '</div>';
+    }
+}
+
+// Reports Financial Section
+function reports_render_financial_section()
+{
+    reports_render_financial_filters();
+
+    echo '<hr>';
+    if (isset($_GET['start_date'], $_GET['end_date'])) {
+        $results = reports_get_financial_results();
+        reports_render_financial_report($results);
+    }
+}
+
+function reports_render_financial_filters()
+{
+?>
+    <form method="get" action="">
+        <input type="hidden" name="page" value="reports-management">
+        <input type="hidden" name="tab" value="financial">
+
+        <table class="form-table">
+            <tr>
+                <th scope="row"><label for="start_date">Start Date</label></th>
+                <td>
+                    <?php
+                    if (isset($_GET['start_date'])) {
+                        $startDate = sanitize_text_field($_GET['start_date']);
+                    } else {
+                        $startDate = date("Y-m-01", strtotime("first day of last month"));
+                    }
+                    ?>
+                    <input type="date" name="start_date" id="start_date" value="<?= $startDate; ?>">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="end_date">End Date</label></th>
+                <td>
+                    <?php
+                    $endDate =
+                        isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : date("Y-m-t", strtotime("last month"));
+                    ?>
+                    <input type="date" name="end_date" id="end_date" value="<?= $endDate; ?>">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="location">Store</label></th>
+                <td>
+                    <?= mji_store_dropdown(false) ?>
+                </td>
+            </tr>
+        </table>
+
+        <?php submit_button('Generate Report'); ?>
+    </form>
+<?php
+}
+
+function reports_get_financial_results()
+{
+    global $wpdb;
+
+    $start_raw = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+    $end_raw = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+
+    $start_ts = strtotime($start_raw);
+    $end_ts = strtotime($end_raw);
+
+    if ($start_ts === false || $end_ts === false) {
+        return [];
+    }
+
+    $start_date = date('Y-m-d H:i:s', $start_ts);
+    $end_date = date('Y-m-d H:i:s', $end_ts);
+
+    $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
+
+    $payments_table = "{$wpdb->prefix}mji_payments";
+    $order_items_table = "{$wpdb->prefix}mji_order_items";
+    $services_table = "{$wpdb->prefix}mji_services";
+    $orders_table = "{$wpdb->prefix}mji_orders";
+    $layaways_table = "{$wpdb->prefix}mji_layaways";
+    $credits_table = "{$wpdb->prefix}mji_credits";
+    $customers_table = "{$wpdb->prefix}mji_customers";
+    $salespeople_table = "{$wpdb->prefix}mji_salespeople";
+    $order_items_table = "{$wpdb->prefix}mji_order_items";
+    $product_inventory_units_table = "{$wpdb->prefix}mji_product_inventory_units";
+    $returns_table = "{$wpdb->prefix}mji_returns";
+    $return_items_table = "{$wpdb->prefix}mji_return_items";
+    $return_services_table = "{$wpdb->prefix}mji_return_services";
+
+    $where_orders = ["o.created_at BETWEEN %s AND %s"];
+    $params_orders = [$start_date, $end_date];
+
+    $where_returns = ["r.return_date BETWEEN %s AND %s"];
+    $params_returns = [$start_date, $end_date];
+
+    if ($location !== null) {
+        $where_orders[] = "o.location_id = %d";
+        $params_orders[] = $location;
+
+        $where_returns[] = "o.location_id = %d";
+        $params_returns[] = $location;
+    }
+
+    $sql = "
+        SELECT 
+            o.id,
+            o.reference_num,
+            o.created_at,
+            o.subtotal,
+            o.gst_total,
+            o.pst_total,
+            c.first_name,
+            c.last_name,
+            sa.first_name AS salesperson_first_name,
+            sa.last_name AS salesperson_last_name,
+            'order' AS type
+        FROM $orders_table o
+        JOIN $customers_table c ON c.id = o.customer_id
+        JOIN $salespeople_table sa ON sa.id = o.salesperson_id
+        WHERE " . implode(' AND ', $where_orders) . "
+
+        UNION ALL
+
+        SELECT 
+            r.id,
+            r.reference_num,
+            r.return_date AS created_at,
+            -r.subtotal,
+            -r.gst_total,
+            -r.pst_total,
+            c.first_name,
+            c.last_name,
+            sa.first_name,
+            sa.last_name,
+            'return' AS type
+        FROM $returns_table r
+        JOIN $orders_table o ON o.id = r.order_id
+        JOIN $customers_table c ON c.id = o.customer_id
+        JOIN $salespeople_table sa ON sa.id = o.salesperson_id
+        WHERE " . implode(' AND ', $where_returns);
+
+
+    $params = array_merge($params_orders, $params_returns);
+    $results = $wpdb->get_results($wpdb->prepare($sql, ...$params));
+    $reference_nums = [];
+    $order_ids = [];
+    $return_ids = [];
+
+    foreach ($results as $row) {
+        $reference_nums[] = $row->reference_num;
+
+        if ($row->type === 'order') {
+            $order_ids[] = $row->id;
+        } else {
+            $return_ids[] = $row->id;
+        }
+    }
+
+    // Fetch payments
+    $placeholders = implode(',', array_fill(0, count($reference_nums), '%s'));
+    $sql = "
+        SELECT 
+            p.reference_num,
+            p.method,
+            p.amount,
+            COALESCE(l.reference_num, cr.reference_num, '') AS ref
+        FROM $payments_table p
+        LEFT JOIN $layaways_table l ON l.id = p.layaway_id
+        LEFT JOIN $credits_table cr ON cr.id = p.credit_id
+        WHERE p.reference_num IN ($placeholders)
+        ";
+
+    $payments = $wpdb->get_results($wpdb->prepare($sql, ...$reference_nums));
+
+    // Grouping the fetch payments together
+    $payments_map = [];
+    foreach ($payments as $p) {
+        $amount = $p->amount;
+
+        $payments_map[$p->reference_num][] = [
+            'method' => $p->method,
+            'amount' => $amount,
+            'reference_num' => $p->ref
+        ];
+    }
+
+    // Fetching items and services for original order
+    $placeholders = implode(',', array_fill(0, count($order_ids), '%d'));
+    $sql = "
+        SELECT 
+            oi.order_id,
+            oi.sale_price,
+            i.sku,
+            i.cost_price
+        FROM $order_items_table oi
+        JOIN $product_inventory_units_table i ON oi.product_inventory_unit_id = i.id
+        WHERE oi.order_id IN ($placeholders)
+        ";
+    $order_items = $wpdb->get_results($wpdb->prepare($sql, ...$order_ids));
+
+    $sql = "
+        SELECT 
+            order_id,
+            sold_price AS sale_price,
+            cost_price
+        FROM $services_table
+        WHERE order_id IN ($placeholders)
+        ";
+    $services = $wpdb->get_results($wpdb->prepare($sql, ...$order_ids));
+
+    // Fetching return items and return services
+    $placeholders = implode(',', array_fill(0, count($return_ids), '%d'));
+    $sql = "
+        SELECT 
+            ri.return_id,
+            -ri.unit_price AS sale_price,
+            i.sku,
+            i.cost_price
+        FROM $return_items_table ri
+        JOIN $product_inventory_units_table i ON ri.product_inventory_unit_id = i.id
+        WHERE ri.return_id IN ($placeholders)
+        ";
+    $return_items = $wpdb->get_results($wpdb->prepare($sql, ...$return_ids));
+    $sql = "
+        SELECT 
+            rs.return_id,
+            -rs.price AS sale_price,
+            s.cost_price
+        FROM $return_services_table rs
+        JOIN $services_table s ON s.id = rs.service_id
+        WHERE rs.return_id IN ($placeholders)
+        ";
+    $return_services = $wpdb->get_results($wpdb->prepare($sql, ...$return_ids));
+
+    // Mergin items map together
+    $items_map = [];
+
+    foreach ($order_items as $item) {
+        $items_map[$item->order_id][] = [
+            'sale_price' => $item->sale_price,
+            'sku' => $item->sku,
+            'cost_price' => $item->cost_price
+        ];
+    }
+
+    foreach ($services as $s) {
+        $items_map[$s->order_id][] = [
+            'sale_price' => $s->sale_price,
+            'sku' => 'Service',
+            'cost_price' => $s->cost_price
+        ];
+    }
+
+    // returns
+    foreach ($return_items as $ri) {
+        $items_map[$ri->return_id][] = [
+            'sale_price' => $ri->sale_price,
+            'sku' => $ri->sku,
+            'cost_price' => $ri->cost_price
+        ];
+    }
+    foreach ($return_services as $rs) {
+        $items_map[$rs->return_id][] = [
+            'sale_price' => $rs->sale_price,
+            'sku' => 'Service',
+            'cost_price' => $rs->cost_price
+        ];
+    }
+
+    // Adding payments and items to the original sql query
+    foreach ($results as &$row) {
+        // payments
+        $payments = $payments_map[$row->reference_num] ?? [];
+
+        if ($row->type === 'return') {
+            foreach ($payments as &$p) {
+                $p['amount'] *= -1;
+            }
+        }
+        $row->payment_details = $payments;
+        // items
+        $row->all_items = $items_map[$row->id] ?? [];
+    }
+
+    $results['start_date'] = $start_date;
+    $results['end_date'] = $end_date;
+    $results['location'] = $location;
+    return $results;
+}
+
+function reports_render_financial_report($results)
+{
+    if ($results) {
+        $store_locations = mji_get_locations();
+        $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+        $location_name = $location_obj ? $location_obj->name : 'All Location';
+
+        $start_date = explode(" ", $results['start_date'])[0];
+        $end_date = explode(" ", $results['end_date'])[0];
+
+        $gst_total = 0;
+        $pst_total = 0;
+        $sales_total = 0;
+        $cost_total = 0;
+        $refund_gst_total = 0;
+        $refund_pst_total = 0;
+        $refund_sales_total = 0;
+        $refund_cost_total = 0;
+        echo '<div style="max-height:700px; overflow-y:auto; position:relative;">';
+        echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
+        echo '<button id="printInventory" class="button button-secondary" style="margin-bottom:10px;">Print Report</button>';
+
+        echo '<div id="report">';
+        echo '<header>';
+        echo '<h2>Financial Report for ' . esc_html($location_name) . ' - Montecristo Jewellers</h2>';
+        echo '<p>From ' . esc_html($start_date) . ' to ' . esc_html($end_date) . '</p>';
+        echo '</header>';
+
+        echo '<table id="inventoryTable" class="widefat stripped">';
+
+        echo '<thead>
+            <tr>
+                <th>Invoice</th>
+                <th>Date</th>
+                <th>Customer Name</th>
+                <th>Salesperson Name</th>
+                <th>Retail Paid</th>
+                <th>GST</th>
+                <th>PST</th>
+                <th>Method</th>
+                <th>Amount</th>
+                <th>SKU</th>
+                <th>Cost</th>
+                <th>Sold</th>
+            </tr>
+          </thead>';
+        echo '<tbody>';
+        custom_log($results);
+        foreach ($results as $index => $row) {
+            if (!is_object($row))
+                continue;
+
+            if ($row->type === "order") {
+                $gst_total += $row->gst_total;
+                $pst_total += $row->pst_total;
+                $sales_total += $row->subtotal;
+            } else {
+                $refund_gst_total -= $row->gst_total;
+                $refund_pst_total -= $row->pst_total;
+                $refund_sales_total -= $row->subtotal;
+            }
+
+            $payments = $row->payment_details;
+            $all_items = $row->all_items;
+            $rowspan = max(count($payments), count($all_items));
+            $isLast = ($index % 2 == 0) ? "group-end" : "";
+            $date = explode(" ", $row->created_at)[0];
+
+            for ($i = 0; $i < $rowspan; $i++) {
+                echo "<tr class='{$isLast}'>";
+                // to add layaway/credit invoice number
+                $ref = $payments[$i]['reference_num'] ?? null;
+                $reference_num = $ref ? " (#{$ref})" : '';
+
+                // Ensuring it covers multiple rowspan if we have tons of payment deposits
+                if ($i === 0) {
+                    echo "<td rowspan='{$rowspan}'>{$row->reference_num}</td>";
+                    echo "<td rowspan='{$rowspan}'>{$date}</td>";
+                    echo "<td rowspan='{$rowspan}'>{$row->first_name} {$row->last_name}</td>";
+                    echo "<td rowspan='{$rowspan}'>{$row->salesperson_first_name} {$row->salesperson_last_name}</td>";
+                    echo "<td rowspan='{$rowspan}'>{$row->subtotal}</td>";
+                    echo "<td rowspan='{$rowspan}'>{$row->gst_total}</td>";
+                    echo "<td rowspan='{$rowspan}'>{$row->pst_total}</td>";
+                    echo "<td >{$payments[$i]['method']}{$reference_num}</td>";
+                    echo "<td >{$payments[$i]['amount']}</td>";
+                } else {
+                    echo "<td>" . ($payments[$i]['method'] ?? '') . "{$reference_num}</td>";
+                    echo "<td>" . ($payments[$i]['amount'] ?? '') . "</td>";
+                }
+
+                if ($all_items > $i) {
+                    $cost_price = $all_items[$i]['cost_price'] ?? 0;
+                    echo "<td>" . ($all_items[$i]['sku'] ?? '') . "</td>";
+                    echo "<td>" . ($cost_price ?: '') . "</td>";
+                    echo "<td>" . ($all_items[$i]['sale_price'] ?? '') . "</td>";
+                    if ($row->type === "order") {
+                        $cost_total += $cost_price;
+                    } else {
+                        $refund_cost_total += $cost_price;
+                    }
+                } else {
+                    echo "<td></td><td></td><td></td>";
+                }
+                echo '</tr>';
+            }
+        }
+        echo '<tfoot>';
+        echo '<tr>';
+        echo '<td>Total Sales</td>';
+        echo '<td>Cost $' . number_format($cost_total) . '</td>';
+        echo '<td>Retail $' . number_format($sales_total) . '</td>';
+        echo '<td>GST $' . number_format($gst_total) . '</td>';
+        echo '<td>PST $' . number_format($pst_total) . '</td>';
+        echo '<td>Retail with GST $' . number_format($sales_total + $gst_total) . '</td>';
+        echo '<td>Retail with PST $' . number_format($sales_total + $pst_total) . '</td>';
+        echo '<td>Retail with GST AND PST $' . number_format($sales_total + $gst_total + $pst_total) . '</td>';
+        echo '</tr>';
+        echo '<tr>';
+        echo '<td>Total Refund</td>';
+        echo '<td>Cost $' . number_format($refund_cost_total) . '</td>';
+        echo '<td>Retail $' . number_format($refund_sales_total) . '</td>';
+        echo '<td>GST $' . number_format($refund_gst_total) . '</td>';
+        echo '<td>PST $' . number_format($refund_pst_total) . '</td>';
+        echo '<td>Retail with GST $' . number_format($refund_sales_total + $refund_gst_total) . '</td>';
+        echo '<td>Retail with PST $' . number_format($refund_sales_total + $refund_pst_total) . '</td>';
+        echo '<td>Retail with GST AND PST $' . number_format($refund_sales_total + $refund_gst_total + $refund_pst_total) . '</td>';
+        echo '</tr>';
+        echo '</tfoot>';
         echo '</table>';
         echo '</div>';
     }
