@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     function (error) {
       console.error("Error detecting printer:", error);
-    }
+    },
   );
 });
 
@@ -33,7 +33,7 @@ const zplCommands = `
   ^XZ
   `;
 
-const printBtn = document.getElementById("print-button");
+const printBtn = document.querySelector("#print-button");
 
 printBtn?.addEventListener("click", printProductInfo);
 
@@ -46,57 +46,42 @@ function printProductInfo(e) {
       },
       function (error) {
         alert("Error printing: " + error);
-      }
+      },
     );
   } else {
     alert("No default printer found.");
   }
 }
 
-const printCard = document.getElementById("card-print");
+const printCardBtn = document?.querySelector("#card-print");
+const printProductImg = document?.querySelector("#print-product-image");
+const printDesc = document?.querySelector("#print-desc");
+const printSku = document?.querySelector("#print-sku");
+const printSerial = document?.querySelector("#print-serial");
+const printPrice = document?.querySelector("#print-price");
+const skuOption = document?.querySelector("#sku_option");
 
-printCard?.addEventListener("click", (e) => {
+skuOption?.addEventListener("change", (e) => {
+  const selectedOption = e.target.selectedOptions[0];
+  const sku = e.target.value;
+  const serial = selectedOption.dataset.serial;
+  const price = selectedOption.dataset.price;
+  const desc = selectedOption.dataset.desc;
+  const imgSrc = selectedOption.dataset.imgSrc;
+
+  printProductImg?.setAttribute("src", imgSrc);
+  printDesc.innerHTML = desc;
+  printSku.textContent = "SKU: " + sku;
+  printSerial.textContent = "Serial: " + serial;
+  printPrice.textContent = "$" + price;
+});
+
+printCardBtn?.addEventListener("click", (e) => {
   e.preventDefault();
-  const title = document.getElementById("title")?.value;
-  const image = document.querySelector("#print-section img")?.outerHTML;
-  const sku = document.querySelector("#sku_text")?.value.split(" ");
 
-  // Display attributes thats not a variant for both variant and non variant products
-  const regular_attribute = document?.getElementById("regular-attribute");
-  const parsedRegularAttribute = JSON.parse(regular_attribute.value);
-
-  let displayAttribute = "";
-
-  parsedRegularAttribute.forEach((el) => {
-    const entries = Object.entries(el);
-    // Loop through entries (each object has one key-value pair)
-    entries.forEach(([key, value]) => {
-      displayAttribute += `<p>${key}: ${value}</p>`;
-    });
-  });
-
-  let variableEl = "";
-  const variable = document.getElementById("variable")?.value;
-
-  // FOR VARIANT CASES
-  if (variable) {
-    const decodedValue = variable
-      .replace(/&quot;/g, '"')
-      .replace(/&amp;/g, "&");
-
-    const parsedVariable = JSON.parse(decodedValue);
-    const foundEl = parsedVariable.find((el) => el.id == sku[1]);
-
-    variableEl += `<p>Price: $${foundEl.price}</p>`;
-
-    for (const [key, value] of Object.entries(foundEl.attributes)) {
-      variableEl += `<p>${key}: ${value}</p>`;
-    }
-  } else {
-    const price = document.getElementById("price")?.value;
-    price && (variableEl += `<p>Price: $${price}</p>`);
-  }
-
+  const printCardSection = document.querySelector(
+    "#print-card-section",
+  ).innerHTML;
   const printWindow = window.open("", "", "width=800,height=600");
   printWindow.document.open();
   printWindow.document.write(`  <html>
@@ -145,17 +130,7 @@ printCard?.addEventListener("click", (e) => {
                       </style>
                   </head>
                   <body>
-                      <div id="card-section">
-                        <div>
-                          ${image}
-                        </div>
-                        <div>
-                          <h2>${title}</h2>
-                          ${displayAttribute}
-                          SKU: ${sku[0]}
-                          ${variableEl}
-                        </div>
-                      </div>
+                      ${printCardSection}
                   </body>
                   </html>
               `);

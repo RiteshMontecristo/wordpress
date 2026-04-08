@@ -68,81 +68,71 @@ function add_product_card_print_section()
 
 function render_product_card_print_section($post)
 {
+    global $wpdb;
     // Get the product information
-    $product = wc_get_product($post->ID);
-    $variable_product = $product->is_type('variable');
-    $product_title = $product->get_title();
-    $product_image = $product->get_image();
-    $primary_category_id = get_post_meta($post->ID, 'rank_math_primary_product_cat', true);
+    $product_id = $post->ID;
+    $inventory_units_table = "{$wpdb->prefix}mji_product_inventory_units";
 
-    $category = get_term($primary_category_id, 'product_cat');
+    $sql_query = $wpdb->prepare(
+        "SELECT wc_product_variant_id, sku, serial, retail_price 
+        FROM $inventory_units_table
+        WHERE wc_product_id = %d",
+        $product_id
+    );
 
-    // custom_log($category);
-    if ($category) {
-        echo "Primary category " . $category->name;
-    }
+    try {
+        $results = $wpdb->get_results($sql_query);
 
-    // Getting custom SKUs and related info
-    $custom_skus = get_post_meta($post->ID, 'new_repeatable_sku_field', true);
-    $sku_options = '';
+        if (!$results) {
+            throw new RuntimeException($wpdb->last_error);
+        }
 
-    if ($custom_skus) {
-        $sku_options = '<select name="sku_text" id="sku_text">';
-        foreach ($custom_skus as $value) {
-            if ($variable_product) {
-                $sku_options .= '<option value="' . $value["sku_text"] . ' ' . $value['sku_variation'] . '">' . $value["sku_text"] . '</option>';
-            } else {
-                $sku_options .= '<option value="' . $value["sku_text"] . '">' . $value["sku_text"] . '</option>';
+        $sku_options = '<select id="sku_option" name="sku_text">';
+        $image_url = [];
+        $first_sku_data = null;
+
+        foreach ($results as $index => $row) {
+            $id = $row->wc_product_variant_id ?: $product_id;
+
+            if (!isset($image_url[$id])) {
+                $product = wc_get_product($id);
+                $image_id = $product->get_image_id();
+                $desc = $row->wc_product_variant_id ? $product->get_description() : $product->get_short_description();
+                $image_url[$id] = ["img" =>  $image_id ? wp_get_attachment_image_url($image_id, 'medium') : wc_placeholder_img_src(), "desc" => $desc];
             }
+
+            $image_src =  $image_url[$id]["img"];
+            $desc =  str_replace('•', '<br />', $image_url[$id]["desc"]);
+            $sku = $row->sku;
+            $serial = $row->serial;
+            $retail_price = $row->retail_price;
+
+            if ($index === 0) {
+                $first_sku_data = [
+                    'img' => $image_src,
+                    'desc' => $desc,
+                    'price' => $retail_price,
+                    'sku' => $sku,
+                    'serial' => $serial
+                ];
+            }
+
+            $sku_options .= '<option data-serial="' . $serial . '" data-price="' . $retail_price . '" data-desc="' . $desc . '" data-img-src="' . $image_src . '" value="' . $sku . '">' . $sku . '</option>';
         }
         $sku_options .= '</select>';
+    } catch (Exception $err) {
+        custom_log($err->getMessage());
     }
 
-    // getting regular attributes for both variant and non variants
-    $attributes = $product->get_attributes();
-    $regular_attributes = array();
-    foreach ($attributes as $attribute) {
-        if (!$attribute->get_variation()) {
-            $regular_attributes[] = [
-                $attribute['name'] => implode(", ", $attribute['options'])
-            ];
-        }
-    }
-
-    // DISPLAY THE VARIANTS information
-    if ($variable_product) {
-        $variations_id_array = $product->get_children();
-
-        $variable_products_info = array();
-
-        foreach ($variations_id_array as $id) {
-            $variation = wc_get_product($id);
-            $price = $variation->get_price();
-            $attribute = $variation->get_attributes();
-            $variable_product_info = ["id" => $id];;
-
-            $variable_product_info["attributes"] = $attribute;
-            $variable_product_info["price"] = $price;
-            $variable_products_info[] = $variable_product_info;
-        }
-
-        $json = json_encode($variable_products_info, JSON_HEX_APOS | JSON_HEX_QUOT);
-        echo "<input name='variable' id='variable' type='hidden' value='" . htmlspecialchars($json, ENT_QUOTES) . "' />";
-    } else { // displaying price here cause vairants will have separate price and dont want to duplicate it.
-        $price = $product->get_price();
-        echo "<input name='price' id='price' type='hidden' value='" . $price . "' />";
-    }
 ?>
-    <div id="print-section">
-        <?php echo $product_image ?>
-        <br />
-        <input name="title" id="title" type="hidden" value="<?php echo $product_title ?>" />
-        <?php echo $sku_options ? $sku_options : '' ?>
-        <br />
-        <input name='regular-attribute' id='regular-attribute' type='hidden'
-            value='<?php echo json_encode($regular_attributes) ?>' />
-        <button class="hiddenddd" id="card-print">Print</button>
+    <div id="print-card-section">
+        <img id="print-product-image" src="<?php echo esc_url($first_sku_data['img']); ?>" />
+        <div id="print-desc"><?php echo wp_kses_post($first_sku_data['desc']); ?></div>
+        <div id="print-sku">SKU <?php echo esc_html($first_sku_data['sku']); ?></div>
+        <div id="print-serial">Serial no. <?php echo esc_html($first_sku_data['serial']); ?></div>
+        <div id="print-price">Price <?php echo wc_price($first_sku_data['price']); ?></div>
     </div>
-
+    <div><?= $sku_options ?></div>
+    <button class="hiddenddd" id="card-print">Print</button>
 <?php
 }
