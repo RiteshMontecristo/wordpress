@@ -124,7 +124,7 @@ if (contactUsFormContainer) {
     if (errors < 1) {
       grecaptcha.ready(async () => {
         const token = await grecaptcha.execute(
-          "6LeS14AsAAAAACGU-vMDvf6QF0nkxBY_LJbX2ljg",
+          "6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA",
           { action: "contact_us" },
         );
         const data = new FormData(contactUsForm);

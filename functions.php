@@ -431,7 +431,7 @@ function conditional_recaptcha_script()
         stripos($current_path, 'rolex/contact-richmond') === false
     ) {
         // Output the script
-        echo '<script src="https://www.google.com/recaptcha/api.js?render=6LeS14AsAAAAACGU-vMDvf6QF0nkxBY_LJbX2ljg"></script>';
+        echo '<script src="https://www.google.com/recaptcha/api.js?render=6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA"></script>';
     }
 }
 add_action('wp_footer', 'conditional_recaptcha_script');

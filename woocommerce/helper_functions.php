@@ -74,7 +74,12 @@ function remove_sku($split_product)
 
 function captcha_verify($captcha_token)
 {
-    $CAPTCHA_SERCRET = '6LeS14AsAAAAAOVFXjnWopguQVwztxW5DUp8Ms89';
+
+    // This only runs if the constant isn't already set which it is in wp-config, This is just to hide the error as the vscode cant read wp-config
+    if (!defined('MJI_RECAPTCHA_SECRET')) {
+        define('MJI_RECAPTCHA_SECRET', 'visual-placeholder-only');
+    }
+    $CAPTCHA_SERCRET = MJI_RECAPTCHA_SECRET;
 
     // Prepare POST request to Google
     $url = 'https://www.google.com/recaptcha/api/siteverify';
