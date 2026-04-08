@@ -1260,6 +1260,7 @@ function finalizeSale()
         'total' => $totals['total'],
         'created_at' => $created_at,
         'notes' => $notes,
+        'location_id' => $location_id
     ];
 
     insert_order_and_items($order_data, $items_data, $services_data, $payments, $location_id);
