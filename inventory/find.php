@@ -1162,7 +1162,6 @@ function render_layaway_invoice($invoice)
     $purchased_date = date('Y-m-d', $purchased_date);
     $type = $invoice->type;
     $total_paid = 0.00;
-
 ?>
     <div class="invoice" style="max-width:700px;">
 
@@ -1177,7 +1176,8 @@ function render_layaway_invoice($invoice)
             ); ?><br>
 
             <strong>Date Created:</strong>
-            <?php echo esc_html($purchased_date); ?>
+            <?php echo esc_html($purchased_date); ?> <br />
+            Notes: <?= esc_html($invoice->notes) ?>
         </p>
 
         <?php
