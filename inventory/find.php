@@ -275,7 +275,6 @@ function render_invoice($results)
     $notes = $results['order']->notes;
     $calculate_gst = $order->gst_total > 0 ? true : false;
     $calculate_pst = $order->pst_total > 0 ? true : false;
-    custom_log($results);
 ?>
     <div class="wrap">
         <div class="invoice">
@@ -789,7 +788,7 @@ function delete_invoice($order_id)
 
         check_wpdb_error($wpdb);
 
-        if (!is_empty($return)) {
+        if (!empty($return)) {
             throw new Exception("Items already returned in this order, Unable to proceed");
         }
 

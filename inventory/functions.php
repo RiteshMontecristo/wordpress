@@ -6,7 +6,6 @@ require_once get_stylesheet_directory() . '/inventory/salespeople.php';
 require_once get_stylesheet_directory() . '/inventory/product_units.php';
 require_once get_stylesheet_directory() . '/inventory/find.php';
 require_once get_stylesheet_directory() . '/inventory/reports.php';
-require_once get_stylesheet_directory() . '/inventory/imports.php';
 
 // Create the table when theme activated
 function mji_create_all_tables()
@@ -554,16 +553,6 @@ function create_inventory_menu()
         'manage_options',
         'reports-management',
         'reports_page'
-    );
-
-    // Submenu: Import Data
-    add_submenu_page(
-        'inventory-management',
-        'Import',
-        'Import',
-        'manage_options',
-        'import-data',
-        'import_page'
     );
 }
 add_action('admin_menu', 'create_inventory_menu');

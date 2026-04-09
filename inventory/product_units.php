@@ -165,7 +165,7 @@ function render_inventory_units_meta_box($post)
             <?php foreach ($units as $unit):
                 $old_sku_el = '';
 
-                if (!is_empty($unit["sku_history"])) {
+                if (!empty($unit["sku_history"])) {
                     foreach ($unit["sku_history"] as $history) {
                         $old_sku_el .= $history["old_sku"] . "->";
                     }
@@ -502,7 +502,7 @@ function create_inventory_units()
     $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : null;
     $variation_id = isset($_POST['variationID']) ? intval($_POST['variationID']) : null;
     $sku = isset($_POST['sku']) ? strtoupper(sanitize_text_field($_POST['sku'])) : null;
-    $serial_number = (isset($_POST['serial']) && !is_empty($_POST['serial'])) ? $_POST['serial'] : null;
+    $serial_number = (isset($_POST['serial']) && !empty($_POST['serial'])) ? $_POST['serial'] : null;
     $location_id = isset($_POST['location']) ? intval($_POST['location']) : null;
     $invoice_number = isset($_POST['invoice_number']) ? sanitize_text_field($_POST['invoice_number']) : null;
     $invoice_date = isset($_POST['invoice_date']) ? sanitize_text_field($_POST['invoice_date']) : null;
@@ -874,13 +874,13 @@ function watch_simple_product_changes($post_id, $post, $update)
 
     // RANK MATH is not setting the primary category after the plugin update so created our own save as we need it to determine the brands
     if (isset($_POST['rank_math_primary_product_cat'])) {
-        $primary_cat_id = $_POST['rank_math_primary_product_cat'];
+        $primary_cat_id = absint($_POST['rank_math_primary_product_cat']);
         update_post_meta($post_id, 'rank_math_primary_product_cat', $primary_cat_id);
     }
 
     // RANK MATH is not setting the primary brand
     if (isset($_POST['rank_math_primary_product_brand'])) {
-        $primary_brand_id = $_POST['rank_math_primary_product_brand'];
+        $primary_brand_id = absint($_POST['rank_math_primary_product_brand']);
         update_post_meta($post_id, 'rank_math_primary_product_brand', $primary_brand_id);
     }
     global $wpdb;
@@ -1011,7 +1011,7 @@ function watch_variation_retail_price($variation_id, $i)
     $new_model = isset($_POST['variable_sku'][$i]) ?
         sanitize_text_field($_POST['variable_sku'][$i]) : $old_model;
 
-    if (is_empty($new_model)) {
+    if (empty($new_model)) {
         $parent_id = wp_get_post_parent_id($variation_id);
         $new_model = get_post_meta($parent_id, '_sku', true);
     }

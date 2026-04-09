@@ -532,7 +532,7 @@ function get_products_info()
 
 function filter_products()
 {
-    if (!isset($_GET['orderby']) && isset($_GET['brand']) && !empty($_GET['brand']) && $_GET['brand'] == "blancpain") {
+    if (!isset($_GET['orderby']) && isset($_GET['brand']) && !empty($_GET['brand']) && sanitize_text_field($_GET['brand']) === "blancpain") {
         blancpain_products();
         wp_die();
     } else {
@@ -567,7 +567,7 @@ add_action('wp_ajax_nopriv_filter_products', 'filter_products'); // For non-logg
 function load_more()
 {
 
-    if (!isset($_GET['orderby']) && isset($_GET['brand']) && !empty($_GET['brand']) && $_GET['brand'] == "blancpain") {
+    if (!isset($_GET['orderby']) && isset($_GET['brand']) && !empty($_GET['brand']) && sanitize_text_field($_GET['brand']) === "blancpain") {
         blancpain_products();
         wp_die();
     } else {
@@ -601,7 +601,7 @@ add_action('wp_ajax_nopriv_load_more', 'load_more'); // For non-logged-in users
 function blancpain_products()
 {
     if (isset($_GET['brands']) && !empty($_GET['brands'])) {
-        $brands = explode(',', $_GET['brands']);
+        $brands = array_map('sanitize_text_field', explode(',', $_GET['brands']));
     }
 
     if (empty($brands)) {
@@ -609,16 +609,16 @@ function blancpain_products()
     }
 
     if (isset($_GET['targetGroup']) && !empty($_GET['targetGroup'])) {
-        $targetGroup = explode(',', $_GET['targetGroup']);
+        $targetGroup = array_map('sanitize_text_field', explode(',', $_GET['targetGroup']));
     }
 
     if (isset($_GET['materials']) && !empty($_GET['materials'])) {
-        $materials = explode(',', $_GET['materials']);
+        $materials = array_map('sanitize_text_field', explode(',', $_GET['materials']));
     }
 
-    $minPrice = isset($_GET['min_price']) ? $_GET['min_price'] : 0;
-    $maxPrice = isset($_GET['max_price']) ? $_GET['max_price'] : PHP_INT_MAX;
-    $orderby = isset($_GET['orderby']) ? $_GET['orderby'] : 'price';
+    $minPrice = isset($_GET['min_price']) ? floatval($_GET['min_price']) : 0;
+    $maxPrice = isset($_GET['max_price']) ? floatval($_GET['max_price']) : PHP_INT_MAX;
+    $orderby = isset($_GET['orderby']) ? sanitize_key($_GET['orderby']) : 'price';
 
     $page = isset($_GET['page']) ? intval($_GET['page']) : 0;
     $posts_per_page = 12;

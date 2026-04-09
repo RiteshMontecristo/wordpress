@@ -81,7 +81,7 @@ function fetch_salespeople($search_query = '')
         echo "<a href='" . esc_url(wp_nonce_url(
             "?page=salespeople-management&action=delete&id=" . $salespeople->id,
             'delete_salesperson_' . $salespeople->id
-        )) . "' class='button' onclick=\"return confirm('Are you sure you want to delete this salesperson??s');\">Delete</a>";
+        )) . "' class='button' onclick=\"return confirm('Are you sure you want to delete this salesperson?');\">Delete</a>";
 
         echo "</td>
         </tr>";
