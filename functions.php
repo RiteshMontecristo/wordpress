@@ -51,7 +51,8 @@ function my_load_scripts()
     );
 
     wp_localize_script('normal-script', 'ajax_object_another', array(
-        'ajax_url' => admin_url('admin-ajax.php')
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('toggle_favourite_nonce')
     ));
 }
 add_action('wp_enqueue_scripts', 'my_load_scripts');
@@ -313,7 +314,7 @@ add_shortcode('response_video', 'responsive_video_shortcode');
 // GTM SCRIPTS
 function add_gtm_to_head()
 {
-    ?>
+?>
     <!-- Google Tag Manager -->
     <script>
         if (window.location.hostname !== 'lime-emu-121884.hostingersite.local') {
@@ -345,7 +346,7 @@ function add_gtm_noscript()
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MQ42VSZ8"
             height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
-    <?php
+<?php
 }
 add_action('wp_footer', 'add_gtm_noscript');
 

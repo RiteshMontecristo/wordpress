@@ -19,6 +19,7 @@ if (favouriteContainer) {
     formData.append("userId", userId);
     formData.append("favourite", "true");
     formData.append("action", "toggleFavourite");
+    formData.append("nonce", ajax_object_another.nonce);
 
     removeFavBtn.addEventListener("click", () => {
       popup.style.display = "flex";

@@ -2,7 +2,7 @@
 
 function find_page()
 {
-    $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'sales';
+    $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'sales';
     $allowed_tabs = ['sales', 'layaway', 'refund'];
 
     if (!in_array($active_tab, $allowed_tabs)) {
@@ -56,11 +56,15 @@ function find_page()
 function render_search_section()
 {
     echo '<hr>';
-    $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'sales';
+    $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'sales';
     if (isset($_POST['action'])) {
 
-        if ($_POST['action'] === 'delete_invoice' && isset($_POST['order_id'])) {
-            $reference_num = $_POST['order_id'];
+        if (
+            $_POST['action'] === 'delete_invoice'
+            && isset($_POST['order_id'], $_POST['delete_invoice_nonce'])
+            && wp_verify_nonce($_POST['delete_invoice_nonce'], 'delete_invoice_action')
+        ) {
+            $reference_num = sanitize_text_field($_POST['order_id']);
             $result = delete_invoice($reference_num);
 
             if ($result['success']) {
@@ -86,7 +90,7 @@ function render_search_section()
             && isset($_POST['reference_num'], $_POST['delete_credit_nonce'])
             && wp_verify_nonce($_POST['delete_credit_nonce'], 'delete_credit_action')
         ) {
-            $reference_num = $_POST['reference_num'];
+            $reference_num = sanitize_text_field($_POST['reference_num']);
             $result = delete_credit($reference_num);
 
             if ($result['success']) {
@@ -99,7 +103,7 @@ function render_search_section()
             && isset($_POST['reference_num'], $_POST['delete_refund_nonce'])
             && wp_verify_nonce($_POST['delete_refund_nonce'], 'delete_refund_action')
         ) {
-            $reference_num = $_POST['reference_num'];
+            $reference_num = sanitize_text_field($_POST['reference_num']);
             $result = delete_refund($reference_num);
 
             if ($result['success']) {
@@ -110,13 +114,13 @@ function render_search_section()
         }
     } else if (isset($_GET['reference_num'])) {
 
-        $reference_num = $_GET['reference_num'];
+        $reference_num = sanitize_text_field($_GET['reference_num']);
 
         if ($active_tab == "sales") {
             $results = reports_search_sales_results($reference_num);
             if (!$results) {
                 echo "<div class='wrap'>";
-                echo "<h2>Invoice " . $reference_num . " not found!!";
+                echo "<h2>Invoice " . esc_html($reference_num) . " not found!!";
                 echo "</div>";
             } else {
                 render_invoice($results);
@@ -127,7 +131,7 @@ function render_search_section()
                 $results = search_layaway_results($reference_num);
                 if (!$results) {
                     echo "<div class='wrap'>";
-                    echo "<h2>Invoice " . $reference_num . " not found!!";
+                    echo "<h2>Invoice " . esc_html($reference_num) . " not found!!";
                     echo "</div>";
                 } else {
                     render_layaway_invoice($results);
@@ -135,14 +139,14 @@ function render_search_section()
                 }
             } catch (Exception $e) {
                 echo "<div class='wrap'>";
-                echo "<h2>" . $e->getMessage() . "</h2>";
+                echo "<h2>" . esc_html($e->getMessage()) . "</h2>";
                 echo "</div>";
             }
         } else {
             $results = search_refund_results($reference_num);
             if (!$results) {
                 echo "<div class='wrap'>";
-                echo "<h2>Invoice " . $reference_num . " not found!!";
+                echo "<h2>Invoice " . esc_html($reference_num) . " not found!!";
                 echo "</div>";
             } else {
                 render_refund_invoice($results);
@@ -154,7 +158,7 @@ function render_search_section()
 ?>
     <form method="get" action="">
         <input type="hidden" name="page" value="invoice-management">
-        <input type="hidden" name="tab" value="<?= $active_tab ?>">
+        <input type="hidden" name="tab" value="<?= esc_attr($active_tab) ?>">
         <table class="form-table">
             <tr>
                 <th scope="row"><label for="reference_num">Invoice Number</label></th>
@@ -271,6 +275,7 @@ function render_invoice($results)
     $notes = $results['order']->notes;
     $calculate_gst = $order->gst_total > 0 ? true : false;
     $calculate_pst = $order->pst_total > 0 ? true : false;
+    custom_log($results);
 ?>
     <div class="wrap">
         <div class="invoice">
@@ -286,6 +291,7 @@ function render_invoice($results)
                 <p><strong>Served by:</strong>
                     <?= esc_html($order->salesperson_first_name . ' ' . $order->salesperson_last_name) ?></p>
                 <p><strong>Date:</strong> <?= esc_html(date('F j, Y', strtotime($order->created_at))) ?></p>
+                <p><strong>Notes:</strong> <?= esc_html($order->notes) ?></p>
             </div>
 
             <!-- Invoice Table -->
@@ -324,11 +330,11 @@ function render_invoice($results)
                                     }
                                     $item->description = $description;
                                     $item->image_url = $image_url;
-                                    echo "<img src='{$image_url}' alt='product image' />";
+                                    echo "<img src='" . esc_url($image_url) . "' alt='product image' />";
                                     echo "<p>";
                                     if (!empty($item->sku))
                                         echo "<b>SKU: " . esc_html($item->sku) . "</b><br/>";
-                                    echo nl2br($description);
+                                    echo nl2br(wp_kses_post($description));
                                     if (!empty($item->serial))
                                         echo "<br />Serial: " . esc_html($item->serial);
                                     if (!empty($item->notes))
@@ -357,7 +363,7 @@ function render_invoice($results)
                                     if (!empty($service->description))
                                         $parts[] = esc_html($service->description);
                                     echo implode(' <br />  ', $parts);
-                                    echo "<br /> Price: " . $service->sold_price;
+                                    echo "<br /> Price: " . esc_html($service->sold_price);
                                     ?>
                                 </td>
                             </tr>
@@ -404,6 +410,7 @@ function render_invoice($results)
             <!-- Delete Invoice Button -->
             <form method="post" style="margin-top:20px; position: relative; z-index:1;"
                 onsubmit="return confirm('Are you sure you want to delete this invoice?');">
+                <?php wp_nonce_field('delete_invoice_action', 'delete_invoice_nonce'); ?>
                 <input type="hidden" name="order_id" value="<?= intval($order->id) ?>">
                 <input type="hidden" name="action" value="delete_invoice">
                 <?php submit_button('Delete Invoice', 'primary', 'delete_invoice'); ?>
@@ -1185,11 +1192,11 @@ function render_layaway_invoice($invoice)
             echo "<h3>Items:</h3>";
             foreach ($invoice->items as $item):
                 echo "<div>";
-                echo "<img src='{$item["image_url"]}' alt='product image' />";
+                echo "<img src='" . esc_url($item["image_url"]) . "' alt='product image' />";
                 echo "<p>";
                 if (!empty($item["sku"]))
                     echo "<b>SKU: " . esc_html($item["sku"]) . "</b>";
-                echo nl2br($item["description"]);
+                echo nl2br(wp_kses_post($item["description"]));
                 if (!empty($item["serial"]))
                     echo "<br />Serial: " . esc_html($item["serial"]);
                 echo "<br />Sold Price: " . esc_html($item["sold_price"]);
@@ -1610,7 +1617,7 @@ function render_refund_invoice($invoice)
             ); ?><br>
 
             <strong>Date Created:</strong><?php echo esc_html($purchased_date); ?> <br />
-            <strong>Notes:</strong> <?= $invoice->notes ?>
+            <strong>Notes:</strong> <?= esc_html($invoice->notes) ?>
         </p>
 
         <?php
@@ -1618,11 +1625,11 @@ function render_refund_invoice($invoice)
             echo "<h3>Items:</h3>";
             foreach ($invoice->items as $item):
                 echo "<div>";
-                echo "<img src='{$item["image_url"]}' alt='product image' />";
+                echo "<img src='" . esc_url($item["image_url"]) . "' alt='product image' />";
                 echo "<p>";
                 if (!empty($item["sku"]))
                     echo "<strong>SKU:</strong> " . esc_html($item["sku"]) . "<br />";
-                echo nl2br($item["description"]);
+                echo nl2br(wp_kses_post($item["description"]));
                 if (!empty($item["serial"]))
                     echo "<br />Serial: " . esc_html($item["serial"]);
                 echo "<br />Sold Price: " . esc_html($item["sold_price"]);

@@ -45,7 +45,7 @@ function fetch_salespeople($search_query = '')
 
     $search_clause = '';
     if (!empty($_GET['search'])) {
-        $search_term = '%' . $wpdb->esc_like($_GET['search']) . '%';
+        $search_term = '%' . $wpdb->esc_like(sanitize_text_field($_GET['search'])) . '%';
         $search_clause = $wpdb->prepare(
             " WHERE first_name LIKE %s OR last_name LIKE %s",
             $search_term,
@@ -74,16 +74,16 @@ function fetch_salespeople($search_query = '')
     foreach ($salespeople as $salespeople) {
 
         echo "<tr>
-            <td id='firstName'>{$salespeople->first_name}</td>
-            <td id='lastName'>{$salespeople->last_name}</td>
+            <td id='firstName'>" . esc_html($salespeople->first_name) . "</td>
+            <td id='lastName'>" . esc_html($salespeople->last_name) . "</td>
             <td>
-                <a href='?page=salespeople-management&action=view&id={$salespeople->id}' class='button'>View</a>
-                <a href='?page=salespeople-management&action=delete&id={$salespeople->id}'
-                class='button'
-                onclick=\"return confirm('Are you sure you want to delete this salesperson?');\">
-                Delete
-                </a>
-            </td>
+                <a href='" . esc_url("?page=salespeople-management&action=view&id=" . $salespeople->id) . "' class='button'>View</a>";
+        echo "<a href='" . esc_url(wp_nonce_url(
+            "?page=salespeople-management&action=delete&id=" . $salespeople->id,
+            'delete_salesperson_' . $salespeople->id
+        )) . "' class='button' onclick=\"return confirm('Are you sure you want to delete this salesperson??s');\">Delete</a>";
+
+        echo "</td>
         </tr>";
     }
 
@@ -142,7 +142,7 @@ function add_salesperson_form()
                 echo '<div class="updated"><p>Salesperson added successfully!</p></div>';
                 delete_transient('mji_salespeople');
             } else {
-                echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+                echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($wpdb->last_error) . '</p></div>';
             }
         }
         ?>
@@ -155,9 +155,9 @@ function view_salesperson_form()
     global $wpdb;
 
     $customer_table =  $wpdb->prefix . 'mji_customers';
-    $salesperson_id = isset($_GET['id']) ? $_GET['id'] : 0;
-    $current_page   = isset($_GET['paged']) ? (int)$_GET['paged'] : 1;
-    $per_page       = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
+    $salesperson_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+    $current_page   = isset($_GET['paged']) ? absint($_GET['paged']) : 1;
+    $per_page       = isset($_GET['per_page']) ? absint($_GET['per_page']) : 10;
 
     if (!$salesperson_id) {
         // Handle error: redirect, show 404, etc.
@@ -167,41 +167,43 @@ function view_salesperson_form()
 
     $salespeople_array = mji_get_salespeople();
     $salesperson = current(array_filter($salespeople_array, function ($sp) use ($salesperson_id) {
-        return $sp->id === $salesperson_id;
+        return (int) $sp->id === $salesperson_id;
     }));
 
     // Pagination settings
     $offset = ($current_page - 1) * $per_page;
-    $where = "WHERE salesperson_id = $salesperson_id";
 
     // Main query with join and pagination
     $query = $wpdb->prepare("
         SELECT *
         FROM $customer_table c
-        $where
+        WHERE salesperson_id = %d
         ORDER BY created_at DESC
         LIMIT %d OFFSET %d
-    ", $per_page, $offset);
+    ", $salesperson_id, $per_page, $offset);
 
     $customers = $wpdb->get_results($query);
 
     if (empty($customers)) {
-        echo '<div class="notice notice-info is-dismissible"><p>No clients found for ' . $salesperson->first_name . ' ' . $salesperson->last_name . '!</p></div>';
+        echo '<div class="notice notice-info is-dismissible"><p>No clients found for ' . esc_html($salesperson->first_name) . ' ' . esc_html($salesperson->last_name) . '!</p></div>';
         return;
     }
     // Get total number of customers
-    $total_customers = $wpdb->get_var("
-                                            SELECT COUNT(DISTINCT id)
-                                            FROM $customer_table
-                                            $where
-                                        ");
+    $total_customers = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT COUNT(DISTINCT id)
+         FROM $customer_table
+         WHERE salesperson_id = %d",
+            $salesperson_id
+        )
+    );
     // Pagination calculation
     $total_pages = ceil($total_customers / $per_page);
 
 ?>
 
     <section>
-        <h2>Clients list of <?= $salesperson->first_name ?> <?= $salesperson->last_name ?></h2>
+        <h2>Clients list of <?= esc_html($salesperson->first_name) ?> <?= esc_html($salesperson->last_name) ?></h2>
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
@@ -218,24 +220,26 @@ function view_salesperson_form()
                 <?php
 
                 foreach ($customers as $customer) {
-                    $customer_id = $customer->id;
-                    $salesperson_id = $customer->salesperson_id;
-                    $primary_phone =  $customer->primary_phone;
-                    $secondary_phone =  $customer->secondary_phone;
-                    $address = $customer->street_address . "<br />" . $customer->city . " " . $customer->province . " " . "<br />" . $customer->postal_code;
+                    $customer_id = absint($customer->id);
+                    $customer_first_name = esc_html($customer->first_name);
+                    $customer_last_name = esc_html($customer->last_name);
+                    $customer_email = esc_html($customer->email);
+                    $primary_phone =  esc_html($customer->primary_phone);
+                    $secondary_phone =  esc_html($customer->secondary_phone);
+                    $address = esc_html($customer->street_address) . "<br />" . esc_html($customer->city) . " " . esc_html($customer->province) . " " . "<br />" . esc_html($customer->postal_code);
 
                     echo "
-                <tr>
-                    <td id='firstName'>{$customer->first_name}</td>
-                    <td id='lastName'>{$customer->last_name}</td>
-                    <td id='primaryPhone'>{$primary_phone}</td>
-                    <td id='secondaryPhone'>{$secondary_phone}</td>
-                    <td id='email'>{$customer->email}</td>
-                    <td id='address'>$address</td>
-                    <td>
-                        <a href='?page=customer-management&action=view&id={$customer_id}' class='button'>View</a>
-                    </td>
-                </tr>";
+                        <tr>
+                            <td id='firstName'>{$customer_first_name}</td>
+                            <td id='lastName'>{$customer_last_name}</td>
+                            <td id='primaryPhone'>{$primary_phone}</td>
+                            <td id='secondaryPhone'>{$secondary_phone}</td>
+                            <td id='email'>{$customer_email}</td>
+                            <td id='address'>$address</td>
+                            <td>
+                                <a href='?page=customer-management&action=view&id={$customer_id}' class='button'>View</a>
+                            </td>
+                        </tr>";
                 }
                 ?>
             </tbody>
@@ -254,13 +258,13 @@ function view_salesperson_form()
                 <form method="GET">
                     <input type="hidden" name="page" value="salespeople-management">
                     <input type="hidden" name="action" value="view">
-                    <input type="hidden" name="id" value="<?= $salesperson_id ?>">
+                    <input type="hidden" name="id" value="<?= esc_attr($salesperson_id) ?>">
                     <select name="per_page" onchange="this.form.submit();">
                         <?php
                         $options = [1, 2, 50, 100];
                         foreach ($options as $option) {
                             $selected = ($per_page == $option) ? 'selected' : '';
-                            echo "<option value='$option' $selected>$option per page</option>";
+                            echo "<option value='" . esc_attr($option) . "' " . esc_attr($selected) . ">" . esc_attr($option) . " per page</option>";
                         }
                         ?>
                     </select>
@@ -275,6 +279,10 @@ function delete_salesperson()
 {
     global $wpdb;
     $salesperson_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+    $nonce = isset($_GET['_wpnonce']) ? $_GET['_wpnonce'] : '';
+    if (!wp_verify_nonce($nonce, 'delete_salesperson_' . $salesperson_id)) {
+        wp_die('Security check failed');
+    }
 
     $table_name = $wpdb->prefix . 'mji_salespeople';
     $orders_table = $wpdb->prefix . 'mji_orders';
@@ -283,7 +291,7 @@ function delete_salesperson()
         echo "<div>Salesperson needs to be selected in order to be deleted. </div>";
     }
 
-    $salesperson = $wpdb->get_row("SELECT * FROM $table_name WHERE id = $salesperson_id");
+    $salesperson = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $salesperson_id));
 
     if (!$salesperson) {
         echo '<div class="notice notice-error is-dismissible"><p>Salesperson not found!</p></div>';
@@ -306,7 +314,7 @@ function delete_salesperson()
             echo '<div class="updated"><p>Salesperson deleted successfully!</p></div>';
             delete_transient('mji_salespeople');
         } else {
-            echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($wpdb->last_error) . '</p></div>';
         }
     }
 }

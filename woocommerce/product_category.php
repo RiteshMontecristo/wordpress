@@ -97,7 +97,7 @@ function add_banner()
     $search_term = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
 
     if ($search_term) {
-        echo "<h1> Seach result for " . $search_term . "</h1>";
+        echo "<h1> Seach result for " . esc_html($search_term) . "</h1>";
     }
 
     if ($current_category && !is_wp_error($current_category) && isset($current_category->term_id)) {
@@ -129,8 +129,8 @@ function add_banner()
                             height="' . esc_attr($mobile_image_height) . '" 
                         />';
                 } ?>
-                <img loading="eager" width="<?php echo $image_width ?>" height="<?php echo $image_height ?>" fetchpriority="high"
-                    src="<?php echo esc_url($thumbnail_url); ?>" alt="<?php esc_attr($current_category->name); ?>" />
+                <img loading="eager" width="<?= esc_attr($image_width) ?>" height="<?= esc_attr($image_height) ?>" fetchpriority="high"
+                    src="<?= esc_url($thumbnail_url); ?>" alt="<?= esc_attr($current_category->name); ?>" />
             </picture>
 
     <?php
@@ -139,9 +139,9 @@ function add_banner()
         woocommerce_breadcrumb();
 
         echo '<div class="category-description col-full">';
-        $data_attributes = "data-brand='{$current_category->slug}'";
+        $data_attributes = "data-brand='" . esc_attr($current_category->slug) . "'";
 
-        echo "<h1 id='data-selector' $data_attributes>" . $current_category->name . "</h1>";
+        echo "<h1 id='data-selector' $data_attributes>" . esc_html($current_category->name) . "</h1>";
         echo "<div>";
         echo apply_filters('the_content', $current_category->description);
         echo "</div>";
@@ -348,40 +348,40 @@ function get_products_info()
     $brand_collection = array("jewellery", "rings", "bracelets", "earrings", "engagement-rings", "pendants-necklaces", "wedding-bands");
 
     if (isset($_GET['brand']) && !empty($_GET['brand'])) {
-        $brand = $_GET['brand'];
+        $brand = sanitize_text_field($_GET['brand']);
     }
 
     if (isset($_GET['brands']) && !empty($_GET['brands'])) {
-        $brands = explode(',', $_GET['brands']);
+        $brands = array_map('sanitize_text_field', explode(',', $_GET['brands']));
     }
 
     if (isset($_GET['type']) && !empty($_GET['type'])) {
-        $type = explode(',', $_GET['type']);
+        $type = array_map('sanitize_text_field', explode(',', $_GET['type']));
     }
 
     if (isset($_GET['targetGroup']) && !empty($_GET['targetGroup'])) {
-        $targetGroup = explode(',', $_GET['targetGroup']);
+        $targetGroup = array_map('sanitize_text_field', explode(',', $_GET['targetGroup']));
     }
 
     if (isset($_GET['materials']) && !empty($_GET['materials'])) {
-        $materials = explode(',', $_GET['materials']);
+        $materials = array_map('sanitize_text_field', explode(',', $_GET['materials']));
     }
 
     if (isset($_GET['gemstone']) && !empty($_GET['gemstone'])) {
-        $gemstone = explode(',', $_GET['gemstone']);
+        $gemstone = array_map('sanitize_text_field', explode(',', $_GET['gemstone']));
     }
 
     if (isset($_GET['gift']) && !empty($_GET['gift'])) {
-        $gift = explode(',', $_GET['gift']);
+        $gift = array_map('sanitize_text_field', explode(',', $_GET['gift']));
     }
     if (isset($_GET['s']) && !empty($_GET['s'])) {
-        $searchTerm = $_GET['s'];
+        $searchTerm = sanitize_text_field($_GET['s']);
     }
 
-    $minPrice = isset($_GET['min_price']) ? $_GET['min_price'] : 0;
-    $maxPrice = isset($_GET['max_price']) ? $_GET['max_price'] : PHP_INT_MAX;
-    $orderby = isset($_GET['orderby']) ? $_GET['orderby'] : 'menu_order';
-    $page = isset($_GET['page']) ? $_GET['page'] : 0;
+    $minPrice = isset($_GET['min_price']) ? floatval($_GET['min_price']) : 0;
+    $maxPrice = isset($_GET['max_price']) ? floatval($_GET['max_price']) : PHP_INT_MAX;
+    $orderby = isset($_GET['orderby']) ? sanitize_key($_GET['orderby']) : 'menu_order';
+    $page = isset($_GET['page']) ? absint($_GET['page']) : 0;
     $posts_per_page = 12;
     $offset = $page * $posts_per_page;
 

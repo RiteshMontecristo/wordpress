@@ -109,12 +109,31 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
         return ob_get_clean();
     }
 
+    // Count query — THIS is where the bug is. Fix it like this:
+    if (!empty($search_query)) {
+        $count_query = $wpdb->prepare(
+            "
+        SELECT COUNT(DISTINCT id)
+        FROM $table_name
+        $where
+    ",
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $like
+        );
+    } else {
+        $count_query = "SELECT COUNT(DISTINCT id) FROM $table_name";
+    }
     // Get total number of customers
-    $total_customers = $wpdb->get_var("
-                                        SELECT COUNT(DISTINCT c.id)
-                                        FROM $table_name c
-                                        $where
-                                    ");
+    $total_customers = $wpdb->get_var($count_query);
 
     // Pagination calculation
     $total_pages = ceil($total_customers / $per_page);
@@ -143,41 +162,45 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
 
             foreach ($customers as $customer) {
 
-                $customer_id = $customer->id;
+                $customer_id = absint($customer->id);
                 $salesperson_id = $customer->salesperson_id;
                 $primary_phone =  $customer->primary_phone;
                 $secondary_phone =  $customer->secondary_phone;
 
-                $address = $customer->street_address . "<br />" . $customer->city . " " . $customer->province . " " . "<br />" . $customer->postal_code;
+                $address =  esc_html($customer->street_address) . '<br />'
+                    . esc_html($customer->city) . ' '
+                    . esc_html($customer->province) . '<br />'
+                    . esc_html($customer->postal_code);
                 $salesperson = current(array_filter($salespeople_array, function ($sp) use ($salesperson_id) {
                     return $sp->id === $salesperson_id;
                 }));
                 if ($context === "customer") {
-                    $saleperson_html = is_empty($salesperson) ? '<td></td>' : "<td id='salesperson'>{$salesperson->first_name} {$salesperson->last_name}</td>";
+                    $saleperson_html = empty($salesperson)
+                        ? '<td></td>'
+                        : "<td id='salesperson'>" . esc_html($salesperson->first_name) . " " . esc_html($salesperson->last_name) . "</td>";
+
                     $actionMethod = "
-            {$saleperson_html}
-            <td>
-                <a href='?page=customer-management&action=view&id={$customer_id}' class='button'>View</a>
-                <a href='?page=customer-management&action=edit&id={$customer_id}' class='button'>Edit</a>
-                <a href='?page=customer-management&action=delete&id={$customer_id}' class='button' onclick=\"return confirm('Are you sure you want to delete this salesperson?');\">Delete</a>
-            </td>";
+                        {$saleperson_html}
+                        <td>
+                            <a href='?page=customer-management&action=view&id={$customer_id}' class='button'>View</a>
+                            <a href='?page=customer-management&action=edit&id={$customer_id}' class='button'>Edit</a>
+                            <a href='?page=customer-management&action=delete&id={$customer_id}' class='button' onclick=\"return confirm('Are you sure you want to delete this salesperson?');\">Delete</a>
+                        </td>";
                 } else {
                     $layaway = get_active_layaway_list($customer_id, $location_id);
                     $credit = get_active_credit_list($customer_id, $location_id);
 
                     $layaway_arr = array_map(function ($n) {
-                        return "Layaway #" . $n->reference_num . ": $" . $n->remaining_amount;
+                        return "Layaway #" . esc_html($n->reference_num) . ": $" . esc_html($n->remaining_amount);
                     }, $layaway);
 
                     $layaway_el = implode("<br />", $layaway_arr);
 
                     $credit_arr = array_map(function ($n) {
-                        return "Credit #" . $n->reference_num . ": $" . $n->remaining_amount;
+                        return "Credit #" . esc_html($n->reference_num) . ": $" . esc_html($n->remaining_amount);
                     }, $credit);
-
                     $credit_el = implode("<br />", $credit_arr);
 
-                    $actionMethod = "";
                     $actionMethod = '
                             <td>' . $layaway_el . '<br />' . $credit_el . '</td>
                             <td>
@@ -186,15 +209,15 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                     ';
                 }
 
-                echo "<tr>
-                <td id='firstName'>{$customer->prefix} {$customer->first_name}</td>
-                <td id='lastName'>{$customer->last_name}</td>
-                <td id='primaryPhone'>{$primary_phone}</td>
-                <td id='secondaryPhone'>{$secondary_phone}</td>
-                <td id='email'>{$customer->email}</td>
-                <td id='address'>$address</td>
-                $actionMethod
-              </tr>";
+                echo "<tr>";
+                echo "<td id='firstName'>" . esc_html($customer->prefix) . " " . esc_html($customer->first_name) . "</td>";
+                echo "<td id='lastName'>" . esc_html($customer->last_name) . "</td>";
+                echo "<td id='primaryPhone'>" . esc_html($primary_phone) . "</td>";
+                echo "<td id='secondaryPhone'>" . esc_html($secondary_phone) . "</td>";
+                echo "<td id='email'>" . esc_html($customer->email) . "</td>";
+                echo "<td id='address'>" . $address . "</td>";
+                echo $actionMethod;
+                echo "</tr>";
             }
             ?>
         </tbody>
@@ -219,7 +242,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                     $options = [10, 20, 50, 100];
                     foreach ($options as $option) {
                         $selected = ($per_page == $option) ? 'selected' : '';
-                        echo "<option value='$option' $selected>$option per page</option>";
+                        echo "<option value='" . esc_attr($option) . "' " . esc_attr($selected) . ">" . esc_attr($option) . " per page</option>";
                     }
                     ?>
                 </select>
@@ -375,7 +398,7 @@ function add_customer_form()
                 'notes' => $notes,
             ]);
             if (!$inserted) {
-                echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+                echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($wpdb->last_error) . '</p></div>';
             } else {
                 $redirect_url = add_query_arg(
                     ['page' => 'customer-management', 'added' => '1'],
@@ -401,7 +424,7 @@ function delete_customer_form()
     $orders_table = $wpdb->prefix . 'mji_orders';
     $customer_id = intval($_GET['id']);
 
-    $customer = $wpdb->get_row("SELECT * FROM $table_name WHERE id = $customer_id");
+    $customer = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $customer_id));
 
     if (!$customer) {
         echo '<div class="notice notice-error is-dismissible"><p>Customer not found!</p></div>';
@@ -422,7 +445,7 @@ function delete_customer_form()
         if ($deleted) {
             echo '<div class="updated"><p>Customer deleted successfully!</p></div>';
         } else {
-            echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($wpdb->last_error) . '</p></div>';
         }
     }
 
@@ -438,7 +461,6 @@ function edit_customer_form()
 
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_customers';
-    $phones_table = $wpdb->prefix . 'mji_customer_phones';
     $customer_id = intval($_GET['id']);
 
     // Handle form submission
@@ -497,7 +519,7 @@ function edit_customer_form()
             if ($updated !== false) {
                 echo '<div class="updated"><p>Customer updated successfully!</p></div>';
             } else {
-                echo '<div class="notice notice-error is-dismissible"><p>' . $wpdb->last_error . '</p></div>';
+                echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($wpdb->last_error) . '</p></div>';
             }
         }
     }
@@ -507,7 +529,6 @@ function edit_customer_form()
         $wpdb->prepare("
             SELECT *
             FROM $table_name c
-            LEFT JOIN $phones_table p ON c.id = p.customer_id
             WHERE c.id = %d
             GROUP BY c.id
         ", $customer_id)
@@ -720,13 +741,13 @@ function view_customer_page()
     s.last_name AS salesperson_last_name,
     ri.return_id
     FROM $orders_table o
-    LEFT JOIN  $order_items oi 
+    JOIN  $order_items oi 
     ON oi.order_id = o.id
-    LEFT JOIN $customers_table c
+    JOIN $customers_table c
     ON o.customer_id = c.id
-    LEFT JOIN $salespeople_table s
+    JOIN $salespeople_table s
     ON s.id = o.salesperson_id
-    LEFT JOIN $product_inventory_units p
+    JOIN $product_inventory_units p
     ON p.id = oi.product_inventory_unit_id
     LEFT JOIN $models_table m
     ON m.id = p.model_id
@@ -765,7 +786,7 @@ function view_customer_page()
 
     foreach ($item_orders as $row) {
 
-        if (is_empty($row->order_item_id)) {
+        if (empty($row->order_item_id)) {
             continue;
         }
         if ($row->wc_product_variant_id) {
@@ -801,7 +822,7 @@ function view_customer_page()
     $salesperson = current(array_filter($salespeople_array, function ($sp) use ($customer) {
         return $sp->id === $customer->salesperson_id;
     }));
-    $salesperson_fullname = is_empty(!$salesperson) ? $salesperson->first_name . " " . $salesperson->last_name : '';
+    $salesperson_fullname = empty(!$salesperson) ? $salesperson->first_name . " " . $salesperson->last_name : '';
 ?>
 
     <div class="wrap">
@@ -850,16 +871,22 @@ function view_customer_page()
                         <?php foreach ($item_orders as $order):
                             $discount_pct = $order->retail_price > 0 ? number_format(($order->discount / $order->retail_price) * 100, 2)  : 0;
                             $return_id = $order->return_id;
+
+                            if (empty($order->image)) {
+                                $img_url = wc_placeholder_img([50, 50]);
+                            } else {
+                                $img_url = $order->image;
+                            }
                         ?>
                             <tr>
-                                <td><img src="<?= $order->image ?>" alt="<?= $order->name ?>" /></td>
+                                <td><img src="<?= esc_url($img_url) ?>" alt="<?= esc_attr($order->name) ?>" /></td>
                                 <td>
                                     <?= date('M j, Y', strtotime($order->order_date)); ?> <br />
-                                    Inv# <?= $order->reference_num ?> </br>
-                                    <?= $order->salesperson_first_name ?> <?= $order->salesperson_last_name ?>
+                                    Inv# <?= esc_html($order->reference_num) ?> </br>
+                                    <?= esc_html($order->salesperson_first_name) ?> <?= esc_html($order->salesperson_last_name) ?>
                                 </td>
-                                <td><?= $order->name ?> <?php echo $return_id ?  "<strong>(Returned for credit)</strong>" : "" ?></td>
-                                <td><?= $order->sku ?> <?php echo $return_id ?  "<strong>(RETURNED)</strong>" : "" ?><br /><?= $order->model_name ?><br /><?= $order->serial ?></td>
+                                <td><?= esc_html($order->name) ?> <?php echo $return_id ?  "<strong>(Returned for credit)</strong>" : "" ?></td>
+                                <td><?= esc_html($order->sku) ?> <?php echo $return_id ?  "<strong>(RETURNED)</strong>" : "" ?><br /><?= esc_html($order->model_name) ?><br /><?= esc_html($order->serial) ?></td>
                                 <td><?php echo $return_id ?  "-" : "" ?>$<?php echo number_format($order->retail_price, 2); ?></td>
                                 <td><?php echo $return_id ?  "-" : "" ?>$<?php echo number_format($order->sale, 2); ?></td>
                                 <td><?php echo $return_id ?  "-" : "" ?>$
@@ -876,15 +903,15 @@ function view_customer_page()
                                 <td>No Image found</td>
                                 <td>
                                     <?= date('M j, Y', strtotime($order->order_date)); ?> <br />
-                                    Inv# <?= $order->reference_num ?> </br>
-                                    <?= $order->salesperson_first_name ?> <?= $order->salesperson_last_name ?>
+                                    Inv# <?= esc_html($order->reference_num) ?> <br />
+                                    <?= esc_html($order->salesperson_first_name) ?> <?= esc_html($order->salesperson_last_name) ?>
                                 </td>
-                                <td><?= $order->category ?></td>
+                                <td><?= esc_html($order->category) ?></td>
                                 <td>Service</td>
                                 <td>$<?php echo number_format($order->cost_price, 2); ?></td>
                                 <td>$<?php echo number_format($order->sale, 2); ?></td>
                                 <td>$ 0.00 <br />0.00 %</td>
-                                <td><?= $order->description ?></td>
+                                <td><?= esc_html($order->description) ?></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -898,7 +925,7 @@ function view_customer_page()
         </div>
 
         <div id="tab-notes" class="tab-content" style="display:none;">
-            <textarea style="width:100%; height:100px;" placeholder="Enter notes about this customer..."><?= $customer->notes ?></textarea>
+            <textarea style="width:100%; height:100px;" placeholder="Enter notes about this customer..."><?= esc_textarea($customer->notes) ?></textarea>
             <p><button class="button button-primary">Save Notes</button></p>
         </div>
     </div>
