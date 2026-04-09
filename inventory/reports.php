@@ -80,10 +80,6 @@ function reports_page()
                 class="nav-tab <?php echo $active_tab === 'financial' ? 'nav-tab-active' : ''; ?>">
                 Financial Report
             </a>
-            <a href="<?php echo esc_url($out_of_status_url); ?>"
-                class="nav-tab <?php echo $active_tab === 'out-of-status' ? 'nav-tab-active' : ''; ?>">
-                Out of status Report
-            </a>
         </h2>
 
         <?php
@@ -99,8 +95,6 @@ function reports_page()
             reports_render_refund_section();
         } elseif ($active_tab === 'financial') {
             reports_render_financial_section();
-        } elseif ($active_tab === 'out-of-status') {
-            reports_render_out_of_status_section();
         }
         ?>
     </div>
@@ -621,7 +615,7 @@ function reports_render_inventory_filters()
                     <select name="status" id="status">
                         <option value="in_stock" <?php selected($status, 'in_stock'); ?>>In stock</option>
                         <option value="sold" <?php selected($status, 'sold'); ?>>Sold</option>
-                        <option value="out_of_stock" <?php selected($status, 'out_of_stock'); ?>>Returned</option>
+                        <option value="out_of_status" <?php selected($status, 'out_of_status'); ?>>Out of Status</option>
                     </select>
                 </td>
             </tr>
@@ -631,6 +625,7 @@ function reports_render_inventory_filters()
                     <input type="text" id="search" name="search" placeholder="Search..." />
                 </td>
             </tr>
+
         </table>
 
         <?php submit_button('Generate Report'); ?>
@@ -647,7 +642,8 @@ function reports_get_inventory_result()
     $end_raw = !empty($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
     $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
     $brands = !empty($_GET['brands']) ? intval($_GET['brands']) : null;
-    $status = !empty($_GET['status']) ? $_GET['status'] : "in_stock";
+    $allowed_statuses = ['in_stock', 'sold', 'out_of_status'];
+    $status = in_array($_GET['status'] ?? '', $allowed_statuses) ? $_GET['status'] : 'in_stock';
     $search_text = !empty($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
 
     $start_ts = strtotime($start_raw);
@@ -660,11 +656,6 @@ function reports_get_inventory_result()
 
     $start_date = date('Y-m-d', $start_ts);
     $end_date = date('Y-m-d', $end_ts);
-
-    if (!$start_date || !$end_date) {
-        echo '<p style="color:red">Please provide start and end date!!</p>';
-        return;
-    }
 
     $inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
     $models_table = $wpdb->prefix . 'mji_models';
@@ -713,6 +704,9 @@ function reports_get_inventory_result()
         $status_params = array_merge($status_params, [$start_date, $end_date]);
     }
 
+    $posts_table    = $wpdb->prefix . 'posts';
+    $postmeta_table = $wpdb->prefix . 'postmeta';
+
     $query = "
     SELECT
         i.id AS inventory_unit_id,
@@ -722,12 +716,25 @@ function reports_get_inventory_result()
         i.serial,
         i.cost_price,
         i.retail_price,
+        i.notes,
         m.name AS model_name,
         latest_status.to_status AS latest_status,
         latest_status.created_at AS latest_status_date,
-        status_events.events
+        status_events.events,
+        p.post_title AS product_name,
+        p.post_content AS product_description,
+        p.post_excerpt AS product_short_description,
+        p.post_type AS product_type,
+        pm_thumb.meta_value AS thumbnail_id
     FROM {$inventory_table} i
 
+    -- Join WP post for product name and description
+    LEFT JOIN {$posts_table} p
+        ON p.ID = COALESCE(i.wc_product_variant_id, i.wc_product_id)
+    -- Join postmeta for thumbnail only
+    LEFT JOIN {$postmeta_table} pm_thumb
+        ON pm_thumb.post_id = COALESCE(i.wc_product_variant_id, i.wc_product_id)
+        AND pm_thumb.meta_key = '_thumbnail_id'
     -- Join model
     LEFT JOIN {$models_table} m
         ON m.id = i.model_id
@@ -775,23 +782,17 @@ function reports_get_inventory_result()
                 )
             ) AS events
         FROM (
-            SELECT
-                inventory_unit_id,
-                from_status,
-                to_status,
-                reference_num,
-                created_at
+            SELECT inventory_unit_id, from_status, to_status, reference_num, created_at
             FROM {$inventory_status_history}
             ORDER BY inventory_unit_id, created_at
         ) AS ish
-        
         -- Get FIRST payment per reference_num
         LEFT JOIN (
-            SELECT 
+            SELECT
                 reference_num,
                 customer_id,
                 salesperson_id,
-                ROW_NUMBER() OVER (PARTITION BY reference_num ) AS rn
+                ROW_NUMBER() OVER (PARTITION BY reference_num) AS rn
             FROM {$payments_table}
         ) p ON p.reference_num = ish.reference_num AND p.rn = 1
         -- Get customer name
@@ -799,10 +800,9 @@ function reports_get_inventory_result()
         -- Get salesperson name
         LEFT JOIN {$salespeople_table} s ON s.id = p.salesperson_id
         GROUP BY ish.inventory_unit_id
-    ) status_events 
+    ) status_events
     ON status_events.inventory_unit_id = i.id
     WHERE 1=1 {$where_clause}
-    LIMIT 200
     ";
 
     $all_params = array_merge(
@@ -811,33 +811,36 @@ function reports_get_inventory_result()
         $params                         // search/location/brand filters
     );
 
-    $results = $wpdb->get_results($wpdb->prepare($query, $all_params));
-    $results['start_date'] = $start_date;
-    $results['end_date'] = $end_date;
-    $results['status'] = $status;
-    return $results;
+    $rows = $wpdb->get_results($wpdb->prepare($query, $all_params));
+    return [
+        'rows'       => $rows,
+        'start_date' => $start_date,
+        'end_date'   => $end_date,
+        'status'     => $status,
+    ];
 }
 
 function reports_render_inventory_report($results)
 {
-    if (!$results) {
+    if (empty($results['rows'])) {
         echo '<p>No inventory reports found for this store.</p>';
         return;
     }
 
-    $missing_count = 0;
-    $total_count = 0;
-    $total_cost_price = 0;
+    $all_rows   = $results['rows'];
+    $start_date = $results['start_date'];
+    $end_date   = $results['end_date'];
+
+    $total_count        = 0;
+    $total_cost_price   = 0;
     $total_retail_price = 0;
+    $missing_count      = 0;
 
     $store_locations = mji_get_locations();
-    $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
-    $location_name = $location_obj ? $location_obj->name : 'All Location';
+    $location_id = !empty($_GET['location']) ? intval($_GET['location']) : 0;
+    $location_obj = current(array_filter($store_locations, fn($loc) => $loc->id === $location_id)) ?: null;
+    $location_name = $location_obj ? $location_obj->name : 'All Locations';
 
-    $start_date = $results['start_date'];
-    $end_date = $results['end_date'];
-
-    echo '<div style="max-height:700px; overflow-y:auto; position:relative;">';
     echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
     echo '<button id="printInventory" class="button button-secondary" style="margin-bottom:10px;">Print Report</button>';
 
@@ -847,74 +850,62 @@ function reports_render_inventory_report($results)
     echo '<p>From ' . esc_html($start_date) . ' to ' . esc_html($end_date) . '</p>';
     echo '</header>';
 
-    echo '<table id="inventoryTable" class="widefat striped">';
-    echo '<thead>
-            <tr>
-                <th>Image</th>
-                <th>Product</th>
-                <th>SKU</th>
-                <th>Model</th>
-                <th>Serial</th>
-                <th>Status</th>
-                <th>Cost Price</th>
-                <th>Retail Price</th>
-                <th>Info</th>
-            </tr>
-          </thead>';
+    echo '<div style="height:700px; overflow-y:auto; border:1px solid #ddd;">';
+    echo '<table id="inventoryTable" class="widefat striped" style="border-collapse:collapse;">';
+    echo '<thead><tr>
+                <th style="position:sticky; top:0; background:#f1f1f1; z-index:10;">Image</th>
+                <th style="position:sticky; top:0; background:#f1f1f1; z-index:10;">Product</th>
+                <th style="position:sticky; top:0; background:#f1f1f1; z-index:10;">SKU</th>
+                <th style="position:sticky; top:0; background:#f1f1f1; z-index:10;">Model</th>
+                <th style="position:sticky; top:0; background:#f1f1f1; z-index:10;">Serial</th>
+                <th style="position:sticky; top:0; background:#f1f1f1; z-index:10;">Status</th>
+                <th style="position:sticky; top:0; background:#f1f1f1; z-index:10;">Cost Price</th>
+                <th style="position:sticky; top:0; background:#f1f1f1; z-index:10;">Retail Price</th>
+                <th style="position:sticky; top:0; background:#f1f1f1; z-index:10;">Info</th>
+                <th style="position:sticky; top:0; background:#f1f1f1; z-index:10;">Notes</th>
+            </tr></thead>';
     echo '<tbody>';
 
-    foreach ($results as $row) {
+    foreach ($all_rows as $row) {
 
-        if (!is_object($row))
-            continue;
-
-        $product_id = $row->wc_product_variant_id ?: $row->wc_product_id;
-        $product = wc_get_product($product_id);
-
-        if (!$product) {
+        if (empty($row->product_name)) {
             $missing_count++;
             continue;
         }
 
-        $events = json_decode($row->events);
-        $sku = $row->sku;
-        $model = $row->model_name ?: '';
-        $serial = $row->serial ?: '';
-        $product_status = $row->latest_status ?: '';
-        $cost_price = (float) $row->cost_price;
-        $retail_price = (float) $row->retail_price;
-
         $total_count++;
-        $total_cost_price += $cost_price;
-        $total_retail_price += $retail_price;
+        $total_cost_price  += (float) $row->cost_price;
+        $total_retail_price += (float) $row->retail_price;
 
-        $desc = $row->wc_product_variant_id ? $product->get_description() : $product->get_short_description();
+        $events = json_decode($row->events);
+        if (is_array($events)) {
+            usort($events, fn($a, $b) => strcmp($a->date, $b->date));
+        }
 
-        $image_id = $product->get_image_id();
-        $image_url = $image_id
-            ? wp_get_attachment_image_url($image_id, 'woocommerce_gallery_thumbnail')
+        $cost_price  = (float) $row->cost_price;
+        $retail_price = (float) $row->retail_price;
+        $desc        = $row->wc_product_variant_id ? $row->product_description : $row->product_short_description;
+        $image_url   = $row->thumbnail_id
+            ? wp_get_attachment_image_url((int) $row->thumbnail_id, 'woocommerce_gallery_thumbnail')
             : wc_placeholder_img_src('woocommerce_gallery_thumbnail');
 
         echo '<tr>';
-        echo '<td><img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($image_url) . '" alt="' . esc_attr($product->get_name()) . '"></td>';
+        echo '<td><img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($image_url) . '" alt="' . esc_attr($row->product_name) . '"></td>';
         echo '<td>' . nl2br(esc_html($desc)) . '</td>';
-        echo '<td>' . esc_html($sku) . '</td>';
-        echo '<td>' . esc_html($model) . '</td>';
-        echo '<td>' . esc_html($serial) . '</td>';
-        echo '<td>' . esc_html($product_status) . '</td>';
-        echo '<td>' . number_format($cost_price, 2) . '</td>';
-        echo '<td>' . number_format($retail_price, 2) . '</td>';
+        echo '<td>' . esc_html($row->sku) . '</td>';
+        echo '<td>' . esc_html($row->model_name ?: '') . '</td>';
+        echo '<td>' . esc_html($row->serial ?: '') . '</td>';
+        echo '<td>' . esc_html($row->latest_status ?: '') . '</td>';
+        echo '<td>$' . number_format($cost_price, 2) . '</td>';
+        echo '<td>$' . number_format($retail_price, 2) . '</td>';
         echo '<td style="white-space:nowrap;">';
 
         if ($events) {
             echo '<ul style="margin:0; padding:0; list-style:none;">';
-
             foreach ($events as $event) {
                 $updated_date = date('Y-m-d', strtotime($event->date));
 
-                $status_label = '';
                 switch ($event->to_status) {
-
                     case 'in_stock':
                         $status_label = !empty($event->reference_num) ? 'Returned' : 'In Stock';
                         break;
@@ -945,38 +936,36 @@ function reports_render_inventory_report($results)
                     echo '<br>by ' . esc_html($event->salesperson_name);
                     echo '<br>Reference # ' . esc_html($event->reference_num);
                 }
-
                 echo '</li>';
             }
             echo '</ul>';
         }
 
         echo '</td>';
+        echo '<td>' . nl2br(esc_html($row->notes ?? '')) . '</td>';
         echo '</tr>';
     }
 
     echo '</tbody>';
-
-    // Table footer with totals
     echo '<tfoot>
-            <tr style="font-weight:bold; position:sticky; bottom:0; background:#fff; box-shadow:0 -2px 5px rgba(0,0,0,0.1);">
-                <td colspan="7">Total (' . $total_count . ' items)</td>
-                <td>Total Cost ' . number_format($total_cost_price, 2) . '</td>
-                <td>Total Retail ' . number_format($total_retail_price, 2) . '</td>
+            <tr style="font-weight:bold; position:sticky; bottom:0; background:#f1f1f1; z-index:10;">
+                <td colspan="10" style="padding:8px 10px;">
+                    Total: ' . $total_count . ' items
+                    &nbsp;|&nbsp; Total Cost: $' . number_format($total_cost_price, 2) . '
+                    &nbsp;|&nbsp; Total Retail: $' . number_format($total_retail_price, 2) . '
+                </td>
             </tr>
           </tfoot>';
-
     echo '</table>';
+    echo '</div>'; // end scroll wrapper
+
     echo '</div>'; // end report div
 
-    // Missing products notice
     if ($missing_count > 0) {
-        echo '<div class="notice notice-error" style="margin-top:10px;">
-                <p>Missing ' . $missing_count . ' products. Need to investigate!</p>
+        echo '<div class="notice notice-warning" style="margin-top:10px;">
+                <p>' . $missing_count . ' inventory units could not be matched to a WooCommerce product and were excluded.</p>
               </div>';
     }
-
-    echo '</div>'; // end container
 }
 
 // Reports layaway Section
@@ -2347,168 +2336,6 @@ function reports_render_financial_report($results)
         echo '<td>Retail with GST AND PST $' . number_format($refund_sales_total + $refund_gst_total + $refund_pst_total) . '</td>';
         echo '</tr>';
         echo '</tfoot>';
-        echo '</table>';
-        echo '</div>';
-    }
-}
-
-// Reports Out of status Section
-function reports_render_out_of_status_section()
-{
-    reports_render_out_of_status_filters();
-
-    echo '<hr>';
-    if (isset($_GET['start_date'], $_GET['end_date'])) {
-        $results = reports_get_out_of_status_results();
-        reports_render_out_of_status_report($results);
-    }
-}
-
-function reports_render_out_of_status_filters()
-{
-?>
-    <form method="get" action="">
-        <input type="hidden" name="page" value="reports-management">
-        <input type="hidden" name="tab" value="out-of-status">
-
-        <table class="form-table">
-            <tr>
-                <th scope="row"><label for="start_date">Start Date</label></th>
-                <td>
-                    <?php
-                    if (isset($_GET['start_date'])) {
-                        $startDate = sanitize_text_field($_GET['start_date']);
-                    } else {
-                        $startDate = date("Y-m-01", strtotime("first day of last month"));
-                    }
-                    ?>
-                    <input type="date" name="start_date" id="start_date" value="<?= $startDate; ?>">
-                </td>
-            </tr>
-            <tr>
-                <th scope="row"><label for="end_date">End Date</label></th>
-                <td>
-                    <?php
-                    $endDate =
-                        isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : date("Y-m-t", strtotime("last month"));
-                    ?>
-                    <input type="date" name="end_date" id="end_date" value="<?= $endDate; ?>">
-                </td>
-            </tr>
-            <tr>
-                <th scope="row"><label for="location">Store</label></th>
-                <td>
-                    <?= mji_store_dropdown(false) ?>
-                </td>
-            </tr>
-        </table>
-
-        <?php submit_button('Generate Report'); ?>
-    </form>
-<?php
-}
-
-function reports_get_out_of_status_results()
-{
-    global $wpdb;
-
-    $start_raw = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-    $end_raw = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
-
-    $start_ts = strtotime($start_raw);
-    $end_ts = strtotime($end_raw);
-
-    if ($start_ts === false || $end_ts === false) {
-        return [];
-    }
-
-    $start_date = date('Y-m-d H:i:s', $start_ts);
-    $end_date = date('Y-m-d H:i:s', $end_ts);
-
-    $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
-
-    $inventory_status_history_table = "{$wpdb->prefix}mji_inventory_status_history";
-    $product_units_table = "{$wpdb->prefix}mji_product_inventory_units";
-
-    $where[] = "created_at BETWEEN %s AND %s ";
-    $params[] = $start_date;
-    $params[] = $end_date;
-    $location_filter = '';
-
-    if ($location !== null) {
-        $location_filter = " AND i.location_id = %d";
-        $params[] = $location;
-    }
-
-    $sql_query = "
-            SELECT *
-            FROM (
-                SELECT *, 
-                    ROW_NUMBER() OVER (
-                        PARTITION BY inventory_unit_id 
-                        ORDER BY created_at DESC, id DESC
-                    ) as row_num
-                FROM {$inventory_status_history_table}
-                WHERE  " . implode(" AND ", $where) . "
-            ) t JOIN {$product_units_table} i ON t.inventory_unit_id = i.id
-            WHERE t.to_status NOT IN ('in_stock', 'sold') AND t.row_num = 1 {$location_filter}";
-
-    $results = $wpdb->get_results($wpdb->prepare($sql_query, ...$params));
-
-    $results['start_date'] = $start_date;
-    $results['end_date'] = $end_date;
-    $results['location'] = $location;
-    return $results;
-}
-
-function reports_render_out_of_status_report($results)
-{
-    if ($results) {
-        $store_locations = mji_get_locations();
-        $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
-        $location_name = $location_obj ? $location_obj->name : 'All Location';
-
-        $start_date = explode(" ", $results['start_date'])[0];
-        $end_date = explode(" ", $results['end_date'])[0];
-
-        echo '<div style="max-height:700px; overflow-y:auto; position:relative;">';
-        echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
-        echo '<button id="printInventory" class="button button-secondary" style="margin-bottom:10px;">Print Report</button>';
-
-        echo '<div id="report">';
-        echo '<header>';
-        echo '<h2>Refund Report for ' . esc_html($location_name) . ' - Montecristo Jewellers</h2>';
-        echo '<p>From ' . esc_html($start_date) . ' to ' . esc_html($end_date) . '</p>';
-        echo '</header>';
-
-        echo '<table id="inventoryTable" class="widefat stripped">';
-
-        echo '<thead>
-            <tr>
-                <th>sku</th>
-                <th>serial</th>
-                <th>from_status</th>
-                <th>to_status</th>
-                <th>created_at</th>
-                <th>Notes</th>
-            </tr>
-          </thead>';
-        echo '<tbody>';
-        foreach ($results as $index => $row) {
-            if (!is_object($row))
-                continue;
-
-            $date = explode(" ", $row->created_at)[0];
-
-            echo "<tr>";
-            echo "<td>{$row->sku}</td>";
-            echo "<td>{$row->serial}</td>";
-            echo "<td>{$row->from_status}</td>";
-            echo "<td>{$row->to_status}</td>";
-            echo "<td>{$date}</td>";
-            echo "<td>{$row->notes}</td>";
-            echo "</tr>";
-        }
         echo '</table>';
         echo '</div>';
     }
