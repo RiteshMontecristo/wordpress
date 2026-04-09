@@ -2,7 +2,7 @@
 
 function reports_page()
 {
-    $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'sales';
+    $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'sales';
     $allowed_tabs = ['sales', 'inventory', 'layaway', 'credit', 'refund', 'financial', 'out-of-status'];
 
     if (!in_array($active_tab, $allowed_tabs)) {
@@ -136,7 +136,7 @@ function reports_render_sales_filters()
                         $startDate = date("Y-m-01", strtotime("first day of last month"));
                     }
                     ?>
-                    <input type="date" name="start_date" id="start_date" value="<?php echo $startDate; ?>">
+                    <input type="date" name="start_date" id="start_date" value="<?= esc_attr($startDate) ?>">
                 </td>
             </tr>
             <tr>
@@ -150,7 +150,7 @@ function reports_render_sales_filters()
                         $endDate = date("Y-m-t", strtotime("last month"));
                     }
                     ?>
-                    <input type="date" name="end_date" id="end_date" value="<?php echo $endDate; ?>">
+                    <input type="date" name="end_date" id="end_date" value="<?= esc_attr($endDate); ?>">
                 </td>
             </tr>
             <tr>
@@ -233,6 +233,7 @@ function reports_get_sales_results()
                 SELECT 
                     o.reference_num AS invoice,
                     o.created_at AS sold_date,
+                    o.notes,
                     s.first_name AS salesperson_first_name,
                     s.last_name AS salesperson_last_name, 
                     c.first_name AS customer_first_name,
@@ -298,6 +299,7 @@ function reports_get_sales_results()
                 SELECT 
                     o.reference_num AS invoice,
                     o.created_at AS sold_date,
+                    o.notes,
                     s.first_name AS salesperson_first_name,
                     s.last_name AS salesperson_last_name, 
                     c.first_name AS customer_first_name,
@@ -310,7 +312,7 @@ function reports_get_sales_results()
                     NULL AS location_id,
                     NULL AS brand_id,
                     COALESCE(si.sold_price, 0) as retail_paid,
-                    COALESCE(0, 0) as discount_amount,
+                    0 as discount_amount,
                     COALESCE(si.cost_price, 0) as cost_price,
                     COALESCE(si.sold_price, 0) as retail_price,
                     si.description AS description,
@@ -336,7 +338,7 @@ function reports_get_sales_results()
                 WHERE " . implode(" AND ", $where2) . "
                 GROUP BY
                     o.id,
-                    s.id,
+                    si.id,
                     c.id
             ";
 
@@ -364,6 +366,17 @@ function reports_render_sales_report($results)
         $total_retail = 0;
         $total_retail_paid = 0;
         $total_profit = 0;
+        $total_items = 0;
+        $total_services = 0;
+
+        $items_cost = 0;
+        $items_retail = 0;
+        $items_retail_paid = 0;
+        $items_profit = 0;
+
+        $services_cost = 0;
+        $services_retail_paid = 0;
+        $services_profit = 0;
 
         $location_id = isset($_GET['location']) ? intval($_GET['location']) : 0;
         $location_arr = mji_get_locations();
@@ -373,7 +386,7 @@ function reports_render_sales_report($results)
         echo '<button id="printInventory" class="button button-secondary" style="margin-bottom:10px;">Print Report</button>';
         echo '<div id="report">
                 <header>
-                        <h2>Sales Report - Montecristo Jewellers ' . $location . '</h2>
+                        <h2>Sales Report - Montecristo Jewellers ' . esc_html($location) . '</h2>
                         <p>Date: ' . esc_html($_GET['start_date']) . ' to ' . esc_html($_GET['end_date']) . '</p>
                 </header>
                 <table id="inventoryTable" class="widefat striped"><thead>
@@ -394,17 +407,14 @@ function reports_render_sales_report($results)
                         <th>Margin(%)</th>
                         <th>Salesperson</th>
                         <th>Customer</th>
+                        <th>Notes</th>
                     </tr>
                 </thead><tbody>';
 
         foreach ($results as $row) {
-            // Prefer variant over base product
-            $product_id = $row->product_variant_id ?: $row->product_id;
-            $product = wc_get_product($product_id);
+            custom_log($row);
 
             $retail_paid = (float) $row->retail_paid;
-            $profit = $retail_paid - $row->cost_price;
-            $margin_percent = $retail_paid > 0 ? ($profit / $retail_paid) * 100 : 0;
             $desc = $row->description ? ' - ' . $row->description : '';
             $name = format_label($row->sku) . $desc;
             $dt = new DateTime($row->sold_date);
@@ -413,14 +423,15 @@ function reports_render_sales_report($results)
 
             // Build the invoice display with returns
             $invoice_display = esc_html($row->invoice);
-            $total_current_retail_paid = $row->retail_paid;
-            $retail_paid_display = "$" . number_format($row->retail_paid, 2);
+            $total_current_retail_paid = $retail_paid;
+            $retail_paid_display = "$" . number_format($retail_paid, 2);
 
             if (!empty($row->returns) && $row->returns !== 'null') {
                 $returns = json_decode($row->returns);
 
                 if (json_last_error() === JSON_ERROR_NONE && is_array($returns) && count($returns) > 0) {
 
+                    $invoice_display .= '<small>';
                     foreach ($returns as $return) {
                         if (!empty($return->reference_num)) {
                             $invoice_display .= '<br />-' . esc_html($return->reference_num);
@@ -430,7 +441,6 @@ function reports_render_sales_report($results)
                             $total_current_retail_paid -= $return->refund_amount;
                         }
                     }
-
                     $invoice_display .= '</small>';
                 }
             }
@@ -449,8 +459,19 @@ function reports_render_sales_report($results)
                 $total_retail += $row->retail_price;
                 $total_retail_paid += $total_current_retail_paid;
                 $total_profit += $profit;
+
+                if (empty($row->product_id)) {
+                    $services_cost += $row->cost_price;
+                    $services_retail_paid += $total_current_retail_paid;
+                    $services_profit += $profit;
+                } else {
+                    $items_cost += $row->cost_price;
+                    $items_retail += $row->retail_price;
+                    $items_retail_paid += $total_current_retail_paid;
+                    $items_profit += $profit;
+                }
             }
-            if (!$product) {
+            if (empty($row->product_id)) {
                 echo '<tr>';
                 echo '<td>' . $placeholder_image . '</td>';
                 echo '<td>' . $invoice_display . '</td>';
@@ -468,10 +489,15 @@ function reports_render_sales_report($results)
                 echo '<td>' . number_format($margin_percent, 2) . '%</td>';
                 echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
                 echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
+                echo '<td>' . esc_html($row->notes) . '</td>';
                 echo '</tr>';
+                $total_services++;
                 continue; // Skip invalid products
             }
 
+            // Prefer variant over base product
+            $product_id = $row->product_variant_id ?: $row->product_id;
+            $product = wc_get_product($product_id);
             $image = $product->get_image([50, 50]);
             $name = $product->get_name();
 
@@ -483,13 +509,13 @@ function reports_render_sales_report($results)
             }
 
             echo '<tr>';
-            echo '<td>' . $image . '</td>';
+            echo '<td style="width:50px;">' . $image . '</td>';
             echo '<td style="white-space: nowrap;">' . $invoice_display . '</td>';
             echo '<td style="white-space: nowrap;">' . $date . '</td>';
             echo '<td>' . $name . '</td>';
-            echo '<td>' . $row->sku . '</td>';
-            echo '<td>' . $row->model_name  . '</td>';
-            echo '<td>' . $row->serial . '</td>';
+            echo '<td>' . esc_html($row->sku) . '</td>';
+            echo '<td>' . esc_html($row->model_name)  . '</td>';
+            echo '<td>' . esc_html($row->serial) . '</td>';
             echo '<td>$' . number_format($row->cost_price, 2) . '</td>';
             echo '<td>$' . number_format($row->retail_price, 2) . '</td>';
             echo '<td>' . $retail_paid_display . '</td>';
@@ -499,21 +525,28 @@ function reports_render_sales_report($results)
             echo '<td>' . number_format($margin_percent, 2) . '%</td>';
             echo '<td>' . esc_html($row->salesperson_first_name) . ' ' . esc_html($row->salesperson_last_name) . '</td>';
             echo '<td>' . esc_html($row->customer_first_name) . ' ' . esc_html($row->customer_last_name) . '</td>';
+            echo '<td>' . esc_html($row->notes) . '</td>';
             echo '</tr>';
+            $total_items++;
         }
 
-        $margin_percent = ($total_profit / $total_retail_paid) * 100;
+        $total_margin    = $total_retail_paid   > 0 ? ($total_profit   / $total_retail_paid)   * 100 : 0;
+        $items_margin    = $items_retail_paid    > 0 ? ($items_profit   / $items_retail_paid)   * 100 : 0;
+        $services_margin = $services_retail_paid > 0 ? ($services_profit / $services_retail_paid) * 100 : 0;
+
         echo '
                 </tbody>
                 <tfoot>
                     <tr>
-                        <th>Total Cost: $' . number_format($total_cost, 2) . '</th>
-                        <th>Total Retail: $' . number_format($total_retail, 2) . '</th>
-                        <th>Total Paid: $' . number_format($total_retail_paid, 2) . '</th>
-                        <th>Total Profit: $' . number_format($total_profit, 2) . '</th>
-                        <th>Margin: ' . number_format($margin_percent, 2) . '%</th>
-                        <th> </th>
+                        <th colspan="17">Total Items: ' . $total_items . ' &nbsp;|&nbsp; Total Cost: $' . number_format($items_cost, 2) . ' &nbsp;|&nbsp; Total Retail: $' . number_format($items_retail, 2) . ' &nbsp;|&nbsp; Total Retail Paid: $' . number_format($items_retail_paid, 2) . ' &nbsp;|&nbsp; Total Profit: $' . number_format($items_profit, 2) . ' &nbsp;|&nbsp; Margin: ' . number_format($items_margin, 2) . '%</th>
                     </tr>
+                    <tr>
+                        <th colspan="17">Total Services: ' . $total_services . ' &nbsp;|&nbsp; Total Cost: $' . number_format($services_cost, 2) . ' &nbsp;|&nbsp; Total Retail Paid: $' . number_format($services_retail_paid, 2) . ' &nbsp;|&nbsp; Total Profit: $' . number_format($services_profit, 2) . ' &nbsp;|&nbsp; Margin: ' . number_format($services_margin, 2) . '%</th>
+                    </tr>
+                    <tr>
+                        <th colspan="17">Grand Total &nbsp;|&nbsp; Total Cost: $' . number_format($total_cost, 2) . ' &nbsp;|&nbsp; Total Retail: $' . number_format($total_retail, 2) . ' &nbsp;|&nbsp; Total Retail Paid: $' . number_format($total_retail_paid, 2) . ' &nbsp;|&nbsp; Total Profit: $' . number_format($total_profit, 2) . ' &nbsp;|&nbsp; Margin: ' . number_format($total_margin, 2) . '%</th>
+                    </tr>
+                </tfoot>
             </table>
         </div>
         ';
@@ -1285,7 +1318,7 @@ function reports_render_layaway_report($results)
                     continue;
                 $payments = json_decode($row->payment_details, true);
                 $redeem_payment_details = json_decode($row->redeem_payment_details, true);
-                $redeem_payment_details_len = is_empty($redeem_payment_details) ? 0 : count($redeem_payment_details);
+                $redeem_payment_details_len = empty($redeem_payment_details) ? 0 : count($redeem_payment_details);
                 $rowspan = max(count($payments), $redeem_payment_details_len);
                 custom_log($row);
                 $isLast = ($index % 2 == 0) ? "group-end" : "";
@@ -1669,7 +1702,7 @@ function reports_render_credit_report($results)
                     continue;
                 $payments = json_decode($row->payment_details, true);
                 $redeem_payment_details = json_decode($row->redeem_payment_details, true);
-                $redeem_payment_details_len = is_empty($redeem_payment_details) ? 0 : count($redeem_payment_details);
+                $redeem_payment_details_len = empty($redeem_payment_details) ? 0 : count($redeem_payment_details);
                 $rowspan = max(count($payments), $redeem_payment_details_len);
                 $isLast = ($index % 2 == 0) ? "group-end" : "";
 
