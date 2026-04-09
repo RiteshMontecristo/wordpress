@@ -1657,7 +1657,7 @@ function reports_render_credit_report($results)
 
                     // Payment-specific columns (always printed)
                     echo "<td>{$payment['method']}</td>";
-                    echo "<td>{$payment['amount']}</td>";
+                    echo "<td>" . number_format((float) $payment['amount'], 2) . "</td>";
 
                     if ($first) {
                         echo "<td rowspan='{$rowspan}'>{$row->notes}</td>";
@@ -1688,8 +1688,8 @@ function reports_render_credit_report($results)
 
                 if (!is_object($row))
                     continue;
-                $payments = json_decode($row->payment_details, true);
-                $deposit_payment_details = json_decode($row->deposit_payment_details, true);
+                $payments = json_decode($row->payment_details ?? '[]', true) ?? [];
+                $deposit_payment_details = json_decode($row->deposit_payment_details ?? '[]', true) ?? [];
                 $rowspan = max(count($payments), count($deposit_payment_details));
                 $isLast = ($index % 2 == 0) ? "group-end" : "";
 
@@ -1703,19 +1703,19 @@ function reports_render_credit_report($results)
                         echo "<td rowspan='{$rowspan}'>{$row->first_name} {$row->last_name}</td>";
                         echo "<td rowspan='{$rowspan}'>{$row->salesperson_first_name} {$row->salesperson_last_name}</td>";
                         echo "<td rowspan='{$rowspan}'>{$payments[$i]['method']}</td>";
-                        echo "<td rowspan='{$rowspan}'>{$payments[$i]['amount']}</td>";
+                        echo "<td rowspan='{$rowspan}'>" . number_format((float) ($payments[$i]['amount'] ?? 0), 2) . "</td>";
                     } else {
                         echo "<td>" . ($payments[$i]['method'] ?? '') . "</td>";
-                        echo "<td>" . ($payments[$i]['amount'] ?? '') . "</td>";
+                        echo "<td>" . number_format((float) ($payments[$i]['amount'] ?? 0), 2) . "</td>";
                     }
                     if ($i === 0) {
                         echo "<td>{$row->layaway_reference_num}</td>";
                         echo "<td>" . explode(" ", $row->layaway_date)[0] . "</td>";
                         echo "<td>{$deposit_payment_details[$i]['method']}</td>";
-                        echo "<td>{$deposit_payment_details[$i]['amount']}</td>";
+                        echo "<td>" . number_format((float) ($deposit_payment_details[$i]['amount'] ?? 0), 2) . "</td>";
                     } else {
                         echo "<td>" . ($deposit_payment_details[$i]['method'] ?? '') . "</td>";
-                        echo "<td>" . ($deposit_payment_details[$i]['amount'] ?? '') . "</td>";
+                        echo "<td>" . number_format((float) ($deposit_payment_details[$i]['amount'] ?? 0), 2) . "</td>";
                     }
 
                     if ($i === 0) {
@@ -1744,8 +1744,8 @@ function reports_render_credit_report($results)
 
                 if (!is_object($row))
                     continue;
-                $payments = json_decode($row->payment_details, true);
-                $redeem_payment_details = json_decode($row->redeem_payment_details, true);
+                $payments = json_decode($row->payment_details ?? '[]', true) ?? [];
+                $redeem_payment_details = json_decode($row->redeem_payment_details ?? '[]', true) ?? [];
                 $redeem_payment_details_len = empty($redeem_payment_details) ? 0 : count($redeem_payment_details);
                 $rowspan = max(count($payments), $redeem_payment_details_len);
                 $isLast = ($index % 2 == 0) ? "group-end" : "";
@@ -1759,17 +1759,17 @@ function reports_render_credit_report($results)
                         echo "<td rowspan='{$rowspan}'>" . explode(" ", $row->payment_date)[0] . "</td>";
                         echo "<td rowspan='{$rowspan}'>{$row->first_name} {$row->last_name}</td>";
                         echo "<td rowspan='{$rowspan}'>{$row->salesperson_first_name} {$row->salesperson_last_name}</td>";
-                        echo "<td >{$payments[$i]['method']}</td>";
-                        echo "<td >{$payments[$i]['amount']}</td>";
+                        echo "<td>" . ($payments[$i]['method'] ?? '') . "</td>";
+                        echo "<td>" . number_format((float) ($payments[$i]['amount'] ?? 0), 2) . "</td>";
                     } else {
                         echo "<td>" . ($payments[$i]['method'] ?? '') . "</td>";
-                        echo "<td>" . ($payments[$i]['amount'] ?? '') . "</td>";
+                        echo "<td>" . number_format((float) ($payments[$i]['amount'] ?? 0), 2) . "</td>";
                     }
 
                     if ($redeem_payment_details_len > $i) {
                         echo "<td>" . ($redeem_payment_details[$i]['reference_num'] ?? '') . "</td>";
                         echo "<td>" . explode(" ", $redeem_payment_details[$i]['date'])[0] . "</td>";
-                        echo "<td>" . ($redeem_payment_details[$i]['amount'] ?? '') . "</td>";
+                        echo "<td>" . number_format((float) ($redeem_payment_details[$i]['amount'] ?? 0), 2) . "</td>";
                     } else {
                         echo "<td></td><td></td><td></td>";
                     }
@@ -1960,7 +1960,7 @@ function reports_render_refund_report($results)
 
                 // Payment-specific columns (always printed)
                 echo "<td>{$payment['method']}</td>";
-                echo "<td>{$payment['amount']}</td>";
+                echo "<td>" . number_format((float) $payment['amount'], 2) . "</td>";
 
                 if ($first) {
                     echo "<td rowspan='{$rowspan}'>{$row->notes}</td>";
@@ -2348,21 +2348,21 @@ function reports_render_financial_report($results)
                     echo "<td rowspan='{$rowspan}'>{$date}</td>";
                     echo "<td rowspan='{$rowspan}'>{$row->first_name} {$row->last_name}</td>";
                     echo "<td rowspan='{$rowspan}'>{$row->salesperson_first_name} {$row->salesperson_last_name}</td>";
-                    echo "<td rowspan='{$rowspan}'>{$row->subtotal}</td>";
-                    echo "<td rowspan='{$rowspan}'>{$row->gst_total}</td>";
-                    echo "<td rowspan='{$rowspan}'>{$row->pst_total}</td>";
-                    echo "<td >{$payments[$i]['method']}{$reference_num}</td>";
-                    echo "<td >{$payments[$i]['amount']}</td>";
+                    echo "<td rowspan='{$rowspan}'>$" . number_format((float) $row->subtotal, 2) . "</td>";
+                    echo "<td rowspan='{$rowspan}'>$" . number_format((float) $row->gst_total, 2) . "</td>";
+                    echo "<td rowspan='{$rowspan}'>$" . number_format((float) $row->pst_total, 2) . "</td>";
+                    echo "<td>" . esc_html($payments[$i]['method'] ?? '') . esc_html($reference_num) . "</td>";
+                    echo "<td>" . number_format((float) ($payments[$i]['amount'] ?? 0), 2) . "</td>";
                 } else {
-                    echo "<td>" . ($payments[$i]['method'] ?? '') . "{$reference_num}</td>";
-                    echo "<td>" . ($payments[$i]['amount'] ?? '') . "</td>";
+                    echo "<td>" . esc_html($payments[$i]['method'] ?? '') . esc_html($reference_num) . "</td>";
+                    echo "<td>" . number_format((float) ($payments[$i]['amount'] ?? 0), 2) . "</td>";
                 }
 
                 if ($all_items > $i) {
                     $cost_price = $all_items[$i]['cost_price'] ?? 0;
-                    echo "<td>" . ($all_items[$i]['sku'] ?? '') . "</td>";
-                    echo "<td>" . ($cost_price ?: '') . "</td>";
-                    echo "<td>" . ($all_items[$i]['sale_price'] ?? '') . "</td>";
+                    echo "<td>" . esc_html($all_items[$i]['sku'] ?? '') . "</td>";
+                    echo "<td>" . ($cost_price ? '$' . number_format((float) $cost_price, 2) : '') . "</td>";
+                    echo "<td>" . ($all_items[$i]['sale_price'] !== null ? '$' . number_format((float) ($all_items[$i]['sale_price'] ?? 0), 2) : '') . "</td>";
                     if ($row->type === "order") {
                         $cost_total += $cost_price;
                     } else {
@@ -2377,23 +2377,23 @@ function reports_render_financial_report($results)
         echo '<tfoot>';
         echo '<tr>';
         echo '<td>Total Sales</td>';
-        echo '<td>Cost $' . number_format($cost_total) . '</td>';
-        echo '<td>Retail $' . number_format($sales_total) . '</td>';
-        echo '<td>GST $' . number_format($gst_total) . '</td>';
-        echo '<td>PST $' . number_format($pst_total) . '</td>';
-        echo '<td>Retail with GST $' . number_format($sales_total + $gst_total) . '</td>';
-        echo '<td>Retail with PST $' . number_format($sales_total + $pst_total) . '</td>';
-        echo '<td>Retail with GST AND PST $' . number_format($sales_total + $gst_total + $pst_total) . '</td>';
+        echo '<td>Cost $' . number_format($cost_total, 2) . '</td>';
+        echo '<td>Retail $' . number_format($sales_total, 2) . '</td>';
+        echo '<td>GST $' . number_format($gst_total, 2) . '</td>';
+        echo '<td>PST $' . number_format($pst_total, 2) . '</td>';
+        echo '<td>Retail with GST $' . number_format($sales_total + $gst_total, 2) . '</td>';
+        echo '<td>Retail with PST $' . number_format($sales_total + $pst_total, 2) . '</td>';
+        echo '<td>Retail with GST AND PST $' . number_format($sales_total + $gst_total + $pst_total, 2) . '</td>';
         echo '</tr>';
         echo '<tr>';
         echo '<td>Total Refund</td>';
-        echo '<td>Cost $' . number_format($refund_cost_total) . '</td>';
-        echo '<td>Retail $' . number_format($refund_sales_total) . '</td>';
-        echo '<td>GST $' . number_format($refund_gst_total) . '</td>';
-        echo '<td>PST $' . number_format($refund_pst_total) . '</td>';
-        echo '<td>Retail with GST $' . number_format($refund_sales_total + $refund_gst_total) . '</td>';
-        echo '<td>Retail with PST $' . number_format($refund_sales_total + $refund_pst_total) . '</td>';
-        echo '<td>Retail with GST AND PST $' . number_format($refund_sales_total + $refund_gst_total + $refund_pst_total) . '</td>';
+        echo '<td>Cost $' . number_format($refund_cost_total, 2) . '</td>';
+        echo '<td>Retail $' . number_format($refund_sales_total, 2) . '</td>';
+        echo '<td>GST $' . number_format($refund_gst_total, 2) . '</td>';
+        echo '<td>PST $' . number_format($refund_pst_total, 2) . '</td>';
+        echo '<td>Retail with GST $' . number_format($refund_sales_total + $refund_gst_total, 2) . '</td>';
+        echo '<td>Retail with PST $' . number_format($refund_sales_total + $refund_pst_total, 2) . '</td>';
+        echo '<td>Retail with GST AND PST $' . number_format($refund_sales_total + $refund_gst_total + $refund_pst_total, 2) . '</td>';
         echo '</tr>';
         echo '</tfoot>';
         echo '</table>';
