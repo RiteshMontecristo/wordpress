@@ -836,10 +836,13 @@ function reports_render_inventory_report($results)
     $total_retail_price = 0;
     $missing_count      = 0;
 
-    $store_locations = mji_get_locations();
-    $location_id = !empty($_GET['location']) ? intval($_GET['location']) : 0;
-    $location_obj = current(array_filter($store_locations, fn($loc) => $loc->id === $location_id)) ?: null;
-    $location_name = $location_obj ? $location_obj->name : 'All Locations';
+    if (isset($_GET['location']) && !empty($_GET['location'])) {
+        $store_locations = mji_get_locations();
+        $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+        $location_name = $location_obj->name;
+    } else {
+        $location_name =  'All Location';
+    }
 
     echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
     echo '<button id="printInventory" class="button button-secondary" style="margin-bottom:10px;">Print Report</button>';
@@ -981,7 +984,11 @@ function reports_render_layaway_section()
 }
 
 function reports_render_layaway_filters()
-{ ?>
+{
+    $location_id = isset($_GET['location']) ? absint($_GET['location']) : 0;
+    $allowed_query = ["deposit", "redeem", "outstanding"];
+    $query = isset($_GET['query']) && in_array($_GET['query'], $allowed_query) ? sanitize_text_field($_GET['query']) : $allowed_query[0];
+?>
     <form method="get" action="">
         <input type="hidden" name="page" value="reports-management">
         <input type="hidden" name="tab" value="layaway">
@@ -1013,16 +1020,16 @@ function reports_render_layaway_filters()
             <tr>
                 <th scope="row"><label for="location">Store</label></th>
                 <td>
-                    <?= mji_store_dropdown(false) ?>
+                    <?= mji_store_dropdown(false, $location_id) ?>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><label for="query">Query</label></th>
                 <td>
                     <select name="query" id="query">
-                        <option value="deposit">Deposit</option>
-                        <option value="redeem">Redeem</option>
-                        <option value="outstanding">Outstanding</option>
+                        <option value="deposit" <?= selected($query, "deposit") ?>>Deposit</option>
+                        <option value="redeem" <?= selected($query, "redeem") ?>>Redeem</option>
+                        <option value="outstanding" <?= selected($query, "outstanding") ?>>Outstanding</option>
                     </select>
                 </td>
             </tr>
@@ -1051,8 +1058,10 @@ function reports_get_layaway_results()
     $end_date = date('Y-m-d H:i:s', $end_ts);
 
     $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
-    $query = !empty($_GET['query']) ? $_GET['query'] : 'depost';
-
+    $allowed_query = ["deposit", "redeem", "outstanding"];
+    $query = isset($_GET['query']) && in_array($_GET['query'], $allowed_query)
+        ? sanitize_text_field($_GET['query'])
+        : 'deposit';
     $payments_table = "{$wpdb->prefix}mji_payments";
     $customers_table = "{$wpdb->prefix}mji_customers";
     $salespeople_table = "{$wpdb->prefix}mji_salespeople";
@@ -1062,13 +1071,14 @@ function reports_get_layaway_results()
     $params = [];
 
     if ($location !== null) {
-        $where[] = "location_id = %d";
+        $where[] = "p.location_id = %d";
         $params[] = $location;
     }
 
     if ($query == 'deposit') {
         $where[] = "p.payment_date BETWEEN %s AND %s AND p.transaction_type IN ('layaway_deposit') AND p.layaway_id IS NOT NULL";
-        $params[] = [$start_date, $end_date];
+        $params[] = $start_date;
+        $params[] = $end_date;
         $sql_query = "
             SELECT 
                p.reference_num, p.transaction_type, p.payment_date, p.notes, c.first_name, c.last_name, s.first_name as salesperson_first_name, s.last_name as salesperson_last_name, 
@@ -1087,12 +1097,14 @@ function reports_get_layaway_results()
             ORDER BY p.reference_num, p.layaway_id";
     } else if ($query == 'redeem') {
         $where[] = "p.payment_date BETWEEN %s AND %s AND p.transaction_type IN ('layaway_redemption') AND p.layaway_id IS NOT NULL";
-        $params[] = [$start_date, $end_date];
+        $params[] = $start_date;
+        $params[] = $end_date;
         $sql_query = "
             -- Pre-aggregate deposit payments per layaway
             WITH deposit_payments AS (
                 SELECT 
                     layaway_id,
+                    notes,
                     JSON_ARRAYAGG(JSON_OBJECT(
                         'method', method,
                         'amount', amount
@@ -1102,7 +1114,7 @@ function reports_get_layaway_results()
                 GROUP BY layaway_id
             )
             SELECT 
-				p.reference_num, p.transaction_type, p.payment_date, p.notes, c.first_name, c.last_name, s.first_name as salesperson_first_name, s.last_name as salesperson_last_name, l.reference_num as layaway_reference_num, l.created_at as layaway_date,
+				p.reference_num, p.transaction_type, p.payment_date, dp.notes, c.first_name, c.last_name, s.first_name as salesperson_first_name, s.last_name as salesperson_last_name, l.reference_num as layaway_reference_num, l.created_at as layaway_date,
                 JSON_ARRAYAGG(
                     JSON_OBJECT(
                         'method', p.method,
@@ -1131,7 +1143,7 @@ function reports_get_layaway_results()
                     'amount', amount,
                     'date', payment_date
                 )) AS redeem_payment_details
-                FROM wp_mji_payments
+                FROM $payments_table
                 WHERE transaction_type = 'layaway_redemption'
                 GROUP BY layaway_id
             )
@@ -1154,25 +1166,32 @@ function reports_get_layaway_results()
             ORDER BY p.layaway_id";
     }
 
-    $results = $wpdb->get_results($wpdb->prepare($sql_query, ...$params));
+    $rows = $wpdb->get_results($wpdb->prepare($sql_query, ...$params));
 
-    $results['start_date'] = $start_date;
-    $results['end_date'] = $end_date;
-    $results['status'] = $query;
-    $results['location'] = $location;
-    return $results;
+    return [
+        "rows" => $rows,
+        "start_date" => $start_date,
+        "end_date" => $end_date,
+        "status" => $query,
+        "location" => $location
+
+    ];
 }
 
 function reports_render_layaway_report($results)
 {
-    if ($results) {
-        $store_locations = mji_get_locations();
-        $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
-        $location_name = $location_obj ? $location_obj->name : 'All Location';
+    if (!empty($results["rows"])) {
+        if (isset($_GET['location']) && !empty($_GET['location'])) {
+            $store_locations = mji_get_locations();
+            $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+            $location_name = $location_obj->name;
+        } else {
+            $location_name = 'All Location';
+        }
 
         $start_date = explode(" ", $results['start_date'])[0];
-        $end_date = explode(" ", $results['end_date'])[0];
-        $status = $results['status'];
+        $end_date   = explode(" ", $results['end_date'])[0];
+        $status     = $results['status'];
 
         echo '<div style="max-height:700px; overflow-y:auto; position:relative;">';
         echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
@@ -1184,9 +1203,9 @@ function reports_render_layaway_report($results)
         echo '<p>From ' . esc_html($start_date) . ' to ' . esc_html($end_date) . '</p>';
         echo '</header>';
 
-        echo '<table id="inventoryTable" class="widefat ">';
+        echo '<table id="inventoryTable" class="widefat">';
 
-        if ($status == "deposit") {
+        if ($status === "deposit") {
             echo '<thead>
             <tr>
                 <th>Invoice</th>
@@ -1198,38 +1217,45 @@ function reports_render_layaway_report($results)
                 <th>Notes</th>
             </tr>
           </thead>';
+
+            $total_deposit = 0.0;
+
             echo '<tbody>';
-            foreach ($results as $index => $row) {
-
-                if (!is_object($row))
-                    continue;
-                $payments = json_decode($row->payment_details, true);
-                $rowspan = count($payments);
-                $first = true;
+            foreach ($results['rows'] as $index => $row) {
+                $payments     = json_decode($row->payment_details ?? '[]', true) ?? [];
+                $rowspan      = count($payments);
+                $first        = true;
                 $payment_date = explode(" ", $row->payment_date)[0];
-                foreach ($payments as $payment) {
 
-                    $isLast = ($index % 2 == 0) ? "group-end" : "";
+                foreach ($payments as $payment) {
+                    $total_deposit += (float) $payment['amount'];
+
+                    $isLast = ($index % 2 === 0) ? "group-end" : "";
                     echo "<tr class='{$isLast}'>";
 
                     if ($first) {
-                        echo "<td rowspan='{$rowspan}'>{$row->reference_num}</td>";
-                        echo "<td rowspan='{$rowspan}'>{$payment_date}</td>";
-                        echo "<td rowspan='{$rowspan}'>{$row->first_name} {$row->last_name}</td>";
-                        echo "<td rowspan='{$rowspan}'>{$row->salesperson_first_name} {$row->salesperson_last_name}</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->reference_num) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($payment_date) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->first_name) . " " . esc_html($row->last_name) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->salesperson_first_name) . " " . esc_html($row->salesperson_last_name) . "</td>";
                     }
 
-                    // Payment-specific columns (always printed)
-                    echo "<td>{$payment['method']}</td>";
-                    echo "<td>{$payment['amount']}</td>";
+                    echo "<td>" . esc_html($payment['method']) . "</td>";
+                    echo "<td>" . esc_html(number_format((float) $payment['amount'], 2)) . "</td>";
 
                     if ($first) {
-                        echo "<td rowspan='{$rowspan}'>{$row->notes}</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->notes) . "</td>";
                         $first = false;
                     }
                     echo "</tr>";
                 }
             }
+            echo '</tbody>';
+            echo '<tfoot>';
+            echo '<tr><td colspan="7" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">';
+            echo 'Total Deposits: $' . number_format($total_deposit, 2);
+            echo '</td></tr>';
+            echo '</tfoot>';
         } elseif ($status == "redeem") {
 
             echo '<thead>
@@ -1244,110 +1270,132 @@ function reports_render_layaway_report($results)
                     <th>Deposit Date</th>
                     <th>Deposit Method</th>
                     <th>Deposit Amount</th>
-                    <th>Notes</th>
+                    <th>Deposit Notes</th>
                 </tr>
               </thead>';
-            echo '<tbody>';
-            foreach ($results as $index => $row) {
 
-                if (!is_object($row))
-                    continue;
-                $payments = json_decode($row->payment_details, true);
-                $deposit_payment_details = json_decode($row->deposit_payment_details, true);
-                $rowspan = max(count($payments), count($deposit_payment_details));
-                $isLast = ($index % 2 == 0) ? "group-end" : "";
+            $total_redeemed         = 0.0;
+
+            echo '<tbody>';
+            foreach ($results['rows'] as $index => $row) {
+                $payments                = json_decode($row->payment_details ?? '[]', true) ?? [];
+                $deposit_payment_details = json_decode($row->deposit_payment_details ?? '[]', true) ?? [];
+                $rowspan                 = max(count($payments), count($deposit_payment_details));
+                $isLast                  = ($index % 2 == 0) ? "group-end" : "";
 
                 for ($i = 0; $i < $rowspan; $i++) {
+                    $total_redeemed         += (float) ($payments[$i]['amount'] ?? 0);
+
                     echo "<tr class='{$isLast}'>";
 
-                    // Ensuring it covers multiple rowspan if we have tons of payment deposits
                     if ($i === 0) {
-                        echo "<td rowspan='{$rowspan}'>{$row->reference_num}</td>";
-                        echo "<td rowspan='{$rowspan}'>" . explode(" ", $row->payment_date)[0] . "</td>";
-                        echo "<td rowspan='{$rowspan}'>{$row->first_name} {$row->last_name}</td>";
-                        echo "<td rowspan='{$rowspan}'>{$row->salesperson_first_name} {$row->salesperson_last_name}</td>";
-                        echo "<td rowspan='{$rowspan}'>{$payments[$i]['method']}</td>";
-                        echo "<td rowspan='{$rowspan}'>{$payments[$i]['amount']}</td>";
-                    } else {
-                        echo "<td>" . ($payments[$i]['method'] ?? '') . "</td>";
-                        echo "<td>" . ($payments[$i]['amount'] ?? '') . "</td>";
-                    }
-                    if ($i === 0) {
-                        echo "<td>{$row->layaway_reference_num}</td>";
-                        echo "<td>" . explode(" ", $row->layaway_date)[0] . "</td>";
-                        echo "<td>{$deposit_payment_details[$i]['method']}</td>";
-                        echo "<td>{$deposit_payment_details[$i]['amount']}</td>";
-                    } else {
-                        echo "<td>" . ($deposit_payment_details[$i]['method'] ?? '') . "</td>";
-                        echo "<td>" . ($deposit_payment_details[$i]['amount'] ?? '') . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->reference_num) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html(explode(" ", $row->payment_date)[0]) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->first_name) . " " . esc_html($row->last_name) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->salesperson_first_name) . " " . esc_html($row->salesperson_last_name) . "</td>";
                     }
 
+                    echo "<td>" . esc_html($payments[$i]['method'] ?? '') . "</td>";
+                    echo "<td>" . esc_html(number_format((float) ($payments[$i]['amount'] ?? 0), 2)) . "</td>";
+
                     if ($i === 0) {
-                        echo "<td rowspan='{$rowspan}'>{$row->notes}</td>";
+                        echo "<td>" . esc_html($row->layaway_reference_num) . "</td>";
+                        echo "<td>" . esc_html(explode(" ", $row->layaway_date)[0]) . "</td>";
+                    } else {
+                        echo "<td></td><td></td>";
+                    }
+
+                    echo "<td>" . esc_html($deposit_payment_details[$i]['method'] ?? '') . "</td>";
+                    echo "<td>" . esc_html(number_format((float) ($deposit_payment_details[$i]['amount'] ?? 0), 2)) . "</td>";
+
+                    if ($i === 0) {
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->notes) . "</td>";
                     }
                     echo '</tr>';
                 }
             }
+            echo '</tbody>';
+            echo '<tfoot>';
+            echo '<tr>';
+            echo '<td colspan="11" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">Total Redeemed: $' . number_format($total_redeemed, 2) . '</td>';
+            echo '</tr>';
+            echo '</tfoot>';
         } else {
+            // Outstanding
             echo '<thead>
                 <tr>
                     <th>Invoice</th>
                     <th>Date</th>
                     <th>Customer</th>
                     <th>Salesperson</th>
-                    <th>Method</th>
+                    <th>Deposit Method</th>
                     <th>Amount</th>
                     <th>Redeemed Invoice</th>
                     <th>Redeemed Date</th>
                     <th>Redeemed Amount</th>
+                    <th>Remaining Amount</th>
                     <th>Notes</th>
                 </tr>
               </thead>';
-            echo '<tbody>';
-            foreach ($results as $index => $row) {
 
-                if (!is_object($row))
-                    continue;
-                $payments = json_decode($row->payment_details, true);
-                $redeem_payment_details = json_decode($row->redeem_payment_details, true);
+            $total_deposited = 0.0;
+            $total_remaining = 0.0;
+
+            echo '<tbody>';
+            foreach ($results["rows"] as $index => $row) {
+                $payments                   = json_decode($row->payment_details ?? '[]', true) ?? [];
+                $redeem_payment_details     = json_decode($row->redeem_payment_details ?? '[]', true) ?? [];
                 $redeem_payment_details_len = empty($redeem_payment_details) ? 0 : count($redeem_payment_details);
-                $rowspan = max(count($payments), $redeem_payment_details_len);
-                custom_log($row);
-                $isLast = ($index % 2 == 0) ? "group-end" : "";
+                $rowspan                     = max(count($payments), $redeem_payment_details_len);
+                $isLast                      = ($index % 2 == 0) ? "group-end" : "";
+
+                $total_remaining += (float) $row->remaining_amount;
 
                 for ($i = 0; $i < $rowspan; $i++) {
+                    $total_deposited += (float) ($payments[$i]['amount'] ?? 0);
+
                     echo "<tr class='{$isLast}'>";
 
-                    // Ensuring it covers multiple rowspan if we have tons of payment deposits
                     if ($i === 0) {
-                        echo "<td rowspan='{$rowspan}'>{$row->reference_num}</td>";
-                        echo "<td rowspan='{$rowspan}'>" . explode(" ", $row->payment_date)[0] . "</td>";
-                        echo "<td rowspan='{$rowspan}'>{$row->first_name} {$row->last_name}</td>";
-                        echo "<td rowspan='{$rowspan}'>{$row->salesperson_first_name} {$row->salesperson_last_name}</td>";
-                        echo "<td >{$payments[$i]['method']}</td>";
-                        echo "<td >{$payments[$i]['amount']}</td>";
-                    } else {
-                        echo "<td>" . ($payments[$i]['method'] ?? '') . "</td>";
-                        echo "<td>" . ($payments[$i]['amount'] ?? '') . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->reference_num) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html(explode(" ", $row->payment_date)[0]) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->first_name) . " " . esc_html($row->last_name) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->salesperson_first_name) . " " . esc_html($row->salesperson_last_name) . "</td>";
                     }
 
+                    echo "<td>" . esc_html($payments[$i]['method'] ?? '') . "</td>";
+                    echo "<td>" . esc_html(number_format((float) ($payments[$i]['amount'] ?? 0), 2)) . "</td>";
+
                     if ($redeem_payment_details_len > $i) {
-                        echo "<td>" . ($redeem_payment_details[$i]['reference_num'] ?? '') . "</td>";
-                        echo "<td>" . explode(" ", $redeem_payment_details[$i]['date'])[0] . "</td>";
-                        echo "<td>" . ($redeem_payment_details[$i]['amount'] ?? '') . "</td>";
+                        echo "<td>" . esc_html($redeem_payment_details[$i]['reference_num'] ?? '') . "</td>";
+                        echo "<td>" . esc_html(explode(" ", $redeem_payment_details[$i]['date'])[0]) . "</td>";
+                        echo "<td>" . esc_html(number_format((float) ($redeem_payment_details[$i]['amount'] ?? 0), 2)) . "</td>";
                     } else {
                         echo "<td></td><td></td><td></td>";
                     }
+
                     if ($i === 0) {
-                        echo "<td rowspan='{$rowspan}'>{$row->notes}</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->notes) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html(number_format((float) $row->remaining_amount, 2)) . "</td>";
                     }
                     echo '</tr>';
                 }
             }
+            echo '</tbody>';
+            echo '<tfoot>';
+            echo '<tr>';
+            echo '<td colspan="6" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">Total Deposited: $' . number_format($total_deposited, 2) . '</td>';
+            echo '<td colspan="5" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">Total Remaining: $' . number_format($total_remaining, 2) . '</td>';
+            echo '</tr>';
+            echo '</tfoot>';
         }
 
         echo '</table>';
         echo '</div>';
+        echo '</div>';
+    } else {
+        echo '<p>No layaway reports found for this store.</p>';
+        return;
     }
 }
 
@@ -1550,9 +1598,13 @@ function reports_get_credit_results()
 function reports_render_credit_report($results)
 {
     if ($results) {
-        $store_locations = mji_get_locations();
-        $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
-        $location_name = $location_obj ? $location_obj->name : 'All Location';
+        if (isset($_GET['location']) && !empty($_GET['location'])) {
+            $store_locations = mji_get_locations();
+            $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+            $location_name = $location_obj->name;
+        } else {
+            $location_name =  'All Location';
+        }
 
         $start_date = explode(" ", $results['start_date'])[0];
         $end_date = explode(" ", $results['end_date'])[0];
@@ -1851,9 +1903,13 @@ function reports_get_refund_results()
 function reports_render_refund_report($results)
 {
     if ($results) {
-        $store_locations = mji_get_locations();
-        $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
-        $location_name = $location_obj ? $location_obj->name : 'All Location';
+        if (isset($_GET['location']) && !empty($_GET['location'])) {
+            $store_locations = mji_get_locations();
+            $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+            $location_name = $location_obj->name;
+        } else {
+            $location_name =  'All Location';
+        }
 
         $start_date = explode(" ", $results['start_date'])[0];
         $end_date = explode(" ", $results['end_date'])[0];
@@ -2211,9 +2267,13 @@ function reports_get_financial_results()
 function reports_render_financial_report($results)
 {
     if ($results) {
-        $store_locations = mji_get_locations();
-        $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
-        $location_name = $location_obj ? $location_obj->name : 'All Location';
+        if (isset($_GET['location']) && !empty($_GET['location'])) {
+            $store_locations = mji_get_locations();
+            $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+            $location_name = $location_obj->name;
+        } else {
+            $location_name =  'All Location';
+        }
 
         $start_date = explode(" ", $results['start_date'])[0];
         $end_date = explode(" ", $results['end_date'])[0];
