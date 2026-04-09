@@ -121,6 +121,9 @@ function reports_render_sales_section()
 
 function reports_render_sales_filters()
 {
+    $salesperson_id = absint($_GET['salesperson']);
+    $location_id = absint($_GET['location']);
+    $brands_id = absint($_GET['brands']);
 ?>
     <form method="get" action="">
         <input type="hidden" name="page" value="reports-management">
@@ -156,19 +159,19 @@ function reports_render_sales_filters()
             <tr>
                 <th scope="row"><label for="salesperson">Salesperson</label></th>
                 <td>
-                    <?= mji_salesperson_dropdown(false) ?>
+                    <?= mji_salesperson_dropdown(false, $salesperson_id) ?>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><label for="location">Store</label></th>
                 <td>
-                    <?= mji_store_dropdown(false) ?>
+                    <?= mji_store_dropdown(false, $location_id) ?>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><label for="brands">Brand</label></th>
                 <td>
-                    <?= mji_brands_dropdown(false) ?>
+                    <?= mji_brands_dropdown(false, $brands_id) ?>
                 </td>
             </tr>
         </table>
