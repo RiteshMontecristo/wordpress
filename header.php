@@ -260,8 +260,8 @@
                     </div> -->
 
                     <a href="<?php echo esc_url(home_url('/')); ?>" class="custom-logo-link" rel="home" aria-current="page">
-                        <img width="250px" height="40px" fetchpriority="high" src="<?php echo get_stylesheet_directory_uri() . "/assets/MJI1978-dal-min.svg"  ?> " class="custom-logo exclude-litespeed-lazyload" title="Montecristo Jewellers" alt="Montecristo Jewellers" decoding="async"></a>
-                 
+                        <img width="250px" height="40px" fetchpriority="high" src="<?php echo get_stylesheet_directory_uri() . "/assets/MJI1978-dal-min.svg"  ?> " class="custom-logo exclude-litespeed-lazyload" title="Montecristo Jewellers" alt="Montecristo Jewellers" decoding="async">
+                    </a>
                     <button id="site-navigation-menu-toggle" class="menu-toggle" aria-controls="site-navigation" aria-expanded="false"><span></span></button>
                 </div>
             </div>
@@ -314,7 +314,6 @@
                                     <ul class="children-menu-container">
                                         <li><a href="/boutiques/richmond">Richmond</a></li>
                                         <li><a href="/boutiques/downtown">Downtown Vancouver</a></li>
-                                        <li><a href="/boutiques/metrotown">Metrotown</a></li>
                                     </ul>
                                 </li>
                                 <li><a href="/our-story"><span>About Us</span></a></li>

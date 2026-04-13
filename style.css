@@ -1168,6 +1168,8 @@ button.menu-toggle span::before {
 
 .boutiques > div img {
   width: calc(100%);
+  max-height: 350px;
+  object-position: bottom;
 }
 
 .boutiques h3 {
@@ -1240,10 +1242,6 @@ button.menu-toggle span::before {
   .home .services-container > div {
     flex: 0 0 17.9%;
     align-items: center;
-  }
-
-  .boutiques > div {
-    width: calc(33.33% - 2%);
   }
 }
 
