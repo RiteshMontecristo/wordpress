@@ -170,7 +170,7 @@ function create_payments_table()
         location_id BIGINT,
         order_id BIGINT NULL,         
         reference_num VARCHAR(50),
-        method ENUM('cash', 'cheque','debit', 'visa', 'master_card', 'amex', 'discover', 'travel_cheque', 'cup', 'alipay', 'layaway', 'gift_card', 'credit') NOT NULL,
+        method ENUM('cash', 'cheque','debit', 'visa', 'master_card', 'amex', 'travel_cheque', 'cup', 'alipay', 'layaway', 'gift_card', 'credit') NOT NULL,
         amount DECIMAL(10,2) NOT NULL,
         transaction_type ENUM('purchase', 'layaway_deposit', 'layaway_redemption', 'credit', 'credit_redemption') NOT NULL DEFAULT 'purchase',
         payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,

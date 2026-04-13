@@ -117,11 +117,6 @@ function inventory_page()
                     </div>
 
                     <div>
-                        <label for="discover">Discover:</label>
-                        <input type="number" step="0.01" id="discover" name="discover">
-                    </div>
-
-                    <div>
                         <label for="bank_draft">Bank Draft:</label>
                         <input type="number" step="0.01" id="bank_draft" name="bank_draft">
                     </div>
@@ -336,11 +331,6 @@ function inventory_page()
                     <div>
                         <label for="amex">Amex:</label>
                         <input type="number" min="0" step="0.01" id="amex" name="amex">
-                    </div>
-
-                    <div>
-                        <label for="discover">Discover:</label>
-                        <input type="number" min="0" step="0.01" id="discover" name="discover">
                     </div>
 
                     <div>
@@ -565,7 +555,7 @@ add_action('wp_ajax_getLayaway', 'get_layaway_list');
 function add_layaway()
 {
     global $wpdb;
-    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'bank_draft', 'cup', 'alipay', 'wire', 'trade_in', 'credit'];
+    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'bank_draft', 'cup', 'alipay', 'wire', 'trade_in', 'credit'];
     $payments = [];
     $payments_table = $wpdb->prefix . 'mji_payments';
     $layaway_table = $wpdb->prefix . 'mji_layaways';
@@ -954,7 +944,7 @@ function get_remaining_credit_balance($credit_id, $customer_id, $location_id)
 
 function get_payments($post_data, $expected_total, $customer_id, $location_id)
 {
-    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'discover', 'bank_draft', 'cup', 'alipay', 'wire'];
+    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'bank_draft', 'cup', 'alipay', 'wire'];
     $payments = [];
     $payment_total = 0;
 

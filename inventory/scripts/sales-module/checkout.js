@@ -17,7 +17,6 @@ export const CheckoutSelector = {
       visa: document.querySelector("#cart #visa"),
       mastercard: document.querySelector("#cart #master_card"),
       amex: document.querySelector("#cart #amex"),
-      discover: document.querySelector("#cart #discover"),
       bankDraft: document.querySelector("#cart #bank_draft"),
       cup: document.querySelector("#cart #cup"),
       alipay: document.querySelector("#cart #alipay"),

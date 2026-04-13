@@ -711,11 +711,6 @@ function render_invoice($results)
                                     </div>
 
                                     <div class="payment-item">
-                                        <label for="discover">Discover:</label>
-                                        <input type="number" min="0" step="0.01" id="discover" name="discover">
-                                    </div>
-
-                                    <div class="payment-item">
                                         <label for="bank_draft">Bank Draft:</label>
                                         <input type="number" min="0" step="0.01" id="bank_draft" name="bank_draft">
                                     </div>
@@ -1395,11 +1390,6 @@ function render_layaway_invoice($invoice)
                             </div>
 
                             <div class="payment-item">
-                                <label for="discover">Discover:</label>
-                                <input type="number" min="0" step="0.01" id="discover" name="discover">
-                            </div>
-
-                            <div class="payment-item">
                                 <label for="bank_draft">Bank Draft:</label>
                                 <input type="number" min="0" step="0.01" id="bank_draft" name="bank_draft">
                             </div>
@@ -2049,7 +2039,6 @@ function sanitize_and_validate_return($post_data)
         'visa',
         'master_card',
         'amex',
-        'discover',
         'bank_draft',
         'cup',
         'alipay',
@@ -2771,7 +2760,6 @@ function create_refund_layaway()
         'visa',
         'master_card',
         'amex',
-        'discover',
         'bank_draft',
         'cup',
         'alipay',
@@ -2927,7 +2915,6 @@ function create_refund_credit()
         'visa',
         'master_card',
         'amex',
-        'discover',
         'bank_draft',
         'cup',
         'alipay',
