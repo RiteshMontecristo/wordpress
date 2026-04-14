@@ -4,8 +4,26 @@ document
     const table = document.getElementById("inventoryTable");
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.table_to_sheet(table);
-    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
 
+    // Append footer totals (moved out of <tfoot> into a separate #reportTotals element)
+    const footer = document.getElementById("reportTotals");
+    if (footer) {
+      if (footer.tagName === "TABLE") {
+        // Financial report: footer is a full table — append its rows directly
+        XLSX.utils.sheet_add_dom(ws, footer, { origin: -1 });
+      } else {
+        // All other reports: footer is a <div> with <p> tags or plain text
+        const lines = Array.from(footer.querySelectorAll("p")).map((p) =>
+          p.innerText.trim()
+        );
+        if (lines.length === 0 && footer.innerText.trim()) {
+          lines.push(footer.innerText.trim());
+        }
+        XLSX.utils.sheet_add_aoa(ws, lines.map((l) => [l]), { origin: -1 });
+      }
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
     XLSX.writeFile(
       wb,
       "inventory_report_" + new Date().toISOString().slice(0, 10) + ".xlsx",

@@ -525,18 +525,12 @@ function reports_render_sales_report($results)
 
         echo '
                 </tbody>
-                <tfoot>
-                    <tr>
-                        <th colspan="17">Total Items: ' . $total_items . ' &nbsp;|&nbsp; Total Cost: $' . number_format($items_cost, 2) . ' &nbsp;|&nbsp; Total Retail: $' . number_format($items_retail, 2) . ' &nbsp;|&nbsp; Total Retail Paid: $' . number_format($items_retail_paid, 2) . ' &nbsp;|&nbsp; Total Profit: $' . number_format($items_profit, 2) . ' &nbsp;|&nbsp; Margin: ' . number_format($items_margin, 2) . '%</th>
-                    </tr>
-                    <tr>
-                        <th colspan="17">Total Services: ' . $total_services . ' &nbsp;|&nbsp; Total Cost: $' . number_format($services_cost, 2) . ' &nbsp;|&nbsp; Total Retail Paid: $' . number_format($services_retail_paid, 2) . ' &nbsp;|&nbsp; Total Profit: $' . number_format($services_profit, 2) . ' &nbsp;|&nbsp; Margin: ' . number_format($services_margin, 2) . '%</th>
-                    </tr>
-                    <tr>
-                        <th colspan="17">Grand Total &nbsp;|&nbsp; Total Cost: $' . number_format($total_cost, 2) . ' &nbsp;|&nbsp; Total Retail: $' . number_format($total_retail, 2) . ' &nbsp;|&nbsp; Total Retail Paid: $' . number_format($total_retail_paid, 2) . ' &nbsp;|&nbsp; Total Profit: $' . number_format($total_profit, 2) . ' &nbsp;|&nbsp; Margin: ' . number_format($total_margin, 2) . '%</th>
-                    </tr>
-                </tfoot>
             </table>
+            <div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; line-height:1.9; font-weight:bold;">
+                <p style="margin:0; padding:3px 0; border-bottom:1px solid #e0e0e0;">Items &nbsp;&mdash;&nbsp; Count: ' . $total_items . ' &nbsp;|&nbsp; Cost: $' . number_format($items_cost, 2) . ' &nbsp;|&nbsp; Retail: $' . number_format($items_retail, 2) . ' &nbsp;|&nbsp; Retail Paid: $' . number_format($items_retail_paid, 2) . ' &nbsp;|&nbsp; Profit: $' . number_format($items_profit, 2) . ' &nbsp;|&nbsp; Margin: ' . number_format($items_margin, 2) . '%</p>
+                <p style="margin:0; padding:3px 0; border-bottom:1px solid #e0e0e0;">Services &nbsp;&mdash;&nbsp; Count: ' . $total_services . ' &nbsp;|&nbsp; Cost: $' . number_format($services_cost, 2) . ' &nbsp;|&nbsp; Retail Paid: $' . number_format($services_retail_paid, 2) . ' &nbsp;|&nbsp; Profit: $' . number_format($services_profit, 2) . ' &nbsp;|&nbsp; Margin: ' . number_format($services_margin, 2) . '%</p>
+                <p style="margin:0; padding:3px 0;">Grand Total &nbsp;&mdash;&nbsp; Cost: $' . number_format($total_cost, 2) . ' &nbsp;|&nbsp; Retail: $' . number_format($total_retail, 2) . ' &nbsp;|&nbsp; Retail Paid: $' . number_format($total_retail_paid, 2) . ' &nbsp;|&nbsp; Profit: $' . number_format($total_profit, 2) . ' &nbsp;|&nbsp; Margin: ' . number_format($total_margin, 2) . '%</p>
+            </div>
         </div>
         ';
     } else {
@@ -634,8 +628,7 @@ function reports_get_inventory_result()
     $end_raw = !empty($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
     $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
     $brands = !empty($_GET['brands']) ? intval($_GET['brands']) : null;
-    $allowed_statuses = ['in_stock', 'sold', 'out_of_status'];
-    $status = in_array($_GET['status'] ?? '', $allowed_statuses) ? $_GET['status'] : 'in_stock';
+    $status = !empty($_GET['status']) ? $_GET['status'] : "in_stock";
     $search_text = !empty($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
 
     $start_ts = strtotime($start_raw);
@@ -696,9 +689,6 @@ function reports_get_inventory_result()
         $status_params = array_merge($status_params, [$start_date, $end_date]);
     }
 
-    $posts_table = $wpdb->prefix . 'posts';
-    $postmeta_table = $wpdb->prefix . 'postmeta';
-
     $query = "
     SELECT
         i.id AS inventory_unit_id,
@@ -708,25 +698,12 @@ function reports_get_inventory_result()
         i.serial,
         i.cost_price,
         i.retail_price,
-        i.notes,
         m.name AS model_name,
         latest_status.to_status AS latest_status,
         latest_status.created_at AS latest_status_date,
-        status_events.events,
-        p.post_title AS product_name,
-        p.post_content AS product_description,
-        p.post_excerpt AS product_short_description,
-        p.post_type AS product_type,
-        pm_thumb.meta_value AS thumbnail_id
+        status_events.events
     FROM {$inventory_table} i
 
-    -- Join WP post for product name and description
-    LEFT JOIN {$posts_table} p
-        ON p.ID = COALESCE(i.wc_product_variant_id, i.wc_product_id)
-    -- Join postmeta for thumbnail only
-    LEFT JOIN {$postmeta_table} pm_thumb
-        ON pm_thumb.post_id = COALESCE(i.wc_product_variant_id, i.wc_product_id)
-        AND pm_thumb.meta_key = '_thumbnail_id'
     -- Join model
     LEFT JOIN {$models_table} m
         ON m.id = i.model_id
@@ -774,17 +751,23 @@ function reports_get_inventory_result()
                 )
             ) AS events
         FROM (
-            SELECT inventory_unit_id, from_status, to_status, reference_num, created_at
+            SELECT
+                inventory_unit_id,
+                from_status,
+                to_status,
+                reference_num,
+                created_at
             FROM {$inventory_status_history}
             ORDER BY inventory_unit_id, created_at
         ) AS ish
+        
         -- Get FIRST payment per reference_num
         LEFT JOIN (
-            SELECT
+            SELECT 
                 reference_num,
                 customer_id,
                 salesperson_id,
-                ROW_NUMBER() OVER (PARTITION BY reference_num) AS rn
+                ROW_NUMBER() OVER (PARTITION BY reference_num ) AS rn
             FROM {$payments_table}
         ) p ON p.reference_num = ish.reference_num AND p.rn = 1
         -- Get customer name
@@ -792,7 +775,7 @@ function reports_get_inventory_result()
         -- Get salesperson name
         LEFT JOIN {$salespeople_table} s ON s.id = p.salesperson_id
         GROUP BY ish.inventory_unit_id
-    ) status_events
+    ) status_events 
     ON status_events.inventory_unit_id = i.id
     WHERE 1=1 {$where_clause}
     ";
@@ -863,36 +846,42 @@ function reports_render_inventory_report($results)
 
     foreach ($all_rows as $row) {
 
-        if (empty($row->product_name)) {
+        $product_id = $row->wc_product_variant_id ?: $row->wc_product_id;
+        $product = wc_get_product($product_id);
+
+        if (!$product) {
             $missing_count++;
             continue;
         }
 
-        $total_count++;
-        $total_cost_price += (float) $row->cost_price;
-        $total_retail_price += (float) $row->retail_price;
-
         $events = json_decode($row->events);
-        if (is_array($events)) {
-            usort($events, fn($a, $b) => strcmp($a->date, $b->date));
-        }
-
+        $sku = $row->sku;
+        $model = $row->model_name ?: '';
+        $serial = $row->serial ?: '';
+        $product_status = $row->latest_status ?: '';
         $cost_price = (float) $row->cost_price;
         $retail_price = (float) $row->retail_price;
-        $desc = $row->wc_product_variant_id ? $row->product_description : $row->product_short_description;
-        $image_url = $row->thumbnail_id
-            ? wp_get_attachment_image_url((int) $row->thumbnail_id, 'woocommerce_gallery_thumbnail')
+
+        $total_count++;
+        $total_cost_price += $cost_price;
+        $total_retail_price += $retail_price;
+
+        $desc = $row->wc_product_variant_id ? $product->get_description() : $product->get_short_description();
+
+        $image_id = $product->get_image_id();
+        $image_url = $image_id
+            ? wp_get_attachment_image_url($image_id, 'woocommerce_gallery_thumbnail')
             : wc_placeholder_img_src('woocommerce_gallery_thumbnail');
 
         echo '<tr>';
-        echo '<td><img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($image_url) . '" alt="' . esc_attr($row->product_name) . '"></td>';
-        echo '<td>' . nl2br(esc_html($desc)) . '</td>';
-        echo '<td>' . esc_html($row->sku) . '</td>';
-        echo '<td>' . esc_html($row->model_name ?: '') . '</td>';
-        echo '<td>' . esc_html($row->serial ?: '') . '</td>';
-        echo '<td>' . esc_html($row->latest_status ?: '') . '</td>';
-        echo '<td>$' . number_format($cost_price, 2) . '</td>';
-        echo '<td>$' . number_format($retail_price, 2) . '</td>';
+        echo '<td><img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($image_url) . '" alt="' . esc_attr($product->get_name()) . '"></td>';
+        echo '<td>' . wp_kses_post(nl2br($desc)) . '</td>';
+        echo '<td>' . esc_html($sku) . '</td>';
+        echo '<td>' . esc_html($model) . '</td>';
+        echo '<td>' . esc_html($serial) . '</td>';
+        echo '<td>' . esc_html($product_status) . '</td>';
+        echo '<td>' . number_format($cost_price, 2) . '</td>';
+        echo '<td>' . number_format($retail_price, 2) . '</td>';
         echo '<td style="white-space:nowrap;">';
 
         if ($events) {
@@ -900,6 +889,7 @@ function reports_render_inventory_report($results)
             foreach ($events as $event) {
                 $updated_date = date('Y-m-d', strtotime($event->date));
 
+                $status_label = '';
                 switch ($event->to_status) {
                     case 'in_stock':
                         $status_label = !empty($event->reference_num) ? 'Returned' : 'In Stock';
@@ -937,30 +927,25 @@ function reports_render_inventory_report($results)
         }
 
         echo '</td>';
-        echo '<td>' . nl2br(esc_html($row->notes ?? '')) . '</td>';
+        echo '<td>' . wp_kses_post(nl2br($row->notes ?? '')) . '</td>';
         echo '</tr>';
     }
 
     echo '</tbody>';
-    echo '<tfoot>
-            <tr style="font-weight:bold; position:sticky; bottom:0; background:#f1f1f1; z-index:10;">
-                <td colspan="10" style="padding:8px 10px;">
-                    Total: ' . $total_count . ' items
-                    &nbsp;|&nbsp; Total Cost: $' . number_format($total_cost_price, 2) . '
-                    &nbsp;|&nbsp; Total Retail: $' . number_format($total_retail_price, 2) . '
-                </td>
-            </tr>
-          </tfoot>';
     echo '</table>';
     echo '</div>'; // end scroll wrapper
+    echo '<div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; font-weight:bold;">Total Items: ' . $total_count . ' &nbsp;&nbsp;&nbsp; Total Cost: $' . number_format($total_cost_price, 2) . ' &nbsp;&nbsp;&nbsp; Total Retail: $' . number_format($total_retail_price, 2) . '</div>';
 
     echo '</div>'; // end report div
 
+    // Missing products notice
     if ($missing_count > 0) {
-        echo '<div class="notice notice-warning" style="margin-top:10px;">
-                <p>' . $missing_count . ' inventory units could not be matched to a WooCommerce product and were excluded.</p>
+        echo '<div class="notice notice-error" style="margin-top:10px;">
+                <p>Missing ' . $missing_count . ' products. Need to investigate!</p>
               </div>';
     }
+
+    echo '</div>'; // end container
 }
 
 // Reports layaway Section
@@ -1243,11 +1228,8 @@ function reports_render_layaway_report($results)
                 }
             }
             echo '</tbody>';
-            echo '<tfoot>';
-            echo '<tr><td colspan="7" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">';
-            echo 'Total Deposits: $' . number_format($total_deposit, 2);
-            echo '</td></tr>';
-            echo '</tfoot>';
+            echo '</table>';
+            echo '<div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; font-weight:bold;">Total Deposits: $' . number_format($total_deposit, 2) . '</div>';
         } elseif ($status == "redeem") {
 
             echo '<thead>
@@ -1307,11 +1289,8 @@ function reports_render_layaway_report($results)
                 }
             }
             echo '</tbody>';
-            echo '<tfoot>';
-            echo '<tr>';
-            echo '<td colspan="11" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">Total Redeemed: $' . number_format($total_redeemed, 2) . '</td>';
-            echo '</tr>';
-            echo '</tfoot>';
+            echo '</table>';
+            echo '<div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; font-weight:bold;">Total Redeemed: $' . number_format($total_redeemed, 2) . '</div>';
         } else {
             // Outstanding
             echo '<thead>
@@ -1374,15 +1353,10 @@ function reports_render_layaway_report($results)
                 }
             }
             echo '</tbody>';
-            echo '<tfoot>';
-            echo '<tr>';
-            echo '<td colspan="6" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">Total Deposited: $' . number_format($total_deposited, 2) . '</td>';
-            echo '<td colspan="5" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">Total Remaining: $' . number_format($total_remaining, 2) . '</td>';
-            echo '</tr>';
-            echo '</tfoot>';
+            echo '</table>';
+            echo '<div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; font-weight:bold;">Total Deposited: $' . number_format($total_deposited, 2) . ' &nbsp;&nbsp;&nbsp; Total Remaining: $' . number_format($total_remaining, 2) . '</div>';
         }
 
-        echo '</table>';
         echo '</div>';
         echo '</div>';
     } else {
@@ -1642,6 +1616,7 @@ function reports_render_credit_report($results)
             </tr>
           </thead>';
             echo '<tbody>';
+            $total_credit_issued = 0.0;
             foreach ($results['rows'] as $index => $row) {
 
                 $payments = json_decode($row->payment_details, true);
@@ -1654,6 +1629,7 @@ function reports_render_credit_report($results)
 
                 foreach ($payments as $payment) {
 
+                    $total_credit_issued += (float) $payment['amount'];
                     $isLast = ($index % 2 == 0) ? "group-end" : "";
                     echo "<tr class='{$isLast}'>";
 
@@ -1683,6 +1659,9 @@ function reports_render_credit_report($results)
                     echo "</tr>";
                 }
             }
+            echo '</tbody>';
+            echo '</table>';
+            echo '<div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; font-weight:bold;">Total Credit Issued: $' . number_format($total_credit_issued, 2) . '</div>';
         } elseif ($status == "redeem") {
 
             echo '<thead>
@@ -1701,6 +1680,7 @@ function reports_render_credit_report($results)
                 </tr>
               </thead>';
             echo '<tbody>';
+            $total_credit_redeemed = 0.0;
             foreach ($results['rows'] as $index => $row) {
 
                 $payments = json_decode($row->payment_details ?? '[]', true) ?? [];
@@ -1715,6 +1695,7 @@ function reports_render_credit_report($results)
                     echo "<tr class='{$isLast}'>";
 
                     if ($i === 0) {
+                        $total_credit_redeemed += (float) ($payments[0]['amount'] ?? 0);
                         echo "<td rowspan='{$rowspan}'>" . esc_html($row->reference_num) . "</td>";
                         echo "<td rowspan='{$rowspan}'>" . esc_html(explode(" ", $row->payment_date)[0]) . "</td>";
                         echo "<td rowspan='{$rowspan}'>" . esc_html($row->first_name) . " " . esc_html($row->last_name) . "</td>";
@@ -1742,6 +1723,9 @@ function reports_render_credit_report($results)
                     echo '</tr>';
                 }
             }
+            echo '</tbody>';
+            echo '</table>';
+            echo '<div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; font-weight:bold;">Total Credit Redeemed: $' . number_format($total_credit_redeemed, 2) . '</div>';
         } else {
             echo '<thead>
                 <tr>
@@ -1813,15 +1797,10 @@ function reports_render_credit_report($results)
                 }
             }
             echo '</tbody>';
-            echo '<tfoot>';
-            echo '<tr>';
-            echo '<td colspan="6" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">Total Credit: $' . number_format($total_credit, 2) . '</td>';
-            echo '<td colspan="5" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">Total Remaining: $' . number_format($total_remaining, 2) . '</td>';
-            echo '</tr>';
-            echo '</tfoot>';
+            echo '</table>';
+            echo '<div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; font-weight:bold;">Total Credit: $' . number_format($total_credit, 2) . ' &nbsp;&nbsp;&nbsp; Total Remaining: $' . number_format($total_remaining, 2) . '</div>';
         }
 
-        echo '</table>';
         echo '</div>';
     }
 }
@@ -2059,13 +2038,8 @@ function reports_render_refund_report($results)
             }
         }
         echo '</tbody>';
-        echo '<tfoot>';
-        echo '<tr>';
-        echo '<td colspan="6" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">Total Refund: $' . number_format($total_refund, 2) . '</td>';
-        echo '<td colspan="4" style="position:sticky; bottom:0; background:#f1f1f1; z-index:10; font-weight:bold;">Total Original Amount: $' . number_format($total_original, 2) . '</td>';
-        echo '</tr>';
-        echo '</tfoot>';
         echo '</table>';
+        echo '<div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; font-weight:bold;">Total Refund: $' . number_format($total_refund, 2) . ' &nbsp;&nbsp;&nbsp; Total Original Amount: $' . number_format($total_original, 2) . '</div>';
         echo '</div>';
     }
 }
@@ -2684,10 +2658,10 @@ function reports_render_financial_report($results)
         }
 
         echo '</tbody>';
-        echo '<tfoot>';
+        echo '</table>';
 
         $footer_row = function (string $label, float $cost, float $retail, float $gst, float $pst) {
-            $td = 'style=" background:#f1f1f1; "';
+            $td = 'style="padding:4px 8px; border:1px solid #ddd; background:#f1f1f1;"';
             echo '<tr>';
             echo '<td colspan="2" ' . $td . '><strong>' . esc_html($label) . '</strong></td>';
             echo '<td ' . $td . '>Total Cost $' . number_format($cost, 2) . '</td>';
@@ -2700,12 +2674,12 @@ function reports_render_financial_report($results)
             echo '</tr>';
         };
 
+        echo '<table id="reportTotals" style="margin-top:6px; border-collapse:collapse; font-weight:bold; width:100%;">';
         $footer_row('Sales', $cost_total, $sales_total, $gst_total, $pst_total);
         $footer_row('Refunds', $refund_cost_total, $refund_sales_total, $refund_gst_total, $refund_pst_total);
         $footer_row('Credits', $credit_cost_total, $credit_sales_total, $credit_gst_total, $credit_pst_total);
-
-        echo '</tfoot>';
         echo '</table>';
+
         echo '</div>';
     }
 }
