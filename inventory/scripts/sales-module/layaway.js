@@ -97,19 +97,6 @@ export const LayawaySelector = {
       const salesperson = this.layawayForm.querySelector("#salesperson").value;
       const layawayDate = this.layawayForm.querySelector("#layaway-date").value;
 
-      const receiptCustomerName = this.layawayReceipt.querySelector(
-        "#receiptCustomerName",
-      );
-      const receiptCustomerAddress = this.layawayReceipt.querySelector(
-        "#receiptCustomerAddress",
-      );
-      const layawayTotalDiv =
-        this.layawayReceipt.querySelector("#layawayTotal");
-      const paymentAmount = this.layawayReceipt.querySelector("#paymentAmount");
-      const paymentMethod = this.layawayReceipt.querySelector("#paymentMode");
-      const receiptDate = this.layawayReceipt.querySelector("#receiptDate");
-      const salesmanName = this.layawayReceipt.querySelector("#salesmanName");
-      const layawayNotes = this.layawayReceipt.querySelector("#layawayNotes");
 
       if (
         cash === "" &&
@@ -147,30 +134,13 @@ export const LayawaySelector = {
         .then((result) => {
           if (result.success) {
             this.layawayReceipt.classList.remove("hidden");
+            this.layawayReceiptPrint.classList.remove("hidden");
             this.layawayFormDiv.classList.add("hidden");
 
-            receiptCustomerName.innerHTML = `${AppState.customer.firstName} ${AppState.customer.lastName}`;
-            receiptCustomerAddress.innerHTML = AppState.customer.address;
+            this.displayReceipt(result.data, layawayReference);
 
-            paymentAmount.innerHTML = result.data.payments
-              .map((payment) => `${formatCurrency(payment.amount)} CAD`)
-              .join("<br>");
-
-            paymentMethod.innerHTML = result.data.payments
-              .map((payment) => `${payment.method}`)
-              .join("<br>");
-
-            layawayTotalDiv.innerHTML =
-              formatCurrency(result.data.layaway_sum.layaway) +
-              ", " +
-              formatCurrency(result.data.layaway_sum.credit);
             AppState.layawayTotal = result.data.layaway_sum.layaway;
             AppState.creditTotal = result.data.layaway_sum.credit;
-            receiptDate.innerHTML = result.data.payment_date;
-            salesmanName.innerHTML = result.data.salesperson;
-            layawayNotes.textContent = result.data.notes
-              ? `Note: ${result.data.notes}`
-              : "";
             document.dispatchEvent(new CustomEvent("layaway:added"));
             this.layawayForm.reset();
           } else {
@@ -226,5 +196,55 @@ export const LayawaySelector = {
         }
       }, 3000);
     });
+  },
+
+  displayReceipt(data, reference) {
+    const paymentLines = data.payments
+      .map((payment) => `${payment.method}: $${formatCurrency(payment.amount)}`)
+      .join(", ");
+
+    const paymentTotal = data.payments.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0,
+    );
+
+    this.layawayReceipt.innerHTML = `
+      <header>
+        <div>
+          <h2>Montecristo Jewellers</h2>
+          <p><strong>Layaway Receipt</strong></p>
+        </div>
+        <div>
+          <address>
+            <p>${AppState.customer.firstName} ${AppState.customer.lastName}</p>
+            <p>${AppState.customer.address.split(",").join("<br/>")}</p>
+          </address>
+        </div>
+        <div>
+          <p>Reference # ${reference}</p>
+          <p>Payment on <time datetime="${data.payment_date}">${data.payment_date}</time></p>
+          <p>Served by ${data.salesperson}</p>
+        </div>
+      </header>
+
+      <main>
+        <table>
+          <tfoot>
+            <tr>
+              <td class="payment-summary">
+                ${data.notes ? `<p>${data.notes}</p>` : ""}
+                <p>Paid by ${paymentLines}</p>
+                <p>Thank you for shopping at Montecristo Jewellers</p>
+              </td>
+              <td>
+                <strong>Payment Amount: $${formatCurrency(paymentTotal)}</strong><br />
+                <strong>Layaway Total: $${formatCurrency(data.layaway_sum.layaway)}</strong><br />
+                <strong>Credit Total: $${formatCurrency(data.layaway_sum.credit)}</strong>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </main>
+    `;
   },
 };
