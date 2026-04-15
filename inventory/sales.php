@@ -180,37 +180,8 @@ function inventory_page()
 
         </div>
 
-        <div class="layaway-receipt hidden" id="layawayReceipt">
-
-            <header>
-                <h2>Montecristo Jewellers</h2>
-                <h3>Layaway Receipt</h3>
-            </header>
-
-            <main>
-                <div id="receiptCustomerInfo">
-                    <p>Customer: <span id="receiptCustomerName"></span></p>
-                    <p>Address: <span id="receiptCustomerAddress"></span></p>
-                </div>
-
-                <div>
-                    <p>Your Layaway as of today:</p>
-                    <p>Layaway and Credit Total: <span id="layawayTotal"></span></p>
-                    <p>Amount of Last payment made:<span id="paymentAmount"></span></p>
-                    <p>Last payment mode:<span id="paymentMode"></span></p>
-                    <p>Payment Date: <span id="receiptDate"></span></p>
-                    <p>Served by: <span id="salesmanName"></span></p>
-                </div>
-            </main>
-
-            <footer>
-                <p id="layawayNotes"></p>
-                <p>Thank you for shopping at Montecristo Jewellers!!</p>
-            </footer>
-
-            <button id="layawayPrintReceipt">Print Receipt</button>
-
-        </div>
+        <div class="layaway-receipt hidden" id="layawayReceipt"></div>
+        <button class="hidden" id="layawayPrintReceipt">Print Receipt</button>
 
         <div class="search-products hidden" id="search-products">
 
@@ -403,6 +374,10 @@ function inventory_page()
                     <div>
                         <label for="total">Total:</label>
                         <input type="number" readonly name="total" id="total"></input>
+                    </div>
+                    <div>
+                        <label for="remaining">Remaining:</label>
+                        <input type="number" readonly id="remaining" step="0.01" value="0"></input>
                     </div>
                 </div>
 

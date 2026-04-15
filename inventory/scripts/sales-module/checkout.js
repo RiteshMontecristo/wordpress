@@ -31,6 +31,7 @@ export const CheckoutSelector = {
     this.gst = document.querySelector("#cart #gst");
     this.pst = document.querySelector("#cart #pst");
     this.total = document.querySelector("#cart #total");
+    this.remaining = document.querySelector("#cart #remaining");
     this.saleResult = document.querySelector("#saleResult");
     this.receiptContent = document.querySelector("#receiptContent");
     this.salesPrintReceipt = document.querySelector("#salesPrintReceipt");
@@ -67,6 +68,11 @@ export const CheckoutSelector = {
 
     this.excludeGst.addEventListener("change", this.calculateTotal.bind(this));
     this.excludePst.addEventListener("change", this.calculateTotal.bind(this));
+
+    Object.values(this.payment).forEach((input) => {
+      input.addEventListener("focus", this.handlePaymentFocus.bind(this));
+      input.addEventListener("input", this.handlePaymentInput.bind(this));
+    });
     this.salesPrintReceipt?.addEventListener("click", () =>
       this.printReceipt(),
     );
@@ -135,6 +141,11 @@ export const CheckoutSelector = {
     });
 
     this.layawayContainer.innerHTML = layawayEl.join("");
+    this.layawayContainer.querySelectorAll("input").forEach((input) => {
+      input.addEventListener("focus", this.handlePaymentFocus.bind(this));
+      input.addEventListener("input", this.handlePaymentInput.bind(this));
+    });
+    this.updateRemaining();
   },
 
   renderCredit(data) {
@@ -148,6 +159,11 @@ export const CheckoutSelector = {
     });
 
     this.creditContainer.innerHTML = creditEl.join("");
+    this.creditContainer.querySelectorAll("input").forEach((input) => {
+      input.addEventListener("focus", this.handlePaymentFocus.bind(this));
+      input.addEventListener("input", this.handlePaymentInput.bind(this));
+    });
+    this.updateRemaining();
   },
 
   getTotals() {
@@ -163,7 +179,7 @@ export const CheckoutSelector = {
 
     const gst = Number((subtotal * gstRate).toFixed(2));
     const pst = Number((subtotal * pstRate).toFixed(2));
-    const total = subtotal + gst + pst;
+    const total = Number((subtotal + gst + pst).toFixed(2));
 
     return {
       subtotal: formatCurrency(subtotal),
@@ -185,6 +201,49 @@ export const CheckoutSelector = {
       const layawayInput = this.layaway;
       if (layawayInput) layawayInput.value = AppState.layawayTotal;
     }
+
+    this.updateRemaining();
+  },
+
+  getRemainingAmount() {
+    const { total } = this.getTotals();
+    let totalPaid = 0;
+
+    for (const input of Object.values(this.payment)) {
+      totalPaid += Number(input.value) || 0;
+    }
+    document.querySelectorAll("#cart .layaway").forEach((el) => {
+      totalPaid += parseFloat(el.value) || 0;
+    });
+    document.querySelectorAll("#cart .credit").forEach((el) => {
+      totalPaid += parseFloat(el.value) || 0;
+    });
+
+    return Math.max(0, Number((Number(total) - totalPaid).toFixed(2)));
+  },
+
+  updateRemaining() {
+    if (this.remaining) {
+      this.remaining.value = formatCurrency(this.getRemainingAmount());
+    }
+  },
+
+  handlePaymentFocus(e) {
+    const input = e.target;
+    if ((parseFloat(input.value) || 0) === 0) {
+      const remaining = this.getRemainingAmount();
+      if (remaining > 0) {
+        const max = parseFloat(input.max);
+        input.value = formatCurrency(
+          isNaN(max) ? remaining : Math.min(remaining, max),
+        );
+        this.updateRemaining();
+      }
+    }
+  },
+
+  handlePaymentInput() {
+    this.updateRemaining();
   },
 
   validateAndSubmitSale() {
