@@ -624,15 +624,15 @@ function reports_get_inventory_result()
 {
     global $wpdb;
 
-    $start_raw = !empty($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-    $end_raw = !empty($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
-    $location = !empty($_GET['location']) ? intval($_GET['location']) : null;
-    $brands = !empty($_GET['brands']) ? intval($_GET['brands']) : null;
-    $status = !empty($_GET['status']) ? $_GET['status'] : "in_stock";
-    $search_text = !empty($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
+    $start_raw   = !empty($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+    $end_raw     = !empty($_GET['end_date'])   ? sanitize_text_field($_GET['end_date'])   : '';
+    $location    = !empty($_GET['location'])   ? intval($_GET['location'])                : null;
+    $brands      = !empty($_GET['brands'])     ? intval($_GET['brands'])                  : null;
+    $status      = !empty($_GET['status'])     ? sanitize_text_field($_GET['status'])     : 'in_stock';
+    $search_text = !empty($_GET['search'])     ? sanitize_text_field($_GET['search'])     : '';
 
     $start_ts = strtotime($start_raw);
-    $end_ts = strtotime($end_raw);
+    $end_ts   = strtotime($end_raw);
 
     if ($start_ts === false || $end_ts === false) {
         echo '<p style="color:red">No start and end date provided.</p>';
@@ -640,33 +640,40 @@ function reports_get_inventory_result()
     }
 
     $start_date = date('Y-m-d', $start_ts);
-    $end_date = date('Y-m-d', $end_ts);
+    $end_date   = date('Y-m-d', $end_ts);
 
-    $inventory_table = $wpdb->prefix . 'mji_product_inventory_units';
-    $models_table = $wpdb->prefix . 'mji_models';
+    // Check cache before doing any work
+    $cache_key = 'mji_inv_report_' . md5($start_date . $end_date . $status . $location . $brands . $search_text);
+    $cached    = get_transient($cache_key);
+    if ($cached !== false) {
+        return $cached;
+    }
+
+    $inventory_table            = $wpdb->prefix . 'mji_product_inventory_units';
+    $models_table               = $wpdb->prefix . 'mji_models';
     $products_collections_table = $wpdb->prefix . 'mji_products_collections';
-    $collections_table = $wpdb->prefix . 'mji_collections';
-    $customers_table = $wpdb->prefix . 'mji_customers';
-    $salespeople_table = $wpdb->prefix . 'mji_salespeople';
-    $payments_table = $wpdb->prefix . 'mji_payments';
-    $inventory_status_history = $wpdb->prefix . 'mji_inventory_status_history';
+    $collections_table          = $wpdb->prefix . 'mji_collections';
+    $customers_table            = $wpdb->prefix . 'mji_customers';
+    $salespeople_table          = $wpdb->prefix . 'mji_salespeople';
+    $payments_table             = $wpdb->prefix . 'mji_payments';
+    $inventory_status_history   = $wpdb->prefix . 'mji_inventory_status_history';
 
-    $where = [];
+    $where  = [];
     $params = [];
 
     if ($location) {
-        $where[] = "i.location_id = %d";
+        $where[]  = 'i.location_id = %d';
         $params[] = $location;
     }
 
     if ($brands) {
-        $where[] = "i.brand_id = %d";
+        $where[]  = 'i.brand_id = %d';
         $params[] = $brands;
     }
 
     if (!empty($search_text)) {
-        $like = '%' . $wpdb->esc_like($search_text) . '%';
-        $where[] = "(i.sku LIKE %s OR i.serial LIKE %s OR m.name LIKE %s OR collections.collections LIKE %s)";
+        $like     = '%' . $wpdb->esc_like($search_text) . '%';
+        $where[]  = '(i.sku LIKE %s OR i.serial LIKE %s OR m.name LIKE %s OR collections.collections LIKE %s)';
         $params[] = $like;
         $params[] = $like;
         $params[] = $like;
@@ -675,124 +682,134 @@ function reports_get_inventory_result()
 
     $where_clause = $where ? ' AND ' . implode(' AND ', $where) : '';
 
-    // Build dynamic status filter FOR THE SUBQUERY
-    $status_subquery_where = "";
-    $status_params = [];
+    // Build dynamic status filter for the latest_status subquery
+    $status_subquery_where = '';
+    $status_params         = [];
 
-    if ($status == "in_stock") {
+    if ($status === 'in_stock') {
         $status_subquery_where = "AND ish.to_status = 'in_stock'";
-    } elseif ($status == "sold") {
+    } elseif ($status === 'sold') {
         $status_subquery_where = "AND ish.to_status = 'sold' AND ish.created_at BETWEEN %s AND %s";
-        $status_params = array_merge($status_params, [$start_date, $end_date]);
+        $status_params         = [$start_date, $end_date];
     } else {
         $status_subquery_where = "AND ish.to_status IN ('damaged', 'missing', 'rtv', 'dismantled') AND ish.created_at BETWEEN %s AND %s";
-        $status_params = array_merge($status_params, [$start_date, $end_date]);
+        $status_params         = [$start_date, $end_date];
     }
 
-    $query = "
-    SELECT
-        i.id AS inventory_unit_id,
-        i.wc_product_id,
-        i.wc_product_variant_id,
-        i.sku,
-        i.serial,
-        i.cost_price,
-        i.retail_price,
-        m.name AS model_name,
-        latest_status.to_status AS latest_status,
-        latest_status.created_at AS latest_status_date,
-        status_events.events
-    FROM {$inventory_table} i
-
-    -- Join model
-    LEFT JOIN {$models_table} m
-        ON m.id = i.model_id
-    -- Join collections
-    LEFT JOIN (
+    // -----------------------------------------------------------------------
+    // QUERY 1 — get matching inventory units with model, collections, and
+    // latest status. 
+    // -----------------------------------------------------------------------
+    $q1 = "
         SELECT
-            pc.product_id,
-            GROUP_CONCAT(c.name) as collections
-        FROM {$products_collections_table} pc
-        JOIN {$collections_table} c
-            ON c.id = pc.collection_id
-        GROUP BY pc.product_id
-    ) collections
-    ON collections.product_id = i.wc_product_id
-
-    -- if left join is needed then update the 1=1 to latest_status.id IS NOT NULL 
-    -- Latest status as of report end date
-    JOIN (
-        SELECT ish.*
-        FROM {$inventory_status_history} ish
+            i.id AS inventory_unit_id,
+            i.wc_product_id,
+            i.wc_product_variant_id,
+            i.sku,
+            i.serial,
+            i.cost_price,
+            i.retail_price,
+            m.name AS model_name,
+            latest_status.to_status  AS latest_status,
+            latest_status.created_at AS latest_status_date
+        FROM {$inventory_table} i
+        LEFT JOIN {$models_table} m ON m.id = i.model_id
+        LEFT JOIN (
+            SELECT pc.product_id, GROUP_CONCAT(c.name) AS collections
+            FROM {$products_collections_table} pc
+            JOIN {$collections_table} c ON c.id = pc.collection_id
+            GROUP BY pc.product_id
+        ) collections ON collections.product_id = i.wc_product_id
         JOIN (
-            SELECT inventory_unit_id, MAX(id) AS latest_id
-            FROM {$inventory_status_history}
-            WHERE created_at <= %s
-            GROUP BY inventory_unit_id
-        ) latest
-            ON latest.latest_id = ish.id
+            SELECT ish.*
+            FROM {$inventory_status_history} ish
+            JOIN (
+                SELECT inventory_unit_id, MAX(id) AS latest_id
+                FROM {$inventory_status_history}
+                WHERE created_at <= %s
+                GROUP BY inventory_unit_id
+            ) latest ON latest.latest_id = ish.id
             WHERE 1=1 {$status_subquery_where}
-    ) latest_status
-        ON latest_status.inventory_unit_id = i.id
+        ) latest_status ON latest_status.inventory_unit_id = i.id
+        WHERE 1=1 {$where_clause}
+    ";
 
-    LEFT JOIN (
+    $q1_params = array_merge(
+        [$end_date],    // latest_status: created_at <= %s
+        $status_params, // dynamic status filter
+        $params         // location/brand/search
+    );
+
+    $rows = $wpdb->get_results($wpdb->prepare($q1, $q1_params));
+
+    if (empty($rows)) {
+        $result = [
+            'rows'       => [],
+            'start_date' => $start_date,
+            'end_date'   => $end_date,
+            'status'     => $status,
+        ];
+        set_transient($cache_key, $result, 15 * MINUTE_IN_SECONDS);
+        return $result;
+    }
+
+    // -----------------------------------------------------------------------
+    // QUERY 2 — fetch status events ONLY for the matched unit IDs.
+    // Avoids aggregating the entire history table for all units.
+    // ORDER BY moved inside JSON_ARRAYAGG — no outer filesort needed.
+    // -----------------------------------------------------------------------
+    $unit_ids        = array_map('intval', wp_list_pluck($rows, 'inventory_unit_id'));
+    $id_placeholders = implode(',', array_fill(0, count($unit_ids), '%d'));
+
+    $q2 = "
         SELECT
             ish.inventory_unit_id,
             JSON_ARRAYAGG(
                 JSON_OBJECT(
-                    'from_status', ish.from_status,
-                    'to_status', ish.to_status,
-                    'reference_num', ish.reference_num,
-                    'date', ish.created_at,
-                    'customer_id', p.customer_id,
-                    'salesperson_id', p.salesperson_id,
-                    'customer_name', CONCAT(c.first_name, ' ', c.last_name),
+                    'from_status',      ish.from_status,
+                    'to_status',        ish.to_status,
+                    'reference_num',    ish.reference_num,
+                    'date',             ish.created_at,
+                    'customer_id',      p.customer_id,
+                    'salesperson_id',   p.salesperson_id,
+                    'customer_name',    CONCAT(c.first_name, ' ', c.last_name),
                     'salesperson_name', CONCAT(s.first_name, ' ', s.last_name)
                 )
+                ORDER BY ish.created_at
             ) AS events
-        FROM (
-            SELECT
-                inventory_unit_id,
-                from_status,
-                to_status,
-                reference_num,
-                created_at
-            FROM {$inventory_status_history}
-            ORDER BY inventory_unit_id, created_at
-        ) AS ish
-        
-        -- Get FIRST payment per reference_num
+        FROM {$inventory_status_history} ish
+        -- Get first payment per reference_num
         LEFT JOIN (
-            SELECT 
-                reference_num,
-                customer_id,
-                salesperson_id,
-                ROW_NUMBER() OVER (PARTITION BY reference_num ) AS rn
+            SELECT reference_num, customer_id, salesperson_id
             FROM {$payments_table}
-        ) p ON p.reference_num = ish.reference_num AND p.rn = 1
-        -- Get customer name
-        LEFT JOIN {$customers_table} c ON c.id = p.customer_id
-        -- Get salesperson name
+            GROUP BY reference_num
+        ) p ON p.reference_num = ish.reference_num
+        LEFT JOIN {$customers_table}   c ON c.id = p.customer_id
         LEFT JOIN {$salespeople_table} s ON s.id = p.salesperson_id
+        WHERE ish.inventory_unit_id IN ({$id_placeholders})
         GROUP BY ish.inventory_unit_id
-    ) status_events 
-    ON status_events.inventory_unit_id = i.id
-    WHERE 1=1 {$where_clause}
     ";
+    $events_rows = $wpdb->get_results($wpdb->prepare($q2, $unit_ids));
 
-    $all_params = array_merge(
-        [$end_date],                    // latest_status subquery: created_at <= %s
-        $status_params,                 // dynamic status filter params
-        $params                         // search/location/brand filters
-    );
+    // Index events by unit_id for O(1) merge
+    $events_map = [];
+    foreach ($events_rows as $ev) {
+        $events_map[$ev->inventory_unit_id] = $ev->events;
+    }
 
-    $rows = $wpdb->get_results($wpdb->prepare($query, $all_params));
-    return [
-        'rows' => $rows,
+    foreach ($rows as $row) {
+        $row->events = isset($events_map[$row->inventory_unit_id]) ? $events_map[$row->inventory_unit_id] : null;
+    }
+
+    $result = [
+        'rows'       => $rows,
         'start_date' => $start_date,
-        'end_date' => $end_date,
-        'status' => $status,
+        'end_date'   => $end_date,
+        'status'     => $status,
     ];
+
+    set_transient($cache_key, $result, 15 * MINUTE_IN_SECONDS);
+    return $result;
 }
 
 function reports_render_inventory_report($results)
@@ -802,6 +819,7 @@ function reports_render_inventory_report($results)
         return;
     }
 
+    global $wpdb;
     $all_rows = $results['rows'];
     $start_date = $results['start_date'];
     $end_date = $results['end_date'];
@@ -844,12 +862,65 @@ function reports_render_inventory_report($results)
             </tr></thead>';
     echo '<tbody>';
 
+    $all_product_ids = [];
     foreach ($all_rows as $row) {
+        $all_product_ids[] = (int) $row->wc_product_id;
+        if (!empty($row->wc_product_variant_id)) {
+            $all_product_ids[] = (int) $row->wc_product_variant_id;
+        }
+    }
+    $all_product_ids = array_unique($all_product_ids);
 
-        $product_id = $row->wc_product_variant_id ?: $row->wc_product_id;
-        $product = wc_get_product($product_id);
+    // Batch fetch product title, description, excerpt, and thumbnail from wp_posts/wp_postmeta.
+    // One query for all products — avoids wc_get_product() object instantiation per row.
+    $product_data_map = [];
+    $image_id_map     = [];
+    if (!empty($all_product_ids)) {
+        $safe_ids     = implode(',', array_map('absint', $all_product_ids));
+        $product_rows = $wpdb->get_results(
+            "SELECT p.ID, p.post_title, p.post_content, p.post_excerpt,
+                    pm.meta_value AS thumbnail_id,
+                    pm2.meta_value AS variation_description
+             FROM {$wpdb->posts} p
+             LEFT JOIN {$wpdb->postmeta} pm
+                    ON pm.post_id = p.ID AND pm.meta_key = '_thumbnail_id'
+             LEFT JOIN {$wpdb->postmeta} pm2
+                    ON pm2.post_id = p.ID AND pm2.meta_key = '_variation_description'
+             WHERE p.ID IN ($safe_ids)"
+        );
+        foreach ($product_rows as $pr) {
+            $product_data_map[(int) $pr->ID] = $pr;
+            if ($pr->thumbnail_id) {
+                $image_id_map[(int) $pr->ID] = (int) $pr->thumbnail_id;
+            }
+        }
+    }
 
-        if (!$product) {
+    // Pre-build image URL map. Prime attachment caches for the (smaller) set of
+    // unique images only, then resolve URLs once outside the render loop.
+    $image_url_map   = [];
+    $placeholder_img = wc_placeholder_img_src('woocommerce_gallery_thumbnail');
+    $att_ids         = array_unique(array_values($image_id_map));
+    if (!empty($att_ids)) {
+        _prime_post_caches($att_ids, false, false);
+        update_meta_cache('post', $att_ids);
+        foreach ($att_ids as $aid) {
+            $url = wp_get_attachment_image_url($aid, 'woocommerce_gallery_thumbnail');
+            if ($url) {
+                $image_url_map[$aid] = $url;
+            }
+        }
+    }
+
+    // Cache wp_kses_post() results keyed by product_id — many inventory units
+    // share the same wc_product_id so we avoid re-running the sanitizer per row.
+    $desc_cache = [];
+
+    foreach ($all_rows as $row) {
+        $product_id   = (int) ($row->wc_product_variant_id ?: $row->wc_product_id);
+        $product_data = $product_data_map[$product_id] ?? null;
+
+        if (!$product_data) {
             $missing_count++;
             continue;
         }
@@ -866,16 +937,26 @@ function reports_render_inventory_report($results)
         $total_cost_price += $cost_price;
         $total_retail_price += $retail_price;
 
-        $desc = $row->wc_product_variant_id ? $product->get_description() : $product->get_short_description();
+        if (!isset($desc_cache[$product_id])) {
+            $raw = $row->wc_product_variant_id
+                ? $product_data->variation_description
+                : $product_data->post_excerpt;
+            $desc_cache[$product_id] = wp_kses_post(nl2br((string) $raw));
+        }
+        $desc = $desc_cache[$product_id];
 
-        $image_id = $product->get_image_id();
-        $image_url = $image_id
-            ? wp_get_attachment_image_url($image_id, 'woocommerce_gallery_thumbnail')
-            : wc_placeholder_img_src('woocommerce_gallery_thumbnail');
+        $att_id = $image_id_map[$product_id] ?? null;
+        // Variant with no image set — fall back to parent product's image.
+        if (!$att_id && $row->wc_product_variant_id) {
+            $att_id = $image_id_map[(int) $row->wc_product_id] ?? null;
+        }
+        $image_url = ($att_id && isset($image_url_map[$att_id]))
+            ? $image_url_map[$att_id]
+            : $placeholder_img;
 
         echo '<tr>';
-        echo '<td><img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($image_url) . '" alt="' . esc_attr($product->get_name()) . '"></td>';
-        echo '<td>' . wp_kses_post(nl2br($desc)) . '</td>';
+        echo '<td><img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($image_url) . '" alt="' . esc_attr($product_data->post_title) . '"></td>';
+        echo '<td>' . $desc . '</td>';
         echo '<td>' . esc_html($sku) . '</td>';
         echo '<td>' . esc_html($model) . '</td>';
         echo '<td>' . esc_html($serial) . '</td>';
@@ -930,7 +1011,6 @@ function reports_render_inventory_report($results)
         echo '<td>' . wp_kses_post(nl2br($row->notes ?? '')) . '</td>';
         echo '</tr>';
     }
-
     echo '</tbody>';
     echo '</table>';
     echo '</div>'; // end scroll wrapper
