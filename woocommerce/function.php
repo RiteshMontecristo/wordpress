@@ -999,26 +999,62 @@ add_filter('woocommerce_admin_features', function ($features) {
     });
 });
 
-/**
- * Speed up WordPress admin and MailPoet dashboard by blocking unnecessary API requests.
- * 
- * - Blocks MailPoet, WooCommerce, Jetpack, Hostinger, WordPress core update checks in admin
- * - Keeps frontend, MailPoet cron, and newsletter sending fully functional
- * - Easy to add more blocked hosts if needed
- */
-add_filter('pre_http_request', function ($pre, $args, $url) {
-    // Allow MailPoet API and WordPress.org core updates
-    if (strpos($url, 'bridge.mailpoet.com') !== false) return false;
-    if (strpos($url, 'api.wordpress.org/core/') !== false) return false;
+add_filter('woocommerce_allow_marketplace_suggestions', '__return_false');
 
-    // Block everything else in admin for speed
-    if (is_admin()) return true;
+// Run update checks only when opening the updates page
+if (! isset($_GET['force-check'])) {
+    remove_action('admin_init', 'wp_version_check');
+    remove_action('admin_init', 'wp_update_plugins');
+    remove_action('admin_init', 'wp_update_themes');
+}
+
+remove_filter('pre_http_request', 'hostinger_use_proxy_services', 10);
+
+add_filter('pre_http_request', function ($pre, $args, $url) {
+    // Only run in admin, skip AJAX/cron
+    if (!is_admin() || wp_doing_ajax() || defined('DOING_CRON')) return $pre;
+
+    // BLOCK: WooPayments incentives
+    if (strpos($url, 'public-api.wordpress.com/wpcom/v2/wcpay/incentives') !== false) {
+        return ['body' => '{"incentives":[]}', 'response' => ['code' => 204], 'headers' => []];
+    }
+
+    // BLOCK: MailPoet translation checks
+    if (strpos($url, 'translate.wordpress.com/api/translations-updates/mailpoet') !== false) {
+        return ['body' => '{}', 'response' => ['code' => 200], 'headers' => []];
+    }
+
+    // BLOCK: Hostinger proxy calls (you use wp-admin for updates)
+    if (strpos($url, 'wpapi.hostinger.io') !== false) {
+        // Return proper empty structure based on endpoint type
+        if (strpos($url, 'plugins/update-check') !== false) {
+            $body = '{"plugins":{},"no_update":{},"translations":[]}';
+        } elseif (strpos($url, 'themes/update-check') !== false) {
+            $body = '{"themes":{},"no_update":{},"translations":[]}';
+        } elseif (strpos($url, 'core/version-check') !== false) {
+            $body = '{"offers":[],"translations":[]}';
+        } else {
+            $body = '{}';
+        }
+        return ['body' => $body, 'response' => ['code' => 200], 'headers' => []];
+    }
+
+    // BLOCK: Jetpack sync (if unused)
+    if (strpos($url, 'jetpack.wordpress.com/xmlrpc.php') !== false) {
+        return ['body' => '', 'response' => ['code' => 200], 'headers' => []];
+    }
+
+    // ALLOW: Direct WordPress.org update checks (for wp-admin updates)
+    if (
+        strpos($url, 'api.wordpress.org') !== false &&
+        (strpos($url, 'version-check') !== false || strpos($url, 'update-check') !== false)
+    ) {
+        return $pre;
+    }
+
+    // ALLOW: Critical license checks
+    foreach (['connect.advancedcustomfields.com', 'update.wpallimport.com', 'bridge.mailpoet.com'] as $allow)
+        if (strpos($url, $allow) !== false) return $pre;
 
     return $pre;
-}, 10, 3);
-
-/**
- * MailPoet-specific tweak: prevent dashboard API checks
- * MailPoet cron (server-side) still works
- */
-add_filter('mailpoet_disable_dashboard_check', '__return_true');
+}, 9, 3);
