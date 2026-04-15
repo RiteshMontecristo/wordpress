@@ -2557,6 +2557,7 @@ form.contact-us .contact-footer .terms {
 
 .page-id-30 .boutique-containers {
   align-items: stretch;
+  justify-content: center;
   background-color: #f9f9f9;
   padding-top: 7rem;
   padding-bottom: 7rem;
@@ -2615,7 +2616,8 @@ form.contact-us .contact-footer .terms {
   }
 
   .page-id-30 .boutique-containers > div {
-    width: calc(33.33% - 16px);
+    width: calc(50% - 12px);
+    max-width: 500px;
   }
 }
 
