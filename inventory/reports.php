@@ -1426,8 +1426,8 @@ function reports_render_layaway_report($results)
                     }
 
                     if ($i === 0) {
-                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->notes) . "</td>";
                         echo "<td rowspan='{$rowspan}'>" . esc_html(number_format((float) $row->remaining_amount, 2)) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html($row->notes) . "</td>";
                     }
                     echo '</tr>';
                 }
