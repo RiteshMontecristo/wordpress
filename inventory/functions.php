@@ -566,7 +566,7 @@ function custom_woocommerce_admin_search($where, $wp_query)
     if (is_admin() && 'edit.php' === $pagenow && isset($_GET['post_type']) && 'product' === $_GET['post_type'] && !empty($_GET['s'])) {
 
         // Get the search term
-        $search_term = esc_sql($_GET['s']);
+        $search_term = sanitize_text_field($_GET['s']);
         $custom_table = $wpdb->prefix . 'mji_product_inventory_units';
         $history_table = $wpdb->prefix . 'mji_product_sku_history';
 
