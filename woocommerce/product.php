@@ -39,7 +39,7 @@ function get_brand_name()
 function add_brand_name()
 {
     $brand_name = get_brand_name();
-    echo "<h2 class='brand'>$brand_name</h2>";
+    echo "<h2 class='brand'>" . esc_html($brand_name) . "</h2>";
 }
 add_action("woocommerce_single_product_summary", "add_brand_name", 4);
 
@@ -75,7 +75,7 @@ add_action("woocommerce_single_product_summary", "price_container", 9);
 function custom_price_zero_message($price, $product)
 {
     $brand_name = get_brand_name();
-    if ($brand_name === 'Montecristo') {
+    if ($brand_name === 'Montecristo' || $brand_name == 'Mikimoto') {
         return;
     }
     if ($product->get_price() == 0) {
@@ -108,7 +108,7 @@ function close_price_container()
     // } else {
     //     $is_favourite =  "true";
     // }
-    if (has_term('montecristo', 'product_cat', $product_id)) {
+    if (has_term('montecristo', 'product_cat', $product_id) || has_term('mikimoto', 'product_cat', $product_id)) {
 ?> </div>
 
     <?php
@@ -150,7 +150,7 @@ function single_page_contact()
         </div>
     <?php } else { ?>
         <a href="/contact#contactUs" class="btn btn-contact">Contact Us</a>
-        <a href="<?= $contact ?>" class="btn btn-call">Call Us</a>
+        <a href="<?= esc_url($contact) ?>" class="btn btn-call">Call Us</a>
     <?php }
 }
 
@@ -188,10 +188,9 @@ function change_sku_number_for_variant()
         <script>
             jQuery(function($) {
 
-                var originalSKU = '<?php echo esc_js($original_sku); ?>';
-                var originalPrice = '<?php echo $original_price; ?>';
+                var originalSKU = '<?= esc_js($original_sku); ?>';
+                var originalPrice = '<?= wp_json_encode($original_price); ?>';
 
-                console.log(originalPrice);
                 $('form.variations_form').on('found_variation', function(event, variation) {
                     $(".product-model-number").text(variation.sku);
                     $(".price_container .price").html(variation.price_html);
@@ -212,7 +211,7 @@ function change_sku_number_for_variant()
 function my_blocked_products_list()
 {
     return array(
-        'categories' => array('cammillifirenze', 'faberge', 'messika', 'mikimoto', 'montecristo', 'pomellato', 'roberto-coin', 'bellross', 'blancpain', 'breguet', 'corum', 'faberge-watches', 'girard-perregaux', 'glashutte-original', 'longines', 'mido', 'omega'), // change slugs
+        'categories' => array('cammillifirenze', 'faberge', 'fullord', 'messika', 'mikimoto', 'montecristo', 'pomellato', 'roberto-coin', 'bellross', 'blancpain', 'breguet', 'corum', 'faberge-watches', 'girard-perregaux', 'glashutte-original', 'longines', 'mido', 'omega'), // change slugs
         'product_ids' => array(),          // change IDs
     );
 }
