@@ -1,3 +1,29 @@
 .group-end {
   background-color: #f6f7f7;
 }
+
+/* Column toggle — visual indicator only, column stays visible on screen */
+#inventoryTable thead th {
+  cursor: pointer;
+  user-select: none;
+}
+#inventoryTable thead th:hover {
+  outline: 2px dashed #2271b1;
+  outline-offset: -2px;
+}
+#inventoryTable thead th.col-excluded {
+  opacity: 0.45;
+  text-decoration: line-through;
+  color: #d63638;
+}
+
+@media print {
+  td,
+  th {
+    border: 1px solid black !important;
+  }
+
+  table {
+    border-collapse: collapse !important;
+  }
+}
