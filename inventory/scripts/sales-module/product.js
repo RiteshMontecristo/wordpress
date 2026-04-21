@@ -132,9 +132,7 @@ export const ProductSelector = {
 
     // Create a dispatchevent
     document.dispatchEvent(
-      new CustomEvent("displayCart", {
-        detail: { fetchLayaways: true },
-      }),
+      new CustomEvent("displayCart"),
     );
     this.searchResult.innerHTML = "";
     this.searchInput.value = "";

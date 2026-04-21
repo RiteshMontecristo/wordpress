@@ -19,7 +19,7 @@ document.addEventListener("layaway:added", () => {
 });
 
 document.addEventListener("displayCart", (e) => {
-  CartSelector.displayCart(e.detail.fetchLayaways);
+  CartSelector.displayCart();
 });
 
 document.addEventListener("call:calculateTotal", () => {

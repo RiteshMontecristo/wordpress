@@ -24,7 +24,7 @@ export const CartSelector = {
     this.cartItems.addEventListener("click", this.handleCartClick.bind(this));
   },
 
-  displayCart(fetchLayaways = false) {
+  displayCart() {
     document.dispatchEvent(new CustomEvent("call:calculateTotal"));
     showSelection(this.cart);
     let cartHTML = "";
@@ -96,9 +96,7 @@ export const CartSelector = {
     }
 
     this.cartItems.innerHTML = cartHTML;
-    if (fetchLayaways) {
-      document.dispatchEvent(new CustomEvent("checkout:updateLayaway"));
-    }
+    document.dispatchEvent(new CustomEvent("checkout:updateLayaway"));
   },
 
   handleCartClick(e) {
