@@ -899,7 +899,7 @@ function reports_render_inventory_report($results)
     // Pre-build image URL map. Prime attachment caches for the (smaller) set of
     // unique images only, then resolve URLs once outside the render loop.
     $image_url_map   = [];
-    $placeholder_img = wc_placeholder_img_src('woocommerce_gallery_thumbnail');
+    $placeholder_img = wc_placeholder_img([50, 50]);
     $att_ids         = array_unique(array_values($image_id_map));
     if (!empty($att_ids)) {
         _prime_post_caches($att_ids, false, false);
@@ -952,18 +952,19 @@ function reports_render_inventory_report($results)
         }
         $image_url = ($att_id && isset($image_url_map[$att_id]))
             ? $image_url_map[$att_id]
-            : $placeholder_img;
+            : '';
+        $img = empty($image_url) ? $placeholder_img : '<img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($image_url) . '" alt="' . esc_attr($product_data->post_title) . '">';
 
         echo '<tr>';
-        echo '<td><img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($image_url) . '" alt="' . esc_attr($product_data->post_title) . '"></td>';
+        echo '<td>' . $img . '</td>';
         echo '<td>' . $desc . '</td>';
-        echo '<td>' . esc_html($sku) . '</td>';
-        echo '<td>' . esc_html($model) . '</td>';
+        echo '<td style="white-space:nowrap;">' . esc_html($sku) . '</td>';
+        echo '<td style="white-space:nowrap;">' . esc_html($model) . '</td>';
         echo '<td>' . esc_html($serial) . '</td>';
         echo '<td>' . esc_html($product_status) . '</td>';
         echo '<td>' . number_format($cost_price, 2) . '</td>';
         echo '<td>' . number_format($retail_price, 2) . '</td>';
-        echo '<td style="white-space:nowrap;">';
+        echo '<td>';
 
         if ($events) {
             echo '<ul style="margin:0; padding:0; list-style:none;">';
@@ -1008,7 +1009,7 @@ function reports_render_inventory_report($results)
         }
 
         echo '</td>';
-        echo '<td>' . wp_kses_post(nl2br($row->notes ?? '')) . '</td>';
+        echo '<td style="white-space:nowrap;">' . wp_kses_post(nl2br($row->notes ?? '')) . '</td>';
         echo '</tr>';
     }
     echo '</tbody>';
@@ -1375,7 +1376,7 @@ function reports_render_layaway_report($results)
             // Outstanding
             echo '<thead>
                 <tr>
-                    <th>Original Invoice</th>
+                    <th>Deposit Invoice</th>
                     <th>Date</th>
                     <th>Customer</th>
                     <th>Salesperson</th>
@@ -1587,26 +1588,30 @@ function reports_get_credit_results()
                 SELECT
                     cd.credit_id,
                     cd.notes AS deposit_notes,
-                    JSON_ARRAYAGG(JSON_OBJECT('method', op.method, 'amount', op.amount)) AS original_payment_methods
+                    cd.method AS deposit_method,
+                    CASE WHEN COUNT(op.method) > 0 THEN MIN(op.payment_date) ELSE NULL END AS purchase_date,
+                    CASE WHEN COUNT(op.method) > 0 THEN JSON_ARRAYAGG(JSON_OBJECT('method', op.method, 'amount', op.amount)) ELSE NULL END AS original_payment_methods
                 FROM {$payments_table} cd
                 LEFT JOIN {$payments_table} op
                     ON op.order_id = cd.order_id
                     AND op.transaction_type = 'purchase'
                 WHERE cd.transaction_type = 'credit_deposit'
-                GROUP BY cd.credit_id, cd.notes
+                GROUP BY cd.credit_id, cd.notes, cd.method
             )
             SELECT
-                p.reference_num, p.transaction_type, p.payment_date, c.first_name, c.last_name, s.first_name as salesperson_first_name, s.last_name as salesperson_last_name, cr.reference_num as credit_reference_num, cr.created_at as credit_date,
+                p.reference_num, p.transaction_type, p.payment_date, c.first_name, c.last_name, s.first_name as salesperson_first_name, s.last_name as salesperson_last_name, cr.reference_num as credit_reference_num, cr.created_at as credit_date, cr.total_amount as credit_amount,
                 JSON_ARRAYAGG(JSON_OBJECT('method', p.method, 'amount', p.amount)) AS payment_details,
                 op2.original_payment_methods,
-                op2.deposit_notes
+                op2.deposit_notes,
+                op2.deposit_method,
+                op2.purchase_date
             FROM {$payments_table} p
             JOIN {$customers_table} c ON p.customer_id = c.id
             JOIN {$salespeople_table} s ON p.salesperson_id = s.id
             JOIN {$credits_table} cr ON cr.id = p.credit_id
             LEFT JOIN original_payments op2 ON op2.credit_id = cr.id
             WHERE  " . implode(" AND ", $where) . "
-            GROUP BY p.reference_num, p.credit_id, p.transaction_type, p.payment_date, c.first_name, c.last_name, s.first_name, s.last_name, op2.original_payment_methods, op2.deposit_notes
+            GROUP BY p.reference_num, p.credit_id, p.transaction_type, p.payment_date, c.first_name, c.last_name, s.first_name, s.last_name, op2.original_payment_methods, op2.deposit_notes, op2.deposit_method, op2.purchase_date
             ORDER BY p.reference_num, p.credit_id";
     } else {
         $where[] = "p.payment_date < %s AND p.credit_id IS NOT NULL AND cr.remaining_amount > 0 AND p.transaction_type = 'credit_deposit'";
@@ -1690,7 +1695,7 @@ function reports_render_credit_report($results)
                 <th>Date</th>
                 <th>Customer</th>
                 <th>Salesperson</th>
-                <th>Original Payment Method</th>
+                <th>Purchase Payment Method</th>
                 <th>Credit Amount</th>
                 <th>Notes</th>
             </tr>
@@ -1751,11 +1756,14 @@ function reports_render_credit_report($results)
                     <th>Customer</th>
                     <th>Salesperson</th>
                     <th>Method</th>
-                    <th>Amount</th>
-                    <th>Original Invoice</th>
-                    <th>Invoice Date</th>
-                    <th>Original Method</th>
-                    <th>Amount</th>
+                    <th>Redeem Amount</th>
+                    <th>Return Invoice</th>
+                    <th>Return Date</th>
+                    <th>Return Amount</th>
+                    <th>Return Method</th>
+                    <th>Purchase Date</th>
+                    <th>Purchase Method</th>
+                    <th>Purchase Amount</th>
                     <th>Notes</th>
                 </tr>
               </thead>';
@@ -1784,15 +1792,16 @@ function reports_render_credit_report($results)
                         echo "<td rowspan='{$rowspan}'>$" . number_format((float) ($payments[$i]['amount'] ?? 0), 2) . "</td>";
                         echo "<td rowspan='{$rowspan}'>" . esc_html($row->credit_reference_num) . "</td>";
                         echo "<td rowspan='{$rowspan}'>" . esc_html(explode(" ", $row->credit_date)[0]) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>$" . number_format((float) $row->credit_amount, 2) . "</td>";
+                        echo "<td rowspan='{$rowspan}'>" . esc_html(ucwords(str_replace('_', ' ', $row->deposit_method ?? ''))) . "</td>";
+                        $purchase_date = !empty($row->purchase_date) ? esc_html(explode(" ", $row->purchase_date)[0]) : '';
+                        echo "<td rowspan='{$rowspan}'>{$purchase_date}</td>";
                     }
 
                     // Original payment methods from the purchase that triggered this credit
                     if ($orig_methods && isset($orig_methods[$i])) {
                         echo "<td>" . esc_html(ucwords(str_replace('_', ' ', $orig_methods[$i]['method']))) . "</td>";
                         echo "<td>$" . number_format((float) $orig_methods[$i]['amount'], 2) . "</td>";
-                    } elseif ($i === 0) {
-                        // Manually issued credit — no original purchase payment
-                        echo "<td>Credit</td><td></td>";
                     } else {
                         echo "<td></td><td></td>";
                     }
@@ -1809,12 +1818,12 @@ function reports_render_credit_report($results)
         } else {
             echo '<thead>
                 <tr>
-                    <th>Invoice</th>
-                    <th>Date</th>
+                    <th>Purchase Invoice</th>
+                    <th>Purchase Date</th>
                     <th>Customer</th>
                     <th>Salesperson</th>
-                    <th>Original Method</th>
-                    <th>Amount</th>
+                    <th>Purchase Method</th>
+                    <th>Purchase Amount</th>
                     <th>Redeemed Invoice</th>
                     <th>Redeemed Date</th>
                     <th>Redeemed Amount</th>
@@ -2046,9 +2055,9 @@ function reports_render_refund_report($results)
                 <th>Salesperson</th>
                 <th>Refund Method</th>
                 <th>Refund Amount</th>
-                <th>Original Invoice</th>
-                <th>Original Method</th>
-                <th>Original Amount</th>
+                <th>Purchase Invoice</th>
+                <th>Purchase Method</th>
+                <th>Purchase Amount</th>
                 <th>Notes</th>
             </tr>
           </thead>';
