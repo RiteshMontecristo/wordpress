@@ -399,7 +399,7 @@ export const CheckoutSelector = {
                         <td>
                           <strong>Subtotal: $${formatCurrency(data.totals.subtotal)}</strong><br />
                           <strong>GST (5%): $${formatCurrency(data.totals.gst)} </strong><br />
-                          <strong>PST (8%): $${formatCurrency(data.totals.pst)} </strong><br />
+                          <strong>PST (7%): $${formatCurrency(data.totals.pst)} </strong><br />
                           <strong>Total: $${formatCurrency(data.totals.total)}</strong>
                         </td>
                       </tr>
