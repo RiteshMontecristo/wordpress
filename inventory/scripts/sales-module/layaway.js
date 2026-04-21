@@ -97,7 +97,6 @@ export const LayawaySelector = {
       const salesperson = this.layawayForm.querySelector("#salesperson").value;
       const layawayDate = this.layawayForm.querySelector("#layaway-date").value;
 
-
       if (
         cash === "" &&
         cheque === "" &&
@@ -149,7 +148,7 @@ export const LayawaySelector = {
         })
         .catch((error) => {
           console.error("Error:", error);
-          alert("An error occurred.");
+          alert("An error occurred: " + error);
         })
         .finally(() => {
           this.layawayFormSubmitButton.removeAttribute("disabled");
