@@ -5,36 +5,84 @@ function customer_page()
     if (isset($_GET['added']) && $_GET['added'] === '1') {
         echo '<div class="updated notice is-dismissible"><p>Customer added successfully!</p></div>';
     }
+    $locations = mji_get_locations();
 ?>
-    <div class="wrap">
-        <h1>Customer Management</h1>
+    <div class="wrap customer-management">
 
-        <!-- Search Form -->
-        <form method="get">
-            <input type="hidden" name="page" value="customer-management">
-            <input type="text" name="search" placeholder="Search by Name or Phone">
-            <button type="submit" class="button">Search</button>
-        </form>
+        <!-- Store selection modal — shown by JS until a location is saved in localStorage -->
+        <div id="store-modal" class="modal" style="display:none;">
+            <div class="modal-content customer-store-modal">
+                <h2>Select Your Store</h2>
+                <p>Choose a location to view and filter customers.</p>
+                <div class="store-btn-group">
+                    <?php foreach ($locations as $location) : ?>
+                        <button class="store-btn button button-hero"
+                                data-id="<?= esc_attr($location->id) ?>"
+                                data-name="<?= esc_attr($location->name) ?>">
+                            <span class="dashicons dashicons-store"></span>
+                            <?= esc_html($location->name) ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
 
-        <!-- Add Customer Button -->
-        <a href="?page=customer-management&action=add" class="button button-primary">Add New Customer</a>
+        <!-- Store header bar — shown once a location is active -->
+        <div id="top-store" class="customer-store-bar" style="display:none;">
+            <div class="store-bar-info">
+                <span class="dashicons dashicons-store"></span>
+                <span class="store-bar-label">Store:</span>
+                <strong id="store-name"></strong>
+            </div>
+            <button id="change-store-btn" class="button">Change Store</button>
+        </div>
+
+        <!-- Page header + Add button -->
+        <div class="customer-page-header">
+            <h1 class="wp-heading-inline">Customer Management</h1>
+            <a href="?page=customer-management&action=add&location=<?= esc_attr($_GET['location'] ?? '') ?>"
+               class="page-title-action">Add New Customer</a>
+        </div>
 
         <?php
         $action_map = [
-            'view' => 'view_customer_page',
-            'add' => 'add_customer_form',
-            'edit' => 'edit_customer_form',
-            'delete' => 'delete_customer_form'
+            'view'   => 'view_customer_page',
+            'add'    => 'add_customer_form',
+            'edit'   => 'edit_customer_form',
+            'delete' => 'delete_customer_form',
         ];
 
-        // Handle actions
         if (isset($_GET['action']) && isset($action_map[$_GET['action']])) {
             call_user_func($action_map[$_GET['action']]);
         } else {
             $search_query = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
-            $per_page = isset($_GET['per_page']) ? intval($_GET['per_page']) : 20;
+            $location_id  = absint($_GET['location'] ?? 0);
+            $per_page     = isset($_GET['per_page']) ? intval($_GET['per_page']) : 20;
             $current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
-            $output = customer_table("customer", $search_query, $per_page, $current_page);
+        ?>
+
+        <!-- Search toolbar -->
+        <div class="customer-toolbar">
+            <form method="get" class="customer-search-form">
+                <input type="hidden" name="page" value="customer-management">
+                <input type="hidden" name="location" value="<?= esc_attr($location_id ?: '') ?>">
+                <div class="search-input-wrap">
+                    <span class="dashicons dashicons-search"></span>
+                    <input type="text" name="search"
+                           placeholder="Search by name or phone…"
+                           value="<?= esc_attr($search_query) ?>"
+                           class="customer-search-input">
+                </div>
+                <button type="submit" class="button">Search</button>
+                <?php if (!empty($search_query)) : ?>
+                    <a href="?page=customer-management&location=<?= esc_attr($location_id ?: '') ?>"
+                       class="button">Clear</a>
+                <?php endif; ?>
+            </form>
+        </div>
+
+        <?php
+            $output = customer_table("customer", $search_query, $per_page, $current_page, $location_id);
             echo $output;
         }
         ?>
@@ -53,15 +101,6 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     $offset = ($current_page - 1) * $per_page;
     $where = 'WHERE 1=1';
 
-    // ONLY USE THIS IF WE HAVE OVER 50K CUSTOMERS
-    // if (!empty($search_query)) {
-    //     $search = $search_query;
-
-    //     $where .= " AND (
-    //                     MATCH(first_name, last_name, street_address, city, province, postal_code, country, primary_phone, secondary_phone)
-    //                     AGAINST('" . esc_sql($search) . "' IN NATURAL LANGUAGE MODE)
-    //                 )";
-    // }
     if (!empty($search_query)) {
         $search = trim($search_query);
         $like = '%' . $wpdb->esc_like($search) . '%';
@@ -227,16 +266,20 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
         <div class="tablenav-pages">
             <?php
             if ($total_pages > 1) {
-                for ($i = 1; $i <= $total_pages; $i++) {
-                    $active = ($i === $current_page) ? 'current' : '';
-                    echo "<a class='page-numbers $active' href='?page=customer-management&paged=$i&per_page=$per_page'>$i</a> ";
-                }
+                $base_args = [
+                    'page'     => 'customer-management',
+                    'search'   => $search_query,
+                    'location' => $location_id ?: '',
+                    'per_page' => $per_page,
+                ];
+                echo mji_customer_pagination($total_pages, $current_page, $base_args);
             }
             ?>
 
             <form method="GET">
                 <input type="hidden" name="page" value="customer-management">
                 <input type="hidden" name="search" value="<?= esc_attr($search_query) ?>">
+                <input type="hidden" name="location" value="<?= esc_attr($location_id) ?>">
                 <select name="per_page" onchange="this.form.submit();">
                     <?php
                     $options = [10, 20, 50, 100];
@@ -696,6 +739,7 @@ function view_customer_page()
 
     global $wpdb;
     $customer_id = intval($_GET['id']);
+    $view_location_id = absint($_GET['location'] ?? 0);
     $edit_url = admin_url("admin.php?page=customer-management&action=edit&id={$customer_id}");
 
     $customers_table = $wpdb->prefix . 'mji_customers';
@@ -721,7 +765,7 @@ function view_customer_page()
     }
 
     $sql = "
-    SELECT 
+    SELECT
     oi.id AS order_item_id,
     oi.sale_price AS sale,
     oi.discount_amount AS discount,
@@ -732,6 +776,7 @@ function view_customer_page()
     p.wc_product_id,
     p.wc_product_variant_id,
     p.retail_price,
+    p.cost_price,
     p.sku,
     m.name AS model_name,
     p.serial,
@@ -754,6 +799,7 @@ function view_customer_page()
     LEFT JOIN $return_items_table ri
     on ri.order_item_id = oi.id
     WHERE o.customer_id = $customer_id
+    " . ($view_location_id ? $wpdb->prepare("AND o.location_id = %d", $view_location_id) : "") . "
     ";
 
     $item_orders = $wpdb->get_results($sql);
@@ -780,9 +826,61 @@ function view_customer_page()
     JOIN $salespeople_table s
     ON s.id = o.salesperson_id
     WHERE o.customer_id = $customer_id
+    " . ($view_location_id ? $wpdb->prepare("AND o.location_id = %d", $view_location_id) : "") . "
     ";
 
     $service_orders = $wpdb->get_results($sql);
+
+    // Layaway history
+    $layaways_table    = $wpdb->prefix . 'mji_layaways';
+    $payments_table    = $wpdb->prefix . 'mji_payments';
+    $layaway_where     = $view_location_id
+        ? $wpdb->prepare("AND l.location_id = %d", $view_location_id)
+        : "";
+    $layaway_history   = $wpdb->get_results($wpdb->prepare("
+        SELECT
+            l.id,
+            l.reference_num,
+            l.created_at,
+            l.status,
+            l.total_amount,
+            l.remaining_amount,
+            s.first_name AS salesperson_first_name,
+            s.last_name  AS salesperson_last_name
+        FROM {$layaways_table} l
+        LEFT JOIN {$payments_table} p
+            ON p.layaway_id = l.id AND p.transaction_type = 'layaway_deposit'
+        LEFT JOIN {$salespeople_table} s ON s.id = p.salesperson_id
+        WHERE l.customer_id = %d
+        {$layaway_where}
+        GROUP BY l.id
+        ORDER BY l.created_at DESC
+    ", $customer_id));
+
+    // Credit history
+    $credits_table   = $wpdb->prefix . 'mji_credits';
+    $credit_where    = $view_location_id
+        ? $wpdb->prepare("AND c2.location_id = %d", $view_location_id)
+        : "";
+    $credit_history  = $wpdb->get_results($wpdb->prepare("
+        SELECT
+            c2.id,
+            c2.reference_num,
+            c2.created_at,
+            c2.status,
+            c2.total_amount,
+            c2.remaining_amount,
+            s.first_name AS salesperson_first_name,
+            s.last_name  AS salesperson_last_name
+        FROM {$credits_table} c2
+        LEFT JOIN {$payments_table} p
+            ON p.credit_id = c2.id AND p.transaction_type = 'credit_deposit'
+        LEFT JOIN {$salespeople_table} s ON s.id = p.salesperson_id
+        WHERE c2.customer_id = %d
+        {$credit_where}
+        GROUP BY c2.id
+        ORDER BY c2.created_at DESC
+    ", $customer_id));
 
     foreach ($item_orders as $row) {
 
@@ -825,30 +923,73 @@ function view_customer_page()
     $salesperson_fullname = empty(!$salesperson) ? $salesperson->first_name . " " . $salesperson->last_name : '';
 ?>
 
-    <div class="wrap">
-        <h1>
-            Customer Details
-            <a href="<?= esc_url($edit_url) ?>" class="edit-customer-link" title="Edit Customer">
-                <span class="dashicons dashicons-edit"></span>
-            </a>
-        </h1>
+    <div class="wrap customer-management">
 
-        <!-- Customer profile -->
-        <div style="background:#fff; padding:15px; border:1px solid #ddd; margin-bottom:20px;">
-            <h2><?php echo esc_html($customer->first_name . ' ' . $customer->last_name); ?></h2>
-            <p><strong>Email:</strong> <?php echo esc_html($customer->email); ?></p>
-            <p><strong>Priamry Phone:</strong> <?php echo esc_html($customer->primary_phone); ?></p>
-            <p><strong>Secondary Phone:</strong> <?php echo esc_html($customer->secondary_phone); ?></p>
-            <p><strong>Address:</strong>
-                <?php echo esc_html($customer->street_address . ', ' . $customer->city . ' ' . $customer->province . ', ' . $customer->postal_code); ?>
-            </p>
-            <p><strong>Joined:</strong> <?php echo date('F j, Y', strtotime($customer->created_at)); ?></p>
-            <p><strong>Served By:</strong> <?= $salesperson_fullname ?></p>
+        <!-- Back link + edit action -->
+        <div class="customer-view-topbar">
+            <a href="<?= esc_url(admin_url('admin.php?page=customer-management&location=' . $view_location_id)) ?>"
+               class="button">
+                &larr; All Customers
+            </a>
+            <a href="<?= esc_url($edit_url) ?>" class="button">
+                <span class="dashicons dashicons-edit"></span> Edit Customer
+            </a>
+        </div>
+
+        <!-- Customer profile card -->
+        <div class="customer-profile-card">
+            <div class="customer-profile-avatar">
+                <?= esc_html(mb_strtoupper(mb_substr($customer->first_name, 0, 1) . mb_substr($customer->last_name, 0, 1))) ?>
+            </div>
+            <div class="customer-profile-body">
+                <h2 class="customer-profile-name">
+                    <?php if ($customer->prefix) echo esc_html($customer->prefix) . ' '; ?>
+                    <?= esc_html($customer->first_name . ' ' . $customer->last_name) ?>
+                </h2>
+                <div class="customer-profile-grid">
+                    <?php if ($customer->email) : ?>
+                    <div class="profile-field">
+                        <span class="profile-field-label"><span class="dashicons dashicons-email-alt"></span> Email</span>
+                        <span><?= esc_html($customer->email) ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($customer->primary_phone) : ?>
+                    <div class="profile-field">
+                        <span class="profile-field-label"><span class="dashicons dashicons-phone"></span> Primary Phone</span>
+                        <span><?= esc_html($customer->primary_phone) ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($customer->secondary_phone) : ?>
+                    <div class="profile-field">
+                        <span class="profile-field-label"><span class="dashicons dashicons-phone"></span> Secondary Phone</span>
+                        <span><?= esc_html($customer->secondary_phone) ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($customer->street_address) : ?>
+                    <div class="profile-field">
+                        <span class="profile-field-label"><span class="dashicons dashicons-location"></span> Address</span>
+                        <span><?= esc_html($customer->street_address . ', ' . $customer->city . ' ' . $customer->province . ', ' . $customer->postal_code) ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <div class="profile-field">
+                        <span class="profile-field-label"><span class="dashicons dashicons-calendar-alt"></span> Customer Since</span>
+                        <span><?= date('F j, Y', strtotime($customer->created_at)) ?></span>
+                    </div>
+                    <?php if ($salesperson_fullname) : ?>
+                    <div class="profile-field">
+                        <span class="profile-field-label"><span class="dashicons dashicons-businessman"></span> Served By</span>
+                        <span><?= esc_html($salesperson_fullname) ?></span>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
 
         <!-- Tabs -->
-        <h2 class="nav-tab-wrapper">
+        <h2 class="nav-tab-wrapper" style="margin-top:24px;">
             <a href="#tab-history" class="nav-tab nav-tab-active">Purchase History</a>
+            <a href="#tab-layaway" class="nav-tab">Layaways</a>
+            <a href="#tab-credit" class="nav-tab">Credits</a>
             <a href="#tab-notes" class="nav-tab">Notes</a>
         </h2>
 
@@ -857,76 +998,182 @@ function view_customer_page()
                 <thead>
                     <tr>
                         <th>Image</th>
-                        <th>Date/Inv/Salesman</th>
+                        <th>Date / Invoice / Salesperson</th>
                         <th>Item</th>
-                        <th>SKU/Model/Serial</th>
-                        <th>Retail Price</th>
-                        <th>Sold Price</th>
+                        <th>SKU / Model / Serial</th>
+                        <th>Cost</th>
+                        <th>Retail</th>
+                        <th>Sold</th>
                         <th>Discount</th>
-                        <th>Notes</th>
+                        <th>Invoice</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if ($item_orders): ?>
                         <?php foreach ($item_orders as $order):
-                            $discount_pct = $order->retail_price > 0 ? number_format(($order->discount / $order->retail_price) * 100, 2)  : 0;
-                            $return_id = $order->return_id;
-
-                            if (empty($order->image)) {
-                                $img_url = wc_placeholder_img([50, 50]);
-                            } else {
-                                $img_url = $order->image;
-                            }
+                            $is_returned  = !empty($order->return_id);
+                            $discount_pct = $order->retail_price > 0
+                                ? number_format(($order->discount / $order->retail_price) * 100, 2)
+                                : 0;
+                            $img_url      = !empty($order->image) ? $order->image : wc_placeholder_img_src('thumbnail');
+                            $invoice_url  = admin_url("admin.php?page=invoice-management&reference_num=" . urlencode($order->reference_num));
                         ?>
-                            <tr>
-                                <td><img src="<?= esc_url($img_url) ?>" alt="<?= esc_attr($order->name) ?>" /></td>
+                            <tr class="<?= $is_returned ? 'purchase-row-returned' : '' ?>">
+                                <td><img src="<?= esc_url($img_url) ?>" alt="<?= esc_attr($order->name ?? '') ?>" style="width:50px;height:50px;object-fit:cover;" /></td>
                                 <td>
-                                    <?= date('M j, Y', strtotime($order->order_date)); ?> <br />
-                                    Inv# <?= esc_html($order->reference_num) ?> </br>
-                                    <?= esc_html($order->salesperson_first_name) ?> <?= esc_html($order->salesperson_last_name) ?>
+                                    <?= date('M j, Y', strtotime($order->order_date)) ?><br>
+                                    Inv# <?= esc_html($order->reference_num) ?><br>
+                                    <?= esc_html($order->salesperson_first_name . ' ' . $order->salesperson_last_name) ?>
                                 </td>
-                                <td><?= esc_html($order->name) ?> <?php echo $return_id ?  "<strong>(Returned for credit)</strong>" : "" ?></td>
-                                <td><?= esc_html($order->sku) ?> <?php echo $return_id ?  "<strong>(RETURNED)</strong>" : "" ?><br /><?= esc_html($order->model_name) ?><br /><?= esc_html($order->serial) ?></td>
-                                <td><?php echo $return_id ?  "-" : "" ?>$<?php echo number_format($order->retail_price, 2); ?></td>
-                                <td><?php echo $return_id ?  "-" : "" ?>$<?php echo number_format($order->sale, 2); ?></td>
-                                <td><?php echo $return_id ?  "-" : "" ?>$
-                                    <?php echo number_format($order->discount, 2); ?> <br />
-                                    <?php echo $return_id ?  "-" : "" ?><?= $discount_pct; ?> %
+                                <td>
+                                    <?= esc_html($order->name ?? '') ?>
+                                    <?php if ($is_returned) : ?>
+                                        <span class="customer-status-badge customer-status-returned">Returned</span>
+                                    <?php endif; ?>
                                 </td>
-                                <td></td>
+                                <td>
+                                    <?= esc_html($order->sku) ?><br>
+                                    <?= esc_html($order->model_name) ?><br>
+                                    <?= esc_html($order->serial) ?>
+                                </td>
+                                <td><?= $order->cost_price !== null ? '$' . number_format($order->cost_price, 2) : '—' ?></td>
+                                <td>$<?= number_format($order->retail_price, 2) ?></td>
+                                <td>$<?= number_format($order->sale, 2) ?></td>
+                                <td>
+                                    $<?= number_format($order->discount, 2) ?><br>
+                                    <?= $discount_pct ?>%
+                                </td>
+                                <td><a href="<?= esc_url($invoice_url) ?>" class="button button-small">View</a></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
                     <?php if ($service_orders): ?>
-                        <?php foreach ($service_orders as $order): ?>
+                        <?php foreach ($service_orders as $order):
+                            $invoice_url = admin_url("admin.php?page=invoice-management&reference_num=" . urlencode($order->reference_num));
+                        ?>
                             <tr>
-                                <td>No Image found</td>
+                                <td>—</td>
                                 <td>
-                                    <?= date('M j, Y', strtotime($order->order_date)); ?> <br />
-                                    Inv# <?= esc_html($order->reference_num) ?> <br />
-                                    <?= esc_html($order->salesperson_first_name) ?> <?= esc_html($order->salesperson_last_name) ?>
+                                    <?= date('M j, Y', strtotime($order->order_date)) ?><br>
+                                    Inv# <?= esc_html($order->reference_num) ?><br>
+                                    <?= esc_html($order->salesperson_first_name . ' ' . $order->salesperson_last_name) ?>
                                 </td>
                                 <td><?= esc_html($order->category) ?></td>
                                 <td>Service</td>
-                                <td>$<?php echo number_format($order->cost_price, 2); ?></td>
-                                <td>$<?php echo number_format($order->sale, 2); ?></td>
-                                <td>$ 0.00 <br />0.00 %</td>
-                                <td><?= esc_html($order->description) ?></td>
+                                <td>$<?= number_format($order->cost_price, 2) ?></td>
+                                <td>—</td>
+                                <td>$<?= number_format($order->sale, 2) ?></td>
+                                <td>—</td>
+                                <td><a href="<?= esc_url($invoice_url) ?>" class="button button-small">View</a></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
                     <?php if (!$item_orders && !$service_orders): ?>
                         <tr>
-                            <td colspan="5">No orders found.</td>
+                            <td colspan="9">No orders found.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
 
+        <!-- Layaway History Tab -->
+        <div id="tab-layaway" class="tab-content" style="display:none;">
+            <?php if (empty($layaway_history)) : ?>
+                <p class="customer-empty-state">No layaway accounts found<?= $view_location_id ? ' for this store' : '' ?>.</p>
+            <?php else : ?>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th>Reference #</th>
+                            <th>Date</th>
+                            <th>Salesperson</th>
+                            <th>Status</th>
+                            <th>Total Deposited</th>
+                            <th>Applied</th>
+                            <th>Balance</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($layaway_history as $la) :
+                            $applied  = $la->total_amount - $la->remaining_amount;
+                            $find_url = admin_url("admin.php?page=invoice-management&tab=layaway&reference_num=" . urlencode($la->reference_num));
+                        ?>
+                            <tr>
+                                <td><strong><?= esc_html($la->reference_num) ?></strong></td>
+                                <td><?= date('M j, Y', strtotime($la->created_at)) ?></td>
+                                <td><?= esc_html(trim($la->salesperson_first_name . ' ' . $la->salesperson_last_name)) ?></td>
+                                <td>
+                                    <span class="customer-status-badge customer-status-<?= esc_attr($la->status) ?>">
+                                        <?= esc_html(ucfirst($la->status)) ?>
+                                    </span>
+                                </td>
+                                <td>$<?= number_format($la->total_amount, 2) ?></td>
+                                <td>$<?= number_format($applied, 2) ?></td>
+                                <td><strong>$<?= number_format($la->remaining_amount, 2) ?></strong></td>
+                                <td><a href="<?= esc_url($find_url) ?>" class="button button-small">View Invoice</a></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+
+        <!-- Credit History Tab -->
+        <div id="tab-credit" class="tab-content" style="display:none;">
+            <?php if (empty($credit_history)) : ?>
+                <p class="customer-empty-state">No store credit accounts found<?= $view_location_id ? ' for this store' : '' ?>.</p>
+            <?php else : ?>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th>Reference #</th>
+                            <th>Date</th>
+                            <th>Salesperson</th>
+                            <th>Status</th>
+                            <th>Total Issued</th>
+                            <th>Used</th>
+                            <th>Balance</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($credit_history as $cr) :
+                            $used     = $cr->total_amount - $cr->remaining_amount;
+                            $find_url = admin_url("admin.php?page=invoice-management&tab=layaway&reference_num=" . urlencode($cr->reference_num));
+                        ?>
+                            <tr>
+                                <td><strong><?= esc_html($cr->reference_num) ?></strong></td>
+                                <td><?= date('M j, Y', strtotime($cr->created_at)) ?></td>
+                                <td><?= esc_html(trim($cr->salesperson_first_name . ' ' . $cr->salesperson_last_name)) ?></td>
+                                <td>
+                                    <span class="customer-status-badge customer-status-<?= esc_attr($cr->status) ?>">
+                                        <?= esc_html(ucfirst($cr->status)) ?>
+                                    </span>
+                                </td>
+                                <td>$<?= number_format($cr->total_amount, 2) ?></td>
+                                <td>$<?= number_format($used, 2) ?></td>
+                                <td><strong>$<?= number_format($cr->remaining_amount, 2) ?></strong></td>
+                                <td><a href="<?= esc_url($find_url) ?>" class="button button-small">View Invoice</a></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+
         <div id="tab-notes" class="tab-content" style="display:none;">
-            <textarea style="width:100%; height:100px;" placeholder="Enter notes about this customer..."><?= esc_textarea($customer->notes) ?></textarea>
-            <p><button class="button button-primary">Save Notes</button></p>
+            <textarea id="customer-notes" placeholder="Enter notes about this customer…"><?= esc_textarea($customer->notes) ?></textarea>
+            <p>
+                <button
+                    id="save-customer-notes"
+                    class="button button-primary"
+                    data-customer-id="<?= esc_attr($customer_id) ?>"
+                    data-nonce="<?= esc_attr(wp_create_nonce('save_customer_notes_nonce')) ?>"
+                >Save Notes</button>
+                <span id="notes-save-status" style="margin-left:8px;"></span>
+            </p>
         </div>
     </div>
 
@@ -963,6 +1210,60 @@ function format_phone($phone)
     $part2 = substr($phone, 6, 4);
     $phone = "($area) $part1-$part2";
     return $phone;
+}
+
+function save_customer_notes_handler()
+{
+    check_ajax_referer('save_customer_notes_nonce', 'nonce');
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(['message' => 'Unauthorized']);
+    }
+    global $wpdb;
+    $customer_id = absint($_POST['customer_id']);
+    $notes = sanitize_textarea_field($_POST['notes'] ?? '');
+
+    if (!$customer_id) {
+        wp_send_json_error(['message' => 'Invalid customer ID']);
+    }
+
+    $updated = $wpdb->update(
+        $wpdb->prefix . 'mji_customers',
+        ['notes' => $notes],
+        ['id' => $customer_id],
+        ['%s'],
+        ['%d']
+    );
+
+    if ($updated !== false) {
+        wp_send_json_success(['message' => 'Notes saved']);
+    } else {
+        wp_send_json_error(['message' => esc_html($wpdb->last_error) ?: 'Failed to save notes']);
+    }
+}
+add_action('wp_ajax_save_customer_notes', 'save_customer_notes_handler');
+
+function mji_customer_pagination($total_pages, $current_page, $base_args)
+{
+    $window = 2;
+    $pages = [1, $total_pages];
+    for ($i = max(1, $current_page - $window); $i <= min($total_pages, $current_page + $window); $i++) {
+        $pages[] = $i;
+    }
+    $pages = array_unique($pages);
+    sort($pages);
+
+    $html = '';
+    $prev = null;
+    foreach ($pages as $page) {
+        if ($prev !== null && $page - $prev > 1) {
+            $html .= '<span class="page-numbers dots">&hellip;</span> ';
+        }
+        $url  = esc_url(add_query_arg(array_merge($base_args, ['paged' => $page]), admin_url('admin.php')));
+        $cls  = 'page-numbers' . ((int) $page === (int) $current_page ? ' current' : '');
+        $html .= "<a class='{$cls}' href='{$url}'>{$page}</a> ";
+        $prev = $page;
+    }
+    return $html;
 }
 
 function validate_postal_code($postalCode)

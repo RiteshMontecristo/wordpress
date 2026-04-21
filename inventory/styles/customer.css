@@ -1,9 +1,391 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Customer Management — page layout & components
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Store selection modal ───────────────────────────────────────────────── */
+
+.customer-store-modal {
+  text-align: center;
+  padding: 32px 28px;
+  min-width: 320px;
+}
+
+.customer-store-modal h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.customer-store-modal p {
+  color: #666;
+  margin: 0 0 24px;
+  font-size: 13px;
+}
+
+.store-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.store-btn-group .store-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
+  padding: 12px 20px;
+  height: auto;
+  width: 100%;
+}
+
+.store-btn-group .store-btn .dashicons {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+/* ── Active store bar (top of page) ─────────────────────────────────────── */
+
+.customer-store-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1d2327;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.store-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.store-bar-info .dashicons {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #7dc2f4;
+}
+
+.store-bar-label {
+  color: #aaa;
+}
+
+.customer-store-bar strong {
+  font-size: 15px;
+  color: #fff;
+}
+
+.customer-store-bar .button {
+  background: transparent;
+  border-color: #555;
+  color: #ddd;
+}
+
+.customer-store-bar .button:hover {
+  border-color: #999;
+  color: #fff;
+}
+
+/* ── Page header (title + add button) ───────────────────────────────────── */
+
+.customer-page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 12px;
+}
+
+.customer-page-header h1 {
+  margin: 0;
+}
+
+/* ── Search toolbar ──────────────────────────────────────────────────────── */
+
+.customer-toolbar {
+  margin-bottom: 16px;
+}
+
+.customer-search-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input-wrap .dashicons {
+  position: absolute;
+  left: 9px;
+  color: #999;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.customer-search-input {
+  padding-left: 30px !important;
+  min-width: 260px;
+  height: 32px;
+  line-height: 1.4;
+}
+
+/* ── Customer table ─────────────────────────────────────────────────────── */
+
+.customer-management .wp-list-table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #555;
+}
+
+.customer-management .wp-list-table td {
+  vertical-align: middle;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+
+.tablenav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tablenav-pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tablenav-pages .page-numbers {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid #c3c4c7;
+  border-radius: 3px;
+  background: #fff;
+  color: #2271b1;
+  text-decoration: none;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.tablenav-pages .page-numbers:hover {
+  background: #f0f6fc;
+  border-color: #2271b1;
+}
+
+.tablenav-pages .page-numbers.current {
+  background: #2271b1;
+  border-color: #2271b1;
+  color: #fff;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.tablenav-pages .page-numbers.dots {
+  border: none;
+  background: none;
+  color: #888;
+  pointer-events: none;
+  min-width: 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Customer View page
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Top bar (back link + edit) ─────────────────────────────────────────── */
+
+.customer-view-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+
+.customer-view-topbar .dashicons {
+  vertical-align: text-bottom;
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+}
+
+/* ── Profile card ────────────────────────────────────────────────────────── */
+
+.customer-profile-card {
+  display: flex;
+  gap: 24px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.customer-profile-avatar {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #2271b1;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 1px;
+}
+
+.customer-profile-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.customer-profile-name {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1d2327;
+}
+
+.customer-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px 24px;
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-field-label .dashicons {
+  font-size: 13px;
+  width: 13px;
+  height: 13px;
+  color: #aaa;
+}
+
+.profile-field > span:last-child {
+  font-size: 13px;
+  color: #1d2327;
+}
+
+
+
+/* ── Status badges ───────────────────────────────────────────────────────── */
+
+.customer-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.customer-status-active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.customer-status-redeemed,
+.customer-status-closed {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.customer-status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.customer-status-returned {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* ── Returned row dimming ────────────────────────────────────────────────── */
+
+.purchase-row-returned td {
+  opacity: 0.6;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+
+.customer-empty-state {
+  padding: 32px 0;
+  color: #888;
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* ── Notes tab ───────────────────────────────────────────────────────────── */
+
+#tab-notes {
+  padding: 16px 0;
+}
+
+#tab-notes textarea {
+  width: 100%;
+  min-height: 120px;
+  font-size: 13px;
+  line-height: 1.6;
+  border-radius: 4px;
+  border: 1px solid #c3c4c7;
+  padding: 8px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+#notes-save-status {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Customer add / edit form
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .customer-grid-form .customer-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin: 16px 0 24px;
-  max-width: 1000px;
+  max-width: 900px;
 }
 
 .customer-grid-form .form-group {
@@ -18,8 +400,10 @@
 .customer-grid-form .form-label {
   font-weight: 600;
   margin-bottom: 6px;
-  font-size: 13px;
-  color: #2c3338;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #555;
 }
 
 .customer-grid-form .regular-text,
@@ -29,6 +413,8 @@
   max-width: 100%;
   box-sizing: border-box;
 }
+
+/* ── Edit icon link ──────────────────────────────────────────────────────── */
 
 .edit-customer-link .dashicons {
   font-size: 18px;
@@ -40,7 +426,8 @@
   color: #0073aa;
 }
 
-/* Responsive: stack on mobile */
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
 @media (max-width: 782px) {
   .customer-grid-form .customer-form-grid {
     grid-template-columns: 1fr;
@@ -48,5 +435,23 @@
 
   .customer-grid-form .form-group.full-width {
     grid-column: span 1;
+  }
+
+  .customer-profile-card {
+    flex-direction: column;
+  }
+
+  .customer-profile-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 16px;
+  }
+
+  .customer-profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-search-input {
+    min-width: 180px;
   }
 }
