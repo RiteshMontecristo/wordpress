@@ -309,8 +309,8 @@ if (customizeContainer) {
     if (errors < 1) {
       grecaptcha.ready(async () => {
         const token = await grecaptcha.execute(
-          "6LeQyf4qAAAAAAWm4dRwb-HQ55gjfYYzwVNMIZMI",
-          { action: "customize_us" },
+          "6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA",
+          { action: "customize_contact_us" },
         );
 
         let data = new FormData();
@@ -327,6 +327,7 @@ if (customizeContainer) {
         data.append("inspiration", inspiration.value);
         data.append("action", "customize_contact_us");
         data.append("customize_nonce", customize_nonce.value);
+        data.append("honeypot", document.querySelector("#website")?.value ?? "");
 
         fetch(ajax_object_another.ajax_url, {
           method: "POST",

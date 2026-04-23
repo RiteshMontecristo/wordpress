@@ -76,32 +76,23 @@ function remove_sku($split_product)
 function captcha_verify($captcha_token)
 {
 
-    // This only runs if the constant isn't already set which it is in wp-config, This is just to hide the error as the vscode cant read wp-config
     if (!defined('MJI_RECAPTCHA_SECRET')) {
-        define('MJI_RECAPTCHA_SECRET', 'visual-placeholder-only');
+        error_log('MJI: MJI_RECAPTCHA_SECRET is not configured in wp-config.php. reCAPTCHA skipped.');
+        return ['success' => false, 'score' => 0];
     }
-    $CAPTCHA_SERCRET = MJI_RECAPTCHA_SECRET;
 
-    // Prepare POST request to Google
-    $url = 'https://www.google.com/recaptcha/api/siteverify';
-
-    $data = [
-        'secret' => $CAPTCHA_SERCRET,
-        'response' => $captcha_token,
-        'remoteip' => $_SERVER['REMOTE_ADDR']
-    ];
-
-    $options = [
-        'http' => [
-            'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
-            'method'  => 'POST',
-            'content' => http_build_query($data),
+    $response = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
+        'body' => [
+            'secret'   => MJI_RECAPTCHA_SECRET,
+            'response' => $captcha_token,
+            'remoteip' => WC_Geolocation::get_ip_address(),
         ]
-    ];
+    ]);
+    
+    if (is_wp_error($response)) {
+        error_log('MJI: reCAPTCHA request failed: ' . $response->get_error_message());
+        return ['success' => false, 'score' => 0];
+    }
 
-    $context = stream_context_create($options);
-    $response = @file_get_contents($url, false, $context);
-    $result = json_decode($response, true);
-
-    return $result;
+    return json_decode(wp_remote_retrieve_body($response), true);
 }

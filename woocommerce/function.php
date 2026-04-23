@@ -400,7 +400,7 @@ function contact_us()
 
     $result = captcha_verify($captcha_token);
 
-    if ($result['success'] && $result['action'] === 'contact_us' && $result['score'] >= 0.5) {
+    if ($result['success'] && $result['action'] === 'contact_us' && ($result['score'] ?? 0) >= 0.7) {
         $to = get_option('custom_sender_email', get_option('admin_email'));
 
         $subject = 'Contact Form Submission';
@@ -590,6 +590,12 @@ add_action('wp_ajax_nopriv_appointment', 'appointment'); // For non-logged-in us
 // CUSTOMIZE PAGE
 function customize_contact_us()
 {
+    // Honeypot
+    if (! empty($_POST['website'])) {
+        wp_send_json_success(['message' => 'Thank you for your message!']);
+        exit;
+    }
+
     // Verify the nonce
     if (!isset($_POST['customize_nonce']) || !wp_verify_nonce($_POST['customize_nonce'], 'customize_nonce')) {
         wp_send_json_error(array('message' => 'Server error while trying to send email, Please try again later.'));
@@ -639,7 +645,12 @@ function customize_contact_us()
 
     $result = captcha_verify($captcha_token);
 
-    if ($result['success'] && $result['action'] === 'customize_us' && $result['score'] >= 0.5) {
+    $score = $result['score'] ?? 0;
+    if ($score < 0.9) {
+        custom_log("reCAPTCHA low score on customize form: {$score} — action: " . ($result['action'] ?? 'unknown'));
+    }
+
+    if ($result['success'] && $result['action'] === 'customize_contact_us' && $score >= 0.7) {
 
         $to = get_option('custom_sender_email', get_option('admin_email'));
         $subject = 'Cusotmize Jewellery Form Submission';

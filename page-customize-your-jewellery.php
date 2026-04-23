@@ -126,6 +126,12 @@ get_header(); ?>
 					</div>
 
 
+					<!-- Honeypot — hidden from real users, bots will fill it -->
+					<div style="position:absolute;left:-9999px;opacity:0;" aria-hidden="true">
+						<label for="website">Website</label>
+						<input type="text" name="website" id="website" tabindex="-1" autocomplete="off" />
+					</div>
+
 					<div class="customize-footer">
 						<div>
 							<div class="terms">
