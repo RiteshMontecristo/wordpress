@@ -1,6 +1,7 @@
 <?php
 
 require_once get_stylesheet_directory() . '/woocommerce/helper_functions.php';
+require_once ABSPATH . 'wp-admin/includes/file.php';
 
 add_filter('xmlrpc_enabled', '__return_false');
 
@@ -472,7 +473,7 @@ function appointment()
     $time = isset($_POST['time']) ? sanitize_text_field($_POST['time']) : '';
     $img = isset($_FILES['img']) ? $_FILES['img'] : '';
     $attachments = [];
-
+    $errors = [];
 
     // Validation checks
     if (empty($firstName)) {
@@ -497,19 +498,44 @@ function appointment()
         $errors[] = "Time is required.";
     }
     if (!empty($img)) {
-        foreach ($_FILES['img']['tmp_name'] as $key => $tmp_name) {
-            $file_path = $tmp_name;
-            $file_name = $_FILES['img']['name'][$key];
+        $max_file_size = 2 * 1024 * 1024; // 2MB   
+        $upload_overrides = [
+            'test_form' => false, // we use this cause we are using custom forms and not the wordpress forms
+            'mimes' => [
+                'jpg|jpeg|jpe' => 'image/jpeg',
+                'png'          => 'image/png',
+                'gif'          => 'image/gif',
+                'webp'         => 'image/webp',
+            ],
+        ];
 
-            // Define the target path in the uploads directory
-            $target_path = ABSPATH . 'wp-content/uploads/' . basename($file_name);
+        foreach ($_FILES['img']['name'] as $key => $value) {
 
-            // Move the uploaded file to the uploads directory
-            if (move_uploaded_file($file_path, $target_path)) {
-                // $attachments[] = $public_url;
-                $attachments[] = ABSPATH . 'wp-content/uploads/' . basename($file_name);
+            if ($_FILES['img']['error'][$key] !== UPLOAD_ERR_OK) {
+                continue;
+            }
+
+            $file = [
+                'name'     => sanitize_file_name($_FILES['img']['name'][$key]),
+                'type'     => $_FILES['img']['type'][$key],
+                'tmp_name' => $_FILES['img']['tmp_name'][$key], //tmp_name means temporary parth where the file is stored on the server
+                'error'    => $_FILES['img']['error'][$key],
+                'size'     => $_FILES['img']['size'][$key],
+            ];
+
+            if ($_FILES['img']['size'][$key] > $max_file_size) {
+                $errors[] = "File {$file['name']} exceeds 2MB limit.";
+                continue;
+            }
+
+            $movefile = wp_handle_upload($file, $upload_overrides);
+
+            if ($movefile && !isset($movefile['error'])) {
+                // returns the full server path - need the server path and not url as we need to delete it later and unlink doesnt delete with url
+                $attachments[] = $movefile['file'];
             } else {
-                echo "Error uploading file: " . $file_name . "<br>";
+                error_log("Upload error: " . $movefile['error']);
+                $errors[] = "File upload error:" . $movefile['error'];
             }
         }
     }
