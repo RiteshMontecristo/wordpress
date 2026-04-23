@@ -242,7 +242,7 @@ require_once get_stylesheet_directory() . '/woocommerce/product.php';
 function load_more_blogs()
 {
 
-    $page = isset($_GET['page']) ? $_GET['page'] : 0;
+    $page = isset($_GET['page']) ? absint($_GET['page']) : 0;
 
     $blog_post_per_page = 6;
     $offset = $blog_post_per_page * $page + 1;
