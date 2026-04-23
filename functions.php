@@ -97,6 +97,7 @@ function enqueue_admin_scripts()
         'ajax_url' => admin_url('admin-ajax.php'),
         'sales_css_url' => get_stylesheet_directory_uri() . '/inventory/styles/sales.css',
         'find_invoice_css_url' => get_stylesheet_directory_uri() . '/inventory/styles/find_invoice.css',
+        'placeholder_img_url' => wc_placeholder_img_src('thumbnail'),
     ));
 
     wp_enqueue_style(
