@@ -25,7 +25,7 @@ export const CustomerSelector = {
 
       if (searchValue) {
         fetch(
-          `${ajax_inventory.ajax_url}?action=search_customer&location_id=${
+          `${ajax_inventory.ajax_url}?action=search_customer&nonce=${ajax_inventory.nonce}&location_id=${
             AppState.location.id
           }&search_value=${encodeURIComponent(searchValue)}`,
           {
@@ -86,7 +86,7 @@ export const CustomerSelector = {
 
   updateLayaway() {
     fetch(
-      `${ajax_inventory.ajax_url}?action=getLayawaySum&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
+      `${ajax_inventory.ajax_url}?action=getLayawaySum&nonce=${ajax_inventory.nonce}&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
       {
         method: "GET",
       }

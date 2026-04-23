@@ -37,7 +37,7 @@ export const LayawaySelector = {
       }
 
       fetch(
-        `${ajax_inventory.ajax_url}?action=getLayaway&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
+        `${ajax_inventory.ajax_url}?action=getLayaway&nonce=${ajax_inventory.nonce}&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
         {
           method: "GET",
         },
@@ -122,6 +122,7 @@ export const LayawaySelector = {
 
       const formData = new FormData(this.layawayForm);
       formData.append("action", "addLayaway");
+      formData.append("nonce", ajax_inventory.nonce);
       formData.append("customer_id", AppState.customer.id);
       formData.append("location_id", AppState.location.id);
 

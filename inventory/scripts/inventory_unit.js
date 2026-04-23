@@ -115,6 +115,7 @@ saveModal?.addEventListener("click", (e) => {
   notes && formData.append("notes", notes);
   variant && formData.append("variationID", variant);
   formData.append("action", "create_inventory_units");
+  formData.append("nonce", ajax_inventory.nonce);
 
   if (unitId) {
     formData.append("unit_id", unitId);
@@ -165,6 +166,7 @@ deleteUnitbtn?.forEach((btn) => {
       formData.append("product_id", productId);
       formData.append("variant_id", variantId);
       formData.append("action", "delete_inventory_unit");
+      formData.append("nonce", ajax_inventory.nonce);
 
       fetch(`${ajax_inventory.ajax_url}`, {
         method: "POST",
@@ -298,6 +300,7 @@ editStatusForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const formData = new FormData(editStatusForm);
+  formData.append("nonce", ajax_inventory.nonce);
   editStatusUpdateBtn.setAttribute("disabled", true);
   editStatusError.classList.add("hidden");
   try {

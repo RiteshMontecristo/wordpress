@@ -300,7 +300,6 @@ function render_inventory_units_meta_box($post)
             <h2 class="form-title">Update Item Status for <span id="sku"></span></h2>
             <form id="statusForm">
 
-                <?php wp_nonce_field('update_unit_status', 'unit_status_nonce'); ?>
                 <input type="hidden" id="unit-id" name="unit-id" value="" />
                 <input type="hidden" name="action" value="update_unit_status" />
                 <input type="hidden" id="product-id" name="product-id" value="" />
@@ -415,6 +414,8 @@ function generate_variation_dropdown($product, &$variation_name_by_id)
 
 function delete_inventory_unit()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
+
     global $wpdb;
     $unit_id = isset($_POST['unit_id']) ? intval($_POST['unit_id']) : null;
     $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : null;
@@ -493,6 +494,8 @@ add_action('wp_ajax_delete_inventory_unit', 'delete_inventory_unit');
 
 function create_inventory_units()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
+
     global $wpdb;
 
     // Check required fields
@@ -1081,12 +1084,7 @@ add_action('admin_footer', function () {
 
 function change_status()
 {
-    if (
-        !isset($_POST['unit_status_nonce']) ||
-        !wp_verify_nonce($_POST['unit_status_nonce'], 'update_unit_status')
-    ) {
-        wp_send_json_error('Security check failed.', 403);
-    }
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
 
     $product_id = isset($_POST['product-id']) ? sanitize_text_field(wp_unslash($_POST['product-id'])) : '';
     $unit_id = isset($_POST['unit-id']) ? sanitize_text_field(wp_unslash($_POST['unit-id'])) : '';

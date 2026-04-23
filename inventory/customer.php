@@ -223,7 +223,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                         <td>
                             <a href='?page=customer-management&action=view&id={$customer_id}' class='button'>View</a>
                             <a href='?page=customer-management&action=edit&id={$customer_id}' class='button'>Edit</a>
-                            <a href='?page=customer-management&action=delete&id={$customer_id}' class='button' onclick=\"return confirm('Are you sure you want to delete this salesperson?');\">Delete</a>
+                            <a href='" . esc_url(wp_nonce_url("?page=customer-management&action=delete&id={$customer_id}", "delete_customer_{$customer_id}")) . "' class='button' onclick=\"return confirm('Are you sure you want to delete this customer?');\">Delete</a>
                         </td>";
                 } else {
                     $layaway = get_active_layaway_list($customer_id, $location_id);
@@ -462,10 +462,15 @@ function delete_customer_form()
         return;
     }
 
+    $customer_id = intval($_GET['id']);
+
+    if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], "delete_customer_{$customer_id}")) {
+        wp_die(__('Security check failed.'));
+    }
+
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_customers';
     $orders_table = $wpdb->prefix . 'mji_orders';
-    $customer_id = intval($_GET['id']);
 
     $customer = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $customer_id));
 

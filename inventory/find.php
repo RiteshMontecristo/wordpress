@@ -2653,6 +2653,7 @@ function insert_return_transactions($data, $order, $type)
 
 function create_credit_return()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
     $data = sanitize_and_validate_return($_POST);
 
     $order = order_exists($data['order_id']);
@@ -2687,6 +2688,7 @@ add_action('wp_ajax_create_credit_return', 'create_credit_return');
 
 function create_refund_return()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
     $data = sanitize_and_validate_return($_POST);
 
     $order = order_exists($data['order_id']);
@@ -2722,6 +2724,7 @@ add_action('wp_ajax_create_refund_return', 'create_refund_return');
 
 function create_refund_layaway()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
     global $wpdb;
 
     $layaways_table = "{$wpdb->prefix}mji_layaways";
@@ -2877,6 +2880,7 @@ add_action('wp_ajax_create_refund_layaway', 'create_refund_layaway');
 
 function create_refund_credit()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
     global $wpdb;
 
     $credits_table = "{$wpdb->prefix}mji_credits";

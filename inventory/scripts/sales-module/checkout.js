@@ -42,7 +42,7 @@ export const CheckoutSelector = {
     document.addEventListener("checkout:updateLayaway", async () => {
       try {
         let layawayRes = await fetch(
-          `${ajax_inventory.ajax_url}?action=getActiveLayaway&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
+          `${ajax_inventory.ajax_url}?action=getActiveLayaway&nonce=${ajax_inventory.nonce}&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
         );
 
         layawayRes = await layawayRes.json();
@@ -52,7 +52,7 @@ export const CheckoutSelector = {
         }
 
         let creditRes = await fetch(
-          `${ajax_inventory.ajax_url}?action=getActiveCredit&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
+          `${ajax_inventory.ajax_url}?action=getActiveCredit&nonce=${ajax_inventory.nonce}&customer_id=${AppState.customer.id}&location_id=${AppState.location.id}`,
         );
 
         creditRes = await creditRes.json();
@@ -106,6 +106,7 @@ export const CheckoutSelector = {
       const formData = new FormData(this.finalizeSale);
 
       formData.append("action", "finalizeSale");
+      formData.append("nonce", ajax_inventory.nonce);
       formData.append("location", AppState.location.id);
       formData.append("customer_id", AppState.customer.id);
       formData.append("items", JSON.stringify(AppState.cart));

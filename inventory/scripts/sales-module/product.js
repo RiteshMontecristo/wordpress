@@ -31,7 +31,7 @@ export const ProductSelector = {
       this.searchBtn.innerHTML = "Searching...";
       const url = `${
         ajax_inventory.ajax_url
-      }?action=searchProducts&search_product=${encodeURIComponent(
+      }?action=searchProducts&nonce=${ajax_inventory.nonce}&search_product=${encodeURIComponent(
         searchValue,
       )}`;
       if (searchValue) {

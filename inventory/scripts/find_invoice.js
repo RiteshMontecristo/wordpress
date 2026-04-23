@@ -107,6 +107,7 @@ async function sumbitForm(e, form, type) {
   e.preventDefault();
 
   const formData = new FormData(form);
+  formData.append("nonce", ajax_inventory.nonce);
   formData.append("gst", gst);
   formData.append("pst", pst);
   formData.append("subtotal", subtotal);
@@ -345,6 +346,7 @@ layawayRefundForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const formData = new FormData(layawayRefundForm);
+  formData.append("nonce", ajax_inventory.nonce);
   const totalValue = Number(
     layawayRefundForm.querySelector("input[name='total_value']").value,
   );

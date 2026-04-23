@@ -419,11 +419,13 @@ function inventory_page()
             <button id="salesPrintReceipt" class="button button-primary">Print Receipt</button>
             <a href="admin.php?page=inventory-management" class="button">Enter New Sale</a>
         </div>
-        <?php
+    <?php
 }
 
 function search_customer()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
+
     if (!isset($_GET['search_value']) && !isset($_GET['location_id'])) {
         return wp_send_json_error('Search and Location value is required');
     }
@@ -438,6 +440,10 @@ add_action('wp_ajax_search_customer', 'search_customer');
 
 function get_layaway_sum($customer_id = null, $location_id = null)
 {
+    if (defined('DOING_AJAX') && DOING_AJAX) {
+        check_ajax_referer('mji_inventory_nonce', 'nonce');
+    }
+
     $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : $customer_id;
     $location = isset($_GET['location_id']) ? intval($_GET['location_id']) : $location_id;
 
@@ -515,6 +521,7 @@ add_action('wp_ajax_getLayawaySum', 'get_layaway_sum');
 // Display all the layway history from payemnts i.e. deposit and redeem
 function get_layaway_list()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
 
     if (!isset($_GET['customer_id'])) {
         return wp_send_json_error('Customer ID is required');
@@ -556,6 +563,8 @@ add_action('wp_ajax_getLayaway', 'get_layaway_list');
 
 function add_layaway()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
+
     global $wpdb;
     $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'bank_draft', 'cup', 'alipay', 'wire', 'trade_in', 'credit'];
     $payments = [];
@@ -701,6 +710,9 @@ add_action('wp_ajax_addLayaway', 'add_layaway');
 // Get layaway that is active and hasn't been redeemed
 function get_active_layaway_list($customer_id = null, $location_id = null)
 {
+    if (defined('DOING_AJAX') && DOING_AJAX) {
+        check_ajax_referer('mji_inventory_nonce', 'nonce');
+    }
 
     $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : $customer_id;
     $location = isset($_GET['location_id']) ? intval($_GET['location_id']) : $location_id;
@@ -739,6 +751,9 @@ add_action('wp_ajax_getActiveLayaway', 'get_active_layaway_list');
 // Get layaway that is active and hasn't been redeemed
 function get_active_credit_list($customer_id = null, $location_id = null)
 {
+    if (defined('DOING_AJAX') && DOING_AJAX) {
+        check_ajax_referer('mji_inventory_nonce', 'nonce');
+    }
 
     $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : $customer_id;
     $location = isset($_GET['location_id']) ? intval($_GET['location_id']) : $location_id;
@@ -775,6 +790,8 @@ add_action('wp_ajax_getActiveCredit', 'get_active_credit_list');
 
 function searchProducts()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
+
     if (!isset($_GET['search_product']) || empty(trim($_GET['search_product']))) {
         wp_send_json_error(array("message" => "search field not set"));
     }
@@ -841,8 +858,6 @@ function searchProducts()
 }
 
 add_action('wp_ajax_searchProducts', 'searchProducts');
-
-add_action('wp_ajax_finalizeSale', 'finalizeSale');
 
 function validate_sale_input($post_data)
 {
@@ -1236,6 +1251,8 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 
 function finalizeSale()
 {
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
+
     $customer_id = intval($_POST['customer_id']);
     $salesperson_id = intval($_POST['salesperson']);
     $location_id = intval($_POST['location']);
@@ -1297,3 +1314,5 @@ function finalizeSale()
         'notes' => $notes
     ]);
 }
+
+add_action('wp_ajax_finalizeSale', 'finalizeSale');
