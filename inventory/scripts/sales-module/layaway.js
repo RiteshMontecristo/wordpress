@@ -199,13 +199,14 @@ export const LayawaySelector = {
 
   displayReceipt(data, reference) {
     const paymentLines = data.payments
-      .map((payment) => `${payment.method}: $${formatCurrency(payment.amount)}`)
-      .join(", ");
-
-    const paymentTotal = data.payments.reduce(
-      (sum, p) => sum + Number(p.amount),
-      0,
-    );
+      .map(
+        (payment) =>
+          `<div class="layaway-receipt-row">
+            <span>Paid by ${payment.method}</span>
+            <span>$${formatCurrency(payment.amount)}</span>
+          </div>`,
+      )
+      .join("");
 
     this.layawayReceipt.innerHTML = `
       <header>
@@ -221,29 +222,27 @@ export const LayawaySelector = {
         </div>
         <div>
           <p>Reference # ${reference}</p>
-          <p>Payment on <time datetime="${data.payment_date}">${data.payment_date}</time></p>
+          <p>Date: <time datetime="${data.payment_date}">${data.payment_date}</time></p>
           <p>Served by ${data.salesperson}</p>
         </div>
       </header>
 
-      <main>
-        <table>
-          <tfoot>
-            <tr>
-              <td class="payment-summary">
-                ${data.notes ? `<p>${data.notes}</p>` : ""}
-                <p>Paid by ${paymentLines}</p>
-                <p>Thank you for shopping at Montecristo Jewellers</p>
-              </td>
-              <td>
-                <strong>Payment Amount: $${formatCurrency(paymentTotal)}</strong><br />
-                <strong>Layaway Total: $${formatCurrency(data.layaway_sum.layaway)}</strong><br />
-                <strong>Credit Total: $${formatCurrency(data.layaway_sum.credit)}</strong>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </main>
+      <div class="layaway-receipt-body">
+        <hr class="layaway-receipt-divider" />
+        ${data.notes ? `<p class="layaway-receipt-notes">${data.notes}</p>` : ""}
+        ${paymentLines}
+        <hr class="layaway-receipt-divider" />
+        <div class="layaway-receipt-row">
+          <span>Total Layaway Balance</span>
+          <strong>$${formatCurrency(data.layaway_sum.layaway)}</strong>
+        </div>
+        <div class="layaway-receipt-row">
+          <span>Total Credit Balance</span>
+          <strong>$${formatCurrency(data.layaway_sum.credit)}</strong>
+        </div>
+        <hr class="layaway-receipt-divider" />
+        <p class="layaway-receipt-thanks">Thank you for shopping at Montecristo Jewellers</p>
+      </div>
     `;
   },
 };

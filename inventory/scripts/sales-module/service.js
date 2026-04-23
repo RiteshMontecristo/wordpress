@@ -11,7 +11,6 @@ export const ServiceSelector = {
     this.description = this.serviceForm.querySelector("#description");
     this.costPrice = this.serviceForm.querySelector("#costPrice");
     this.retailPrice = this.serviceForm.querySelector("#retailPrice");
-    this.reference = this.serviceForm.querySelector("#reference");
 
     this.bindEvents();
   },
@@ -39,7 +38,6 @@ export const ServiceSelector = {
     this.description.value = "";
     this.costPrice.value = "";
     this.retailPrice.value = "";
-    this.reference.value = "";
     this.category.value = "watch_service";
     this.editingId = null;
 
@@ -57,7 +55,6 @@ export const ServiceSelector = {
     this.description.value = service.description || "";
     this.costPrice.value = service.costPrice;
     this.retailPrice.value = service.retailPrice;
-    this.reference.value = service.reference || "";
 
     this.editingId = serviceId;
 
@@ -87,7 +84,6 @@ export const ServiceSelector = {
       description: this.description.value,
       costPrice: Number(this.costPrice.value),
       retailPrice: Number(this.retailPrice.value),
-      reference: this.reference.value,
     };
 
     if (id) {

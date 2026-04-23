@@ -19,7 +19,7 @@ export const StoreSelector = {
     this.modal.querySelectorAll(".store-btn").forEach((button) => {
       button.addEventListener("click", () => {
         const storeId = button.dataset.id;
-        const storeName = button.textContent;
+        const storeName = button.dataset.name;
         this.setStore(storeId, storeName);
       });
     });
@@ -65,7 +65,7 @@ export const StoreSelector = {
 
   updateUI() {
     if (this.state?.id) {
-      this.topStore.style.display = "block";
+      this.topStore.style.display = "flex";
       this.topStoreName.textContent = this.state.name;
       this.changeBtn.style.display = "inline-block";
       this.modal.style.display = "none";

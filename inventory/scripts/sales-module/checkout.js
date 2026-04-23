@@ -83,6 +83,12 @@ export const CheckoutSelector = {
       const submitBtn = this.finalizeSale.querySelector("button");
       submitBtn.disabled = true;
 
+      if (!AppState.location.id) {
+        alert("No store selected. Please select a location before finalizing the sale.");
+        submitBtn.disabled = false;
+        return;
+      }
+
       if (AppState.cart.length === 0 && AppState.services.length === 0) {
         alert(
           "Cart is empty. Please add items to the cart before finalizing the sale.",
@@ -280,7 +286,9 @@ export const CheckoutSelector = {
       totalPaid += Number(payment.value) || 0;
     }
 
-    if (Math.abs(totalPaid - Number(total)) > 0.01) {
+    const roundedPaid  = Math.round(totalPaid * 100) / 100;
+    const roundedTotal = Math.round(Number(total) * 100) / 100;
+    if (Math.abs(roundedPaid - roundedTotal) > 0.01) {
       alert(
         `Payment does not match total!\nExpected: $${total}\nReceived: $${formatCurrency(
           totalPaid,
@@ -351,26 +359,18 @@ export const CheckoutSelector = {
                 <header>
                   <div>
                     <h2>Montecristo Jewellers</h2>
-                    <p><strong>Receipt</strong></p>
+                    <p><strong>Sale Receipt</strong></p>
                   </div>
                   <div>
                     <address>
-                      <p>${AppState.customer.firstName} ${
-                        AppState.customer.lastName
-                      }</p>
-                      <p>${AppState.customer.address
-                        .split(",")
-                        .join("<br/>")}</p>
-                      <p>${data.customer?.phone ?? ""}</p>
-                      <p>${data.customer?.email ?? ""}</p>
+                      <p>${AppState.customer.firstName} ${AppState.customer.lastName}</p>
+                      <p>${AppState.customer.address.split(",").join("<br/>")}</p>
                     </address>
                   </div>
                   <div>
-                      <p>Reference # ${data.reference_num}</p>
-                      <p>Sold on <time datetime="${data.date}">${
-                        data.date
-                      }</time></p>
-                      <p>Served by ${data.salesperson_name}</p>
+                    <p>Reference # ${data.reference_num}</p>
+                    <p>Date: <time datetime="${data.date}">${data.date}</time></p>
+                    <p>Served by ${data.salesperson_name}</p>
                   </div>
                 </header>
 

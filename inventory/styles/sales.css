@@ -1,34 +1,388 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Inventory Sales — page layout & components
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .inventory-sales .hidden {
   display: none !important;
 }
 
-.customer-details {
-  display: flex;
-  justify-content: space-between;
+/* ── Section spacing ────────────────────────────────────────────────────────── */
+
+.sales-section {
+  margin-top: 20px;
 }
 
-.add-layaway form,
-form[name="finalize-sale"] {
+.sales-section h2 {
+  margin-bottom: 12px;
+}
+
+/* ── Customer banner card ───────────────────────────────────────────────────── */
+
+.sales-customer-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.sales-customer-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.sales-customer-avatar {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #2271b1;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sales-customer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.sales-customer-meta strong {
+  font-size: 15px;
+  color: #1d2327;
+}
+
+.sales-customer-meta span {
+  font-size: 12px;
+  color: #666;
+}
+
+.sales-balance-pill {
+  display: inline-block;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  width: fit-content;
+}
+
+/* ── Action button bar ──────────────────────────────────────────────────────── */
+
+.sales-action-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.sales-action-bar .button .dashicons {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  vertical-align: text-bottom;
+  margin-right: 2px;
+}
+
+/* ── Form section cards ─────────────────────────────────────────────────────── */
+
+.sales-form-section {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.sales-form-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #555;
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+/* ── Payment methods grid ───────────────────────────────────────────────────── */
+
+.payment-methods-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px 16px;
+}
+
+.payment-method-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.payment-method-field label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #666;
+}
+
+.payment-method-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Layaway / credit dynamic fields rendered by JS match same style */
+#layawayContainer,
+#creditContainer {
+  display: contents;
+}
+
+#layawayContainer > div,
+#creditContainer > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#layawayContainer label,
+#creditContainer label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #666;
+}
+
+#layawayContainer input,
+#creditContainer input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Transaction details grid ───────────────────────────────────────────────── */
+
+.sales-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px 20px;
+}
+
+.sales-meta-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sales-meta-field label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #555;
+}
+
+.sales-meta-field input,
+.sales-meta-field select,
+.sales-meta-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sales-meta-field--full {
+  grid-column: 1 / -1;
+}
+
+/* ── Finalize sale two-column layout ────────────────────────────────────────── */
+
+.finalize-sale-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-
-  > div {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 10px;
-
-    label,
-    span {
-      width: 100px;
-      display: inline-block;
-    }
-
-    button {
-      width: fit-content;
-    }
-  }
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 0;
 }
+
+.finalize-sale-left,
+.finalize-sale-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Two-column meta grid — reference + salesperson side by side */
+.sales-meta-grid--2col {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* ── Finalize sale footer (full-width button row below the grid) ────────────── */
+
+.finalize-sale-footer {
+  margin-top: 16px;
+}
+
+/* ── Order summary totals ───────────────────────────────────────────────────── */
+
+.sales-totals-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sales-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sales-total-row label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  flex-shrink: 0;
+  min-width: 120px;
+}
+
+.sales-total-row input[readonly] {
+  background: #f6f7f7;
+  border-color: #ddd;
+  font-weight: 600;
+  text-align: right;
+  max-width: 180px;
+  flex: 1;
+}
+
+.sales-total-row--grand label {
+  font-size: 15px;
+  color: #1d2327;
+}
+
+.sales-total-row--grand input[readonly] {
+  font-size: 15px;
+  background: #eaf4fc;
+  border-color: #2271b1;
+}
+
+.sales-tax-toggles {
+  display: flex;
+  gap: 20px;
+}
+
+.sales-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+}
+
+/* ── Cart items ─────────────────────────────────────────────────────────────── */
+
+.cart-items {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 20px;
+  min-height: 60px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cart-empty-msg {
+  color: #888;
+  font-style: italic;
+  font-size: 13px;
+  margin: 0;
+}
+
+.cart-items .product-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.cart-items .product-item:last-child {
+  border-bottom: none;
+}
+
+.cart-items .product-item img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.cart-items .product-item > div {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cart-items .service-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cart-items .service-item:last-child {
+  border-bottom: none;
+}
+
+.cart-items .service-item img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #eee;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.cart-items .service-item > div {
+  flex: 1;
+}
+
+/* ── Sale result section ────────────────────────────────────────────────────── */
+
+.sales-result {
+  margin-top: 20px;
+}
+
+.sales-result h2 {
+  margin-bottom: 12px;
+}
+
+.sales-result .button {
+  margin-right: 8px;
+  margin-top: 12px;
+  display: inline-block;
+}
+
+/* ── Modals ─────────────────────────────────────────────────────────────────── */
 
 .modal {
   position: fixed;
@@ -42,11 +396,21 @@ form[name="finalize-sale"] {
   align-items: center;
   z-index: 1000;
 }
+
 .modal-content {
   background: white;
-  padding: 20px;
+  padding: 24px;
   border-radius: 8px;
-  width: 300px;
+  width: 320px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+/* Wider modals for edit/service */
+.sales-wide-modal {
+  width: 480px;
+  max-width: 95vw;
 }
 
 .modal-content p {
@@ -54,35 +418,175 @@ form[name="finalize-sale"] {
 }
 
 .modal-content label {
-  display: inline-block;
+  display: block;
   margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #555;
 }
 
-.modal-content input {
-  min-height: 25px;
-  height: 100%;
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 4px;
+}
+
+.sales-edit-meta {
+  font-size: 13px;
+  color: #666;
+  margin: 4px 0 16px;
+}
+
+.sales-edit-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.sales-edit-field--full {
+  grid-column: 1 / -1;
+}
+
+/* ── Service modal header (image + title) ───────────────────────────────────── */
+
+.service-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eee;
+}
+
+.service-modal-img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  flex-shrink: 0;
+}
+
+.service-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.sales-service-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
 }
 
 .modal-actions {
-  margin-top: 15px;
-  text-align: right;
-}
-.modal-actions button {
-  margin-left: 10px;
-}
-
-.cart-items {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
 
-  .service-item {
-    padding: 16px;
+/* ── Layaway details table ──────────────────────────────────────────────────── */
+
+.layaway-details {
+  margin-top: 16px;
+}
+
+/* ── Layaway receipt body ────────────────────────────────────────────────────── */
+
+.layaway-receipt-body {
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.layaway-receipt-divider {
+  border: none;
+  border-top: 1px solid #ccc;
+  margin: 12px 0;
+}
+
+.layaway-receipt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.layaway-receipt-notes {
+  color: #555;
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+.layaway-receipt-thanks {
+  text-align: center;
+  color: #555;
+  font-size: 13px;
+}
+
+/* ── Receipt / print ────────────────────────────────────────────────────────── */
+
+.receipt-content {
+  max-width: 700px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 24px;
+}
+
+.receipt-content p {
+  margin: 0;
+}
+
+.receipt-content header {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.receipt-content header div:first-child {
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+.receipt-content header div:last-child {
+  text-align: end;
+}
+
+.receipt-content main table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.receipt-content main table th,
+.receipt-content main table td {
+  border: 1px solid #000;
+}
+
+.receipt-content main table td:last-child {
+  white-space: nowrap;
+}
+
+.receipt-content main table td.payment-summary {
+  vertical-align: bottom;
+}
+
+.receipt-content main table td.payment-summary p:not(:last-child) {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+  .finalize-sale-grid {
+    grid-template-columns: 1fr;
   }
 
-  .product-item {
-    display: flex;
-    align-items: center;
+  .sales-meta-grid--2col {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -98,67 +602,20 @@ form[name="finalize-sale"] {
     margin: 0;
     padding: 0;
   }
+
   .layaway-receipt {
     border: 1px solid #ccc;
     background: white;
   }
-  #printReceipt {
+
+  button,
+  a.button {
     display: none;
   }
+
   footer {
     margin-top: 20px;
     font-style: italic;
     text-align: center;
-  }
-
-  button {
-    display: none;
-  }
-}
-
-.receipt-content {
-  max-width: 700px;
-
-  p {
-    margin: 0;
-  }
-
-  header {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-
-    div:first-child {
-      text-align: center;
-      grid-column: 1/-1;
-    }
-
-    div:last-child {
-      text-align: end;
-    }
-  }
-
-  main {
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-
-      th,
-      td {
-        border: 1px solid #000;
-      }
-
-      td:last-child {
-        white-space: nowrap;
-      }
-
-      td.payment-summary {
-        vertical-align: bottom;
-
-        p:not(:last-child) {
-          margin-bottom: 8px;
-        }
-      }
-    }
   }
 }

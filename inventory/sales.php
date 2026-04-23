@@ -3,61 +3,83 @@
 function inventory_page()
 { ?>
     <div class="wrap inventory-sales">
-        <h1>Inventory Management</h1>
+        <h1 class="wp-heading-inline">Inventory Management</h1>
 
-
-        <div id="top-store" class="store-location">
-            <h2>Store: <span id="store-name"></span></h2>
-            <button id="change-store-btn">Change</button>
-        </div>
-
-        <div id="store-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-
-                <h2>Select Store:</h2>
-                <?php
-                $locations = mji_get_locations();
-
-                foreach ($locations as  $location) {
-                    echo "<button class='store-btn' data-id='" . $location->id . "'>" . $location->name . "</button>";
-                }
-                ?>
-            </div>
-
-        </div>
-
-        <div id="customerDetails" class="customer-details hidden">
-            <div id="customerInfo" class="customer-info">
-                <span id="customer-name">Customer Name</span> <br />
-                <span id="customer-address">Customer Address</span> <br />
-                <h3 id="layawaySum"></h3>
-            </div>
-            <div>
-                <button type="button" id="viewProducts">Search Products</button>
-                <button type="button" id="viewCart">View Cart</button>
-                <button type="button" id="viewLayaway">View Layaway</button>
-                <button type="button" id="addService">Add Service</button>
+        <!-- Store selection modal -->
+        <div id="store-modal" class="modal" style="display:none;">
+            <div class="modal-content customer-store-modal">
+                <h2>Select Store</h2>
+                <p>Choose a location to continue.</p>
+                <div class="store-btn-group">
+                    <?php
+                    $locations = mji_get_locations();
+                    foreach ($locations as $location) {
+                        echo "<button class='store-btn button button-hero' data-id='" . esc_attr($location->id) . "' data-name='" . esc_attr($location->name) . "'><span class='dashicons dashicons-store'></span>" . esc_html($location->name) . "</button>";
+                    }
+                    ?>
+                </div>
             </div>
         </div>
 
-        <div class="search-customer" id="search-customer">
+        <!-- Active store bar -->
+        <div id="top-store" class="customer-store-bar" style="display:none;">
+            <div class="store-bar-info">
+                <span class="dashicons dashicons-store"></span>
+                <span class="store-bar-label">Store:</span>
+                <strong id="store-name"></strong>
+            </div>
+            <button id="change-store-btn" class="button">Change Store</button>
+        </div>
+
+        <!-- Customer banner (shown after selecting a customer) -->
+        <div id="customerDetails" class="sales-customer-card hidden">
+            <div class="sales-customer-info">
+                <div class="sales-customer-avatar"></div>
+                <div class="sales-customer-meta">
+                    <strong id="customer-name"></strong>
+                    <span id="customer-address"></span>
+                    <span id="layawaySum" class="sales-balance-pill"></span>
+                </div>
+            </div>
+            <div class="sales-action-bar">
+                <button type="button" id="viewProducts" class="button button-primary">
+                    <span class="dashicons dashicons-search"></span> Search Products
+                </button>
+                <button type="button" id="viewCart" class="button">
+                    <span class="dashicons dashicons-cart"></span> View Cart
+                </button>
+                <button type="button" id="viewLayaway" class="button">
+                    <span class="dashicons dashicons-money-alt"></span> Layaway / Credit
+                </button>
+                <button type="button" id="addService" class="button">
+                    <span class="dashicons dashicons-hammer"></span> Add Service
+                </button>
+            </div>
+        </div>
+
+        <!-- Customer search -->
+        <div class="sales-section" id="search-customer">
             <h2>Select Customer</h2>
-            <form name="search-customer" method="get">
-                <input id="search" size="30" type="text" name="search" placeholder="Search by Name or Phone">
-                <button type="submit" id="search-btn">Search</button>
-            </form>
-            <div id="search-customer-results">
-
+            <div class="customer-toolbar">
+                <form name="search-customer" method="get" class="customer-search-form">
+                    <div class="search-input-wrap">
+                        <span class="dashicons dashicons-search"></span>
+                        <input id="search" type="text" name="search" placeholder="Search by name or phone…"
+                            class="customer-search-input">
+                    </div>
+                    <button type="submit" id="search-btn" class="button">Search</button>
+                </form>
             </div>
+            <div id="search-customer-results"></div>
         </div>
 
+        <!-- Layaway / Credit history -->
         <div class="layaway-details hidden" id="layawayDetails">
-
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Reference Number</th>
+                        <th>Reference #</th>
                         <th>Transaction Type</th>
                         <th>Method</th>
                         <th>Amount</th>
@@ -65,335 +87,339 @@ function inventory_page()
                         <th>Salesperson</th>
                     </tr>
                 </thead>
-                <tbody id="layawayItems">
-                    <!-- Layaway items will be populated here -->
-                </tbody>
+                <tbody id="layawayItems"></tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="6">Total:</td>
+                        <td colspan="6"><strong>Total:</strong></td>
                         <td id="layaway-total">0.00 CAD</td>
                     </tr>
                 </tfoot>
             </table>
-
-            <button id="addLayaway">Add Layaway</button>
+            <div style="margin-top:12px;">
+                <button id="addLayaway" class="button button-primary">+ Add Layaway / Credit</button>
+            </div>
         </div>
 
+        <!-- Add Layaway / Credit form -->
         <div class="add-layaway hidden" id="addLayawayForm">
-
-            <h2>Add Layaway/Credit</h2>
+            <h2>Add Layaway / Credit</h2>
             <form name="add-layaway" method="post">
 
-                <div class="payment-methods">
-
-                    <div>
-                        <label for="cash">Cash:</label>
-                        <input type="number" step="0.01" id="cash" name="cash">
+                <div class="sales-form-section">
+                    <h3 class="sales-form-section-title">Payment Methods</h3>
+                    <div class="payment-methods-grid">
+                        <div class="payment-method-field">
+                            <label for="cash">Cash</label>
+                            <input type="number" step="0.01" id="cash" name="cash" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="cheque">Cheque</label>
+                            <input type="number" step="0.01" id="cheque" name="cheque" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="debit">Debit / Interac</label>
+                            <input type="number" step="0.01" id="debit" name="debit" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="visa">Visa</label>
+                            <input type="number" step="0.01" id="visa" name="visa" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="master_card">Mastercard</label>
+                            <input type="number" step="0.01" id="master_card" name="master_card" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="amex">Amex</label>
+                            <input type="number" step="0.01" id="amex" name="amex" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="bank_draft">Bank Draft</label>
+                            <input type="number" step="0.01" id="bank_draft" name="bank_draft" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="cup">Cup</label>
+                            <input type="number" step="0.01" id="cup" name="cup" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="alipay">Alipay</label>
+                            <input type="number" step="0.01" id="alipay" name="alipay" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="wire">Wire</label>
+                            <input type="number" step="0.01" id="wire" name="wire" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="trade_in">Trade-In</label>
+                            <input type="number" step="0.01" id="trade_in" name="trade_in" placeholder="0.00">
+                        </div>
+                        <div class="payment-method-field">
+                            <label for="credit">Credit</label>
+                            <input type="number" step="0.01" id="credit" name="credit" placeholder="0.00">
+                        </div>
                     </div>
-
-                    <div>
-                        <label for="cheque">Cheque:</label>
-                        <input type="number" step="0.01" id="cheque" name="cheque">
-                    </div>
-
-                    <div>
-                        <label for="debit">Debit/Interac:</label>
-                        <input type="number" step="0.01" id="debit" name="debit">
-                    </div>
-
-                    <div>
-                        <label for="visa">Visa:</label>
-                        <input type="number" step="0.01" id="visa" name="visa">
-                    </div>
-
-                    <div>
-                        <label for="master_card">Mastercard:</label>
-                        <input type="number" step="0.01" id="master_card" name="master_card">
-                    </div>
-
-                    <div>
-                        <label for="amex">Amex:</label>
-                        <input type="number" step="0.01" id="amex" name="amex">
-                    </div>
-
-                    <div>
-                        <label for="bank_draft">Bank Draft:</label>
-                        <input type="number" step="0.01" id="bank_draft" name="bank_draft">
-                    </div>
-
-                    <div>
-                        <label for="cup">Cup:</label>
-                        <input type="number" step="0.01" id="cup" name="cup">
-                    </div>
-
-                    <div>
-                        <label for="alipay">Alipay:</label>
-                        <input type="number" step="0.01" id="alipay" name="alipay">
-                    </div>
-
-                    <div>
-                        <label for="wire">Wire:</label>
-                        <input type="number" step="0.01" id="wire" name="wire">
-                    </div>
-
-                    <div>
-                        <label for="trade_in">Trade-In:</label>
-                        <input type="number" step="0.01" id="trade_in" name="trade_in">
-                    </div>
-
-                    <div>
-                        <label for="credit">Credit:</label>
-                        <input type="number" step="0.01" id="credit" name="credit">
-                    </div>
-
                 </div>
 
-                <div>
-                    <div>
-                        <label for="layaway-reference">Reference Number:</label>
-                        <input type="text" id="layaway-reference" name="layaway_reference" required>
+                <div class="sales-form-section">
+                    <h3 class="sales-form-section-title">Transaction Details</h3>
+                    <div class="sales-meta-grid">
+                        <div class="sales-meta-field">
+                            <label for="layaway-reference">Reference Number</label>
+                            <input type="text" id="layaway-reference" name="layaway_reference" required>
+                        </div>
+                        <div class="sales-meta-field">
+                            <label for="salesperson">Salesperson</label>
+                            <?= mji_salesperson_dropdown() ?>
+                        </div>
+                        <div class="sales-meta-field">
+                            <label for="layaway-date">Date</label>
+                            <input type="date" id="layaway-date" name="layaway_date" value="<?php echo date('Y-m-d'); ?>">
+                        </div>
+                        <div class="sales-meta-field">
+                            <label for="transaction_type">Deposit Type</label>
+                            <select name="transaction_type" id="transaction_type">
+                                <option value="layaway_deposit">Layaway</option>
+                                <option value="credit_deposit">Credit</option>
+                            </select>
+                        </div>
+                        <div class="sales-meta-field sales-meta-field--full">
+                            <label for="layaway-notes">Notes</label>
+                            <textarea id="layaway-notes" name="layaway_notes" rows="3"></textarea>
+                        </div>
                     </div>
-                    <div>
-                        <label for="salesperson">Salesperson</label>
-                        <?= mji_salesperson_dropdown() ?>
-                    </div>
-                    <div>
-                        <label for="layaway-notes">Notes:</label>
-                        <textarea id="layaway-notes" name="layaway_notes" rows="4" cols="50"></textarea>
-                    </div>
-                    <div>
-                        <label for="layaway-date">Date:</label>
-                        <input type="date" id="layaway-date" name="layaway_date" value="<?php echo date('Y-m-d'); ?>">
-                    </div>
-                    <div>
-                        <label for="transaction_type">Deposit:</label>
-                        <select name="transaction_type" id="transaction_type">
-                            <option value="layaway_deposit">Layaway</option>
-                            <option value="credit_deposit">Credit</option>
-                        </select>
-                    </div>
-
                 </div>
 
-                <button type="submit" id="submit-layaway">Submit Payment</button>
+                <button type="submit" id="submit-layaway" class="button button-primary button-large">Submit Payment</button>
             </form>
-
         </div>
 
-        <div class="layaway-receipt hidden" id="layawayReceipt"></div>
-        <button class="hidden" id="layawayPrintReceipt">Print Receipt</button>
+        <div class="layaway-receipt receipt-content hidden" id="layawayReceipt"></div>
+        <button class="hidden button button-primary" id="layawayPrintReceipt">Print Receipt</button>
 
-        <div class="search-products hidden" id="search-products">
-
+        <!-- Product search -->
+        <div class="sales-section hidden" id="search-products">
             <h2>Search Products</h2>
-            <form name="search-products" method="post">
-                <input id="search-products" size="30" type="text" name="search-products" placeholder="Search by SKU">
-                <button type="submit" id="search-product-btn">Search</button>
-            </form>
-
-            <div id="search-product-results">
-
+            <div class="customer-toolbar">
+                <form name="search-products" method="post" class="customer-search-form">
+                    <div class="search-input-wrap">
+                        <span class="dashicons dashicons-search"></span>
+                        <input id="search-products" type="text" name="search-products" placeholder="Search by SKU…"
+                            class="customer-search-input">
+                    </div>
+                    <button type="submit" id="search-product-btn" class="button">Search</button>
+                </form>
             </div>
+            <div id="search-product-results"></div>
         </div>
 
+        <!-- Edit item modal -->
         <div id="edit-item-modal" class="modal hidden">
-            <div class="modal-content">
+            <div class="modal-content sales-wide-modal">
                 <h3>Edit Item</h3>
                 <p><strong id="edit-item-title"></strong></p>
-                <p>SKU: <span id="edit-item-sku"></span></p>
-                <p>Price: <span id="edit-item-price"></span></p>
-                <label>
-                    Discount Amt($):
-                    <input type="number" id="edit-discount-amt" min="0" step="0.01" />
-                </label>
-                <label>
-                    Discount Pct(%):
-                    <input type="number" id="edit-discount-pct" min="0" step="0.01" />
-                </label>
-                <label>
-                    Price After Discount:
-                    <input type="number" id="edit-price-after-discount" min="0" step="0.01" />
-                </label>
-                <div class="modal-actions">
-                    <button id="save-edit">Save</button>
-                    <button id="cancel-edit">Cancel</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="service-modal" class="modal hidden">
-            <form name="add-service" class="modal-content">
-                <h3>Services & Repairs</h3>
-                <div>
-                    <label for="category">
-                        Category:
+                <p class="sales-edit-meta">
+                    SKU: <span id="edit-item-sku"></span>
+                    &nbsp;|&nbsp;
+                    Price: <span id="edit-item-price"></span>
+                </p>
+                <div class="sales-edit-fields">
+                    <label>
+                        Discount ($)
+                        <input type="number" id="edit-discount-amt" min="0" step="0.01" placeholder="0.00" />
                     </label>
-                    <select name="category" id="category">
-                        <option value="watch_service">Watch Service</option>
-                        <option value="jewellery_service">Jewellery Service</option>
-                        <option value="shipping">Shipping</option>
-                    </select>
+                    <label>
+                        Discount (%)
+                        <input type="number" id="edit-discount-pct" min="0" step="0.01" placeholder="0.00" />
+                    </label>
+                    <label class="sales-edit-field--full">
+                        Price After Discount
+                        <input type="number" id="edit-price-after-discount" min="0" step="0.01" />
+                    </label>
                 </div>
-
-                <div>
-                    <label for="description">Description</label>
-                    <textarea id="description" name="description" rows="2"></textarea>
-                </div>
-
-                <div>
-                    <label for="costPrice">Cost Price:</label>
-                    <input type="number" id="costPrice" min="0" step="0.01" required />
-                </div>
-
-                <div>
-                    <label for="retailPrice">Retail Price:</label>
-                    <input type="number" id="retailPrice" min="0" step="0.01" required />
-                </div>
-
-                <div>
-                    <label for="reference">Reference:</label>
-                    <input type="text" id="reference" min="0" step="0.01" />
-                </div>
-
                 <div class="modal-actions">
-                    <button type="submit" id="add">Add</button>
-                    <button type="button" id="cancel">Cancel</button>
+                    <button id="cancel-edit" class="button">Cancel</button>
+                    <button id="save-edit" class="button button-primary">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Service modal -->
+        <div id="service-modal" class="modal hidden">
+            <form name="add-service" class="modal-content sales-wide-modal">
+                <div class="service-modal-header">
+                    <img src="<?= esc_url(wc_placeholder_img_src('thumbnail')) ?>" alt="Service" class="service-modal-img">
+                    <h3>Services &amp; Repairs</h3>
+                </div>
+                <div class="sales-service-fields">
+                    <div class="sales-meta-field">
+                        <label for="category">Category</label>
+                        <select name="category" id="category">
+                            <option value="watch_service">Watch Service</option>
+                            <option value="jewellery_service">Jewellery Service</option>
+                            <option value="shipping">Shipping</option>
+                        </select>
+                    </div>
+                    <div class="sales-meta-field">
+                        <label for="costPrice">Cost Price</label>
+                        <input type="number" id="costPrice" min="0" step="0.01" required />
+                    </div>
+                    <div class="sales-meta-field">
+                        <label for="retailPrice">Retail Price</label>
+                        <input type="number" id="retailPrice" min="0" step="0.01" required />
+                    </div>
+                    <div class="sales-meta-field sales-meta-field--full">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="cancel" class="button">Cancel</button>
+                    <button type="submit" id="add" class="button button-primary">Add Service</button>
                 </div>
             </form>
         </div>
 
+        <!-- Cart & Finalize Sale -->
         <div class="cart hidden" id="cart">
-
-            <h3>Items in the Cart:</h3>
+            <h2>Cart</h2>
             <div class="cart-items">
-                <p>No items in the cart!!. Please add by searching the prooducts.</p>
+                <p class="cart-empty-msg">No items in the cart. Please add by searching products.</p>
             </div>
 
-            <h3>Finalize Sale</h3>
-
+            <h2>Finalize Sale</h2>
             <form name="finalize-sale" method="post">
+                <div class="finalize-sale-grid">
+                    <!-- LEFT: Payment Methods -->
+                    <div class="finalize-sale-left">
+                        <div class="sales-form-section">
+                            <h3 class="sales-form-section-title">Transaction Details</h3>
+                            <div class="sales-meta-grid sales-meta-grid--2col">
+                                <div class="sales-meta-field">
+                                    <label for="reference">Reference Number</label>
+                                    <input type="text" id="reference" name="reference" required>
+                                </div>
+                                <div class="sales-meta-field">
+                                    <label for="salesperson">Salesperson</label>
+                                    <?= mji_salesperson_dropdown() ?>
+                                </div>
+                                <div class="sales-meta-field sales-meta-field--full">
+                                    <label for="sales-date">Date</label>
+                                    <input type="date" id="sales-date" name="date" value="<?php echo date('Y-m-d'); ?>">
+                                </div>
+                                <div class="sales-meta-field sales-meta-field--full">
+                                    <label for="notes">Notes</label>
+                                    <textarea id="notes" name="notes" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
 
-                <div class="payment-methods">
-                    <div>
-                        <label for="cash">Cash:</label>
-                        <input type="number" min="0" step="0.01" id="cash" name="cash">
-                    </div>
+                        <div class="sales-form-section">
+                            <h3 class="sales-form-section-title">Payment Methods</h3>
+                            <div class="payment-methods-grid">
+                                <div class="payment-method-field">
+                                    <label for="cash">Cash</label>
+                                    <input type="number" min="0" step="0.01" id="cash" name="cash" placeholder="0.00">
+                                </div>
+                                <div class="payment-method-field">
+                                    <label for="cheque">Cheque</label>
+                                    <input type="number" min="0" step="0.01" id="cheque" name="cheque" placeholder="0.00">
+                                </div>
+                                <div class="payment-method-field">
+                                    <label for="debit">Debit / Interac</label>
+                                    <input type="number" min="0" step="0.01" id="debit" name="debit" placeholder="0.00">
+                                </div>
+                                <div class="payment-method-field">
+                                    <label for="visa">Visa</label>
+                                    <input type="number" min="0" step="0.01" id="visa" name="visa" placeholder="0.00">
+                                </div>
+                                <div class="payment-method-field">
+                                    <label for="master_card">Mastercard</label>
+                                    <input type="number" min="0" step="0.01" id="master_card" name="master_card"
+                                        placeholder="0.00">
+                                </div>
+                                <div class="payment-method-field">
+                                    <label for="amex">Amex</label>
+                                    <input type="number" min="0" step="0.01" id="amex" name="amex" placeholder="0.00">
+                                </div>
+                                <div class="payment-method-field">
+                                    <label for="bank_draft">Bank Draft</label>
+                                    <input type="number" min="0" step="0.01" id="bank_draft" name="bank_draft"
+                                        placeholder="0.00">
+                                </div>
+                                <div class="payment-method-field">
+                                    <label for="cup">Cup</label>
+                                    <input type="number" min="0" step="0.01" id="cup" name="cup" placeholder="0.00">
+                                </div>
+                                <div class="payment-method-field">
+                                    <label for="alipay">Alipay</label>
+                                    <input type="number" min="0" step="0.01" id="alipay" name="alipay" placeholder="0.00">
+                                </div>
+                                <div class="payment-method-field">
+                                    <label for="wire">Wire</label>
+                                    <input type="number" min="0" step="0.01" id="wire" name="wire" placeholder="0.00">
+                                </div>
+                                <div id="layawayContainer"></div>
+                                <div id="creditContainer"></div>
+                            </div>
+                        </div>
+                    </div><!-- end finalize-sale-left -->
 
-                    <div>
-                        <label for="cheque">Cheque:</label>
-                        <input type="number" min="0" step="0.01" id="cheque" name="cheque">
-                    </div>
+                    <!-- RIGHT: Order Summary + Transaction Details -->
+                    <div class="finalize-sale-right">
 
-                    <div>
-                        <label for="debit">Debit/Interac:</label>
-                        <input type="number" min="0" step="0.01" id="debit" name="debit">
-                    </div>
+                        <div class="sales-form-section">
+                            <h3 class="sales-form-section-title">Order Summary</h3>
+                            <div class="sales-totals-grid">
+                                <div class="sales-total-row">
+                                    <label for="subtotal">Subtotal</label>
+                                    <input type="number" readonly name="subtotal" id="subtotal">
+                                </div>
+                                <div class="sales-total-row">
+                                    <label for="gst">GST (5%)</label>
+                                    <input type="number" readonly name="gst" id="gst">
+                                </div>
+                                <div class="sales-total-row">
+                                    <label for="pst">PST (7%)</label>
+                                    <input type="number" readonly name="pst" id="pst">
+                                </div>
+                                <div class="sales-tax-toggles">
+                                    <label class="sales-toggle-label">
+                                        <input type="checkbox" name="exclude_gst" id="exclude-gst">
+                                        Exclude GST
+                                    </label>
+                                    <label class="sales-toggle-label">
+                                        <input type="checkbox" name="exclude_pst" id="exclude-pst">
+                                        Exclude PST
+                                    </label>
+                                </div>
+                                <div class="sales-total-row sales-total-row--grand">
+                                    <label for="total">Total</label>
+                                    <input type="number" readonly name="total" id="total">
+                                </div>
+                                <div class="sales-total-row">
+                                    <label for="remaining">Remaining</label>
+                                    <input type="number" readonly id="remaining" step="0.01" value="0">
+                                </div>
+                            </div>
+                        </div>
 
-                    <div>
-                        <label for="visa">Visa:</label>
-                        <input type="number" min="0" step="0.01" id="visa" name="visa">
-                    </div>
+                        <div class="finalize-sale-footer">
+                            <button type="submit" id="submit-sale" class="button button-primary button-large">Finalize
+                                Sale</button>
+                        </div>
+                    </div><!-- end finalize-sale-right -->
 
-                    <div>
-                        <label for="master_card">Mastercard:</label>
-                        <input type="number" min="0" step="0.01" id="master_card" name="master_card">
-                    </div>
+                </div><!-- end finalize-sale-grid -->
 
-                    <div>
-                        <label for="amex">Amex:</label>
-                        <input type="number" min="0" step="0.01" id="amex" name="amex">
-                    </div>
-
-                    <div>
-                        <label for="bank_draft">Bank Draft:</label>
-                        <input type="number" min="0" step="0.01" id="bank_draft" name="bank_draft">
-                    </div>
-
-                    <div>
-                        <label for="cup">Cup:</label>
-                        <input type="number" min="0" step="0.01" id="cup" name="cup">
-                    </div>
-
-                    <div>
-                        <label for="alipay">Alipay:</label>
-                        <input type="number" min="0" step="0.01" id="alipay" name="alipay">
-                    </div>
-
-                    <div>
-                        <label for="wire">Wire:</label>
-                        <input type="number" min="0" step="0.01" id="wire" name="wire">
-                    </div>
-
-                    <div id="layawayContainer">
-                    </div>
-
-                    <div id="creditContainer">
-                    </div>
-
-                </div>
-
-                <div>
-                    <div>
-                        <label for="reference">Reference Number:</label>
-                        <input type="text" id="reference" name="reference" required>
-                    </div>
-                    <div>
-                        <label for="salesperson">Salesperson</label>
-                        <?= mji_salesperson_dropdown() ?>
-                    </div>
-                    <div>
-                        <label for="notes">Notes:</label>
-                        <textarea id="notes" name="notes" rows="4" cols="50"></textarea>
-                    </div>
-                    <div>
-                        <label for="sales-date">Date:</label>
-                        <input type="date" id="sales-date" name="date" value="<?php echo date('Y-m-d'); ?>">
-                    </div>
-                    <div>
-                        <label for="subtotal">Subtotal:</label>
-                        <input type="number" readonly name="subtotal" id="subtotal"></input>
-                    </div>
-
-                    <div>
-                        <label for="gst">GST:</label>
-                        <input type="number" readonly name="gst" id="gst"></input>
-                    </div>
-                    <div>
-                        <label for="pst">PST:</label>
-                        <input type="number" readonly name="pst" id="pst"></input>
-                    </div>
-
-                    <div>
-                        <label for="exclude-gst">Exclude GST:</label>
-                        <input type="checkbox" name="exclude_gst" id="exclude-gst"></input>
-                    </div>
-                    <div>
-                        <label for="exclude-pst">Exclude PST:</label>
-                        <input type="checkbox" name="exclude_pst" id="exclude-pst"></input>
-                    </div>
-                    <div>
-                        <label for="total">Total:</label>
-                        <input type="number" readonly name="total" id="total"></input>
-                    </div>
-                    <div>
-                        <label for="remaining">Remaining:</label>
-                        <input type="number" readonly id="remaining" step="0.01" value="0"></input>
-                    </div>
-                </div>
-
-                <button type="submit" id="submit-sale">Finalize Sale</button>
             </form>
         </div>
 
-        <div class="sales-reuslt hidden" id="saleResult">
+        <div class="sales-result hidden" id="saleResult">
             <h2>Sale Receipt</h2>
-            <div id="receiptContent" class="receipt-content">
-                <!-- Receipt content will be populated here -->
-            </div>
-            <button id="salesPrintReceipt">Print Receipt</button>
-            <a href="admin.php?page=inventory-management" class="">Enter new sales</a>
+            <div id="receiptContent" class="receipt-content"></div>
+            <button id="salesPrintReceipt" class="button button-primary">Print Receipt</button>
+            <a href="admin.php?page=inventory-management" class="button">Enter New Sale</a>
         </div>
-    <?php
+        <?php
 }
 
 function search_customer()
@@ -412,8 +438,8 @@ add_action('wp_ajax_search_customer', 'search_customer');
 
 function get_layaway_sum($customer_id = null, $location_id = null)
 {
-    $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) :  $customer_id;
-    $location = isset($_GET['location_id']) ? intval($_GET['location_id']) :  $location_id;
+    $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : $customer_id;
+    $location = isset($_GET['location_id']) ? intval($_GET['location_id']) : $location_id;
 
     if (!$customer) {
         return wp_send_json_error('Customer ID is required');
@@ -477,7 +503,8 @@ function get_layaway_sum($customer_id = null, $location_id = null)
         "credit" => $credit_balance
     ];
 
-    if ($customer_id && $location_id) return $balance;
+    if ($customer_id && $location_id)
+        return $balance;
     return wp_send_json_success($balance);
 
     wp_die();
@@ -675,8 +702,8 @@ add_action('wp_ajax_addLayaway', 'add_layaway');
 function get_active_layaway_list($customer_id = null, $location_id = null)
 {
 
-    $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) :  $customer_id;
-    $location = isset($_GET['location_id']) ? intval($_GET['location_id']) :  $location_id;
+    $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : $customer_id;
+    $location = isset($_GET['location_id']) ? intval($_GET['location_id']) : $location_id;
 
     if (!$customer) {
         return wp_send_json_error('Customer ID is required');
@@ -700,7 +727,8 @@ function get_active_layaway_list($customer_id = null, $location_id = null)
 
     $layaway_items = $wpdb->get_results($query);
 
-    if ($customer_id && $location_id) return $layaway_items;
+    if ($customer_id && $location_id)
+        return $layaway_items;
 
     return wp_send_json_success($layaway_items);
 }
@@ -712,8 +740,8 @@ add_action('wp_ajax_getActiveLayaway', 'get_active_layaway_list');
 function get_active_credit_list($customer_id = null, $location_id = null)
 {
 
-    $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) :  $customer_id;
-    $location = isset($_GET['location_id']) ? intval($_GET['location_id']) :  $location_id;
+    $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : $customer_id;
+    $location = isset($_GET['location_id']) ? intval($_GET['location_id']) : $location_id;
 
     if (!$customer) {
         return wp_send_json_error('Customer ID is required');
@@ -737,7 +765,8 @@ function get_active_credit_list($customer_id = null, $location_id = null)
 
     $credit_items = $wpdb->get_results($query);
 
-    if ($customer_id && $location_id) return $credit_items;
+    if ($customer_id && $location_id)
+        return $credit_items;
 
     return wp_send_json_success($credit_items);
 }
@@ -754,7 +783,7 @@ function searchProducts()
 
     global $wpdb;
     $table_name = $wpdb->prefix . 'mji_product_inventory_units';
-    $sku_history_table =  $wpdb->prefix . 'mji_product_sku_history';
+    $sku_history_table = $wpdb->prefix . 'mji_product_sku_history';
 
     $query = $wpdb->prepare("
             SELECT u.id, u.wc_product_id, u.wc_product_variant_id, u.sku, u.retail_price, u.location_id, u.status, u.serial
@@ -821,7 +850,8 @@ function validate_sale_input($post_data)
     $missing_fields = [];
 
     foreach ($required_fields as $field) {
-        if (empty($post_data[$field])) $missing_fields[] = $field;
+        if (empty($post_data[$field]))
+            $missing_fields[] = $field;
     }
 
     if (!empty($missing_fields)) {
@@ -924,7 +954,8 @@ function get_payments($post_data, $expected_total, $customer_id, $location_id)
     $payment_total = 0;
 
     // If gift then no payments.
-    if ($expected_total == 0) return $payments;
+    if ($expected_total == 0)
+        return $payments;
 
     foreach ($payment_methods as $method) {
         $amount = floatval($post_data[$method] ?? 0);
@@ -991,8 +1022,9 @@ function get_payments($post_data, $expected_total, $customer_id, $location_id)
         }
     }
 
-    if (empty($payments)) wp_send_json_error(['message' => 'No valid payments entered']);
-    if (abs($payment_total - $expected_total) > FLOAT_COMPARE_EPSILON) {
+    if (empty($payments))
+        wp_send_json_error(['message' => 'No valid payments entered']);
+    if (round(abs($payment_total - $expected_total), 2) > FLOAT_COMPARE_EPSILON) {
         wp_send_json_error(['message' => 'Payment total mismatch']);
     }
 
@@ -1068,18 +1100,18 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     'salesperson_id' => $order_data["salesperson_id"],
                     'transaction_type' => match ($payment['method']) {
                         'layaway' => 'layaway_redemption',
-                        'credit'  => 'credit_redemption',
-                        default   => 'purchase',
+                        'credit' => 'credit_redemption',
+                        default => 'purchase',
                     },
                     'reference_num' => $order_data['reference_num'],
                     'location_id' => $location_id,
                     'layaway_id' => match ($payment['method']) {
                         'layaway' => $payment['layaway_id'],
-                        default   => NULL,
+                        default => NULL,
                     },
                     'credit_id' => match ($payment['method']) {
                         'credit' => $payment['credit_id'],
-                        default   => NULL,
+                        default => NULL,
                     },
                     'notes' => ''
                 ]);
@@ -1158,7 +1190,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     throw new RuntimeException("WooCommerce stock is already 0 for {$item->title}");
                 }
 
-                $qty_to_deduct =  1;
+                $qty_to_deduct = 1;
                 $result = wc_update_product_stock($product_id, $qty_to_deduct, 'decrease');
                 if ($result === false) {
                     throw new RuntimeException("Failed to decrease WooCommerce stock for {$item->title} (ID: {$product_id}).");
@@ -1207,6 +1239,11 @@ function finalizeSale()
     $customer_id = intval($_POST['customer_id']);
     $salesperson_id = intval($_POST['salesperson']);
     $location_id = intval($_POST['location']);
+
+    if (empty($location_id)) {
+        wp_send_json_error(['message' => 'Location is required. Please select a store before finalizing the sale.']);
+        wp_die();
+    }
     $reference_num = sanitize_text_field($_POST['reference']);
     $created_at = sanitize_text_field($_POST['date']);
     $notes = sanitize_text_field($_POST['notes']);

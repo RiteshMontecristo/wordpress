@@ -61,30 +61,30 @@ export const CartSelector = {
     }
 
     if (AppState.services.length > 0) {
+      const placeholderImg = ajax_inventory.placeholder_img_url || "";
       cartHTML += AppState.services
         .map((service) => {
           return `
           <div class="service-item">
-            <strong>${formatLabel(service.category)}</strong> </br>
-            ${
-              service.description
-                ? `<span>Description: ${service.description}</span><br />`
-                : ``
-            }
-            <span>Cost Price: ${formatCurrency(
-              service.costPrice,
-            )} CAD</span><br />
-            <span>Retail Price: ${formatCurrency(
-              service.retailPrice,
-            )} CAD</span><br />
-            ${
-              service.reference
-                ? `<span>Reference: ${service.reference}</span><br />`
-                : ``
-            }
-            <button id="${service.id}" type="edit">Edit</button>
-            <button id="${service.id}" type="button">Remove</button>
+            <img src="${placeholderImg}" alt="Service" />
+            <div>
+              <strong>${formatLabel(service.category)}</strong><br />
+              ${
+                service.description
+                  ? `<span>Description: ${service.description}</span><br />`
+                  : ``
+              }
+              <span>Cost Price: ${formatCurrency(service.costPrice)} CAD</span><br />
+              <span>Retail Price: ${formatCurrency(service.retailPrice)} CAD</span><br />
+              ${
+                service.reference
+                  ? `<span>Reference: ${service.reference}</span><br />`
+                  : ``
+              }
+              <button id="${service.id}" type="edit">Edit</button>
+              <button id="${service.id}" type="button">Remove</button>
             </div>
+          </div>
       `;
         })
         .join("");
