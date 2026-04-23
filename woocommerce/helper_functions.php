@@ -2,14 +2,14 @@
 
 function toggleFavourite()
 {
-    if (isset($_POST["productId"]) && isset($_POST["userId"]) && isset($_POST["favourite"])) {
+    if (isset($_POST["productId"]) && isset($_POST["favourite"])) {
         check_ajax_referer('toggle_favourite_nonce', 'nonce');
         $product_id = absint($_POST["productId"]);
-        $user_id = absint($_POST["userId"]);
+        $user_id = get_current_user_id();
         $favourite = sanitize_text_field($_POST["favourite"]);
 
         $wishlist = get_user_meta($user_id, 'wishlist', true) ?: [];
-        if ($favourite == "false") {
+        if ($favourite === "false") {
             $wishlist[] = $product_id;
         } else {
             $wishlist = array_diff($wishlist, [$product_id]);

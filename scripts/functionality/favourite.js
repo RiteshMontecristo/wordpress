@@ -9,14 +9,10 @@ if (favouriteContainer) {
 
   favourteItemArr?.forEach((el) => {
     const removeFavBtn = el.querySelector(".remove-fav");
-
-    const userId = removeFavBtn.dataset.user;
     const productId = removeFavBtn.dataset.product;
-
     const formData = new FormData();
 
     formData.append("productId", productId);
-    formData.append("userId", userId);
     formData.append("favourite", "true");
     formData.append("action", "toggleFavourite");
     formData.append("nonce", ajax_object_another.nonce);

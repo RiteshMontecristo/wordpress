@@ -123,7 +123,7 @@ function close_price_container()
     <span class="info-desc">Suggested retail price exclusive of tax. The suggested retail price can be modified at any time
         without notice.</span>
     </div>
-    <!-- <button data-product="<?php echo $product_id ?>" data-user="<?php echo $user_id ?>" data-favourite="<?php echo $is_favourite ?>" id="wishlist">
+    <!-- <button data-product="<?php echo $product_id ?>" data-favourite="<?php echo $is_favourite ?>" id="wishlist">
         <svg width="23" height="22" viewBox="0 0 23 22" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M6.775 1.25946C3.58562 1.25946 1 3.95087 1 7.27074C1 13.282 7.825 18.7468 11.5 20.0179C15.175 18.7468 22 13.282 22 7.27074C22 3.95087 19.4144 1.25946 16.225 1.25946C14.272 1.25946 12.5447 2.26881 11.5 3.81371C10.9675 3.02416 10.26 2.37979 9.43755 1.93518C8.61507 1.49056 7.70178 1.25878 6.775 1.25946Z" stroke="#555555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
