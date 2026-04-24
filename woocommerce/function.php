@@ -197,37 +197,6 @@ add_action('wp', 'remove_sidebar_from_non_category_pages');
 
 add_filter('automatic_updater_disabled', '__return_false');
 
-function sync_product_skus($post_id, $post, $update)
-{
-
-    if ($post->post_type !== 'product') {
-        return;
-    }
-
-    global $wpdb;
-
-    // Delete existing entries for this product
-    $wpdb->delete('wp_product_skus', array('product_id' => $post_id));
-
-    // Fetch the new SKU data
-    $skus = get_post_meta($post_id, 'new_repeatable_sku_field', true);
-    if (!empty($skus)) {
-        foreach ($skus as $sku_data) {
-            $sku_text = isset($sku_data['sku_text']) ? $sku_data['sku_text'] : '';
-            $sku_variation = isset($sku_data['sku_variation']) ? $sku_data['sku_variation'] : '';
-
-            // Insert the data into the new table
-            $wpdb->insert('wp_product_skus', array(
-                'product_id' => $post_id,
-                'sku_text' => $sku_text,
-                'sku_variation' => $sku_variation,
-            ));
-        }
-    }
-}
-
-add_action('save_post', 'sync_product_skus', 99, 3);
-
 // START OF ALL PRODUCTS CATEGORY PAGES
 // ======================================
 
