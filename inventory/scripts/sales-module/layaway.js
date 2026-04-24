@@ -61,7 +61,9 @@ export const LayawaySelector = {
               this.items.appendChild(layawayItem);
             });
 
-            this.layawayTotal.textContent = formatCurrency(AppState.layawayTotal);
+            this.layawayTotal.textContent = formatCurrency(
+              AppState.layawayTotal,
+            );
           } else {
             this.items.textContent = res.data;
           }
@@ -110,11 +112,13 @@ export const LayawaySelector = {
         credit === ""
       ) {
         alert("Please enter at least one payment method.");
+        this.layawayFormSubmitButton.removeAttribute("disabled");
         return;
       }
 
       if (!layawayReference || !salesperson || !layawayDate) {
         alert("Please fill in reference and salesperson.");
+        this.layawayFormSubmitButton.removeAttribute("disabled");
         return;
       }
 
