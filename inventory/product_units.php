@@ -1,7 +1,5 @@
 <?php
 
-use MailPoetVendor\Twig\Error\Error;
-
 add_action('add_meta_boxes', 'add_inventory_units_meta_box');
 
 function add_inventory_units_meta_box()
@@ -30,13 +28,6 @@ function render_inventory_units_meta_box($post)
     $is_variation = false;
     $location_name_by_id = [];
     $variation_name_by_id = [];
-    $status = [
-        "sold" => "Sold",
-        "in_stock" => "In Stock",
-        "damaged" => "Damaged",
-        "missing" => "Missing",
-        "rtv" => "Return to Vendor",
-    ];
     $variation_select = '';
     $cost_price = 0;
     $retail_price = 0;
@@ -646,7 +637,7 @@ function create_inventory_units()
                     wc_update_product_stock($variation_id, 1, 'increase');
                     wc_update_product_stock($old_variant_id, 1, 'decrease');
                 }
-                
+
                 // Deleting stale data so customer gets correct info
                 wc_delete_product_transients($variation_id);
                 wc_delete_product_transients($product_id);
