@@ -90,7 +90,6 @@ export const LayawaySelector = {
       const cup = this.layawayForm.querySelector("#cup").value;
       const alipay = this.layawayForm.querySelector("#alipay").value;
       const wire = this.layawayForm.querySelector("#wire").value;
-      const trade_in = this.layawayForm.querySelector("#trade_in").value;
       const credit = this.layawayForm.querySelector("#credit").value;
       const layawayReference =
         this.layawayForm.querySelector("#layaway-reference").value;
@@ -108,7 +107,6 @@ export const LayawaySelector = {
         cup === "" &&
         alipay === "" &&
         wire === "" &&
-        trade_in === "" &&
         credit === ""
       ) {
         alert("Please enter at least one payment method.");

@@ -149,10 +149,6 @@ function inventory_page()
                             <input type="number" step="0.01" id="wire" name="wire" placeholder="0.00">
                         </div>
                         <div class="payment-method-field">
-                            <label for="trade_in">Trade-In</label>
-                            <input type="number" step="0.01" id="trade_in" name="trade_in" placeholder="0.00">
-                        </div>
-                        <div class="payment-method-field">
                             <label for="credit">Credit</label>
                             <input type="number" step="0.01" id="credit" name="credit" placeholder="0.00">
                         </div>
@@ -565,7 +561,7 @@ function add_layaway()
     check_ajax_referer('mji_inventory_nonce', 'nonce');
 
     global $wpdb;
-    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'bank_draft', 'cup', 'alipay', 'wire', 'trade_in', 'credit'];
+    $payment_methods = ['cash', 'cheque', 'debit', 'visa', 'master_card', 'amex', 'bank_draft', 'cup', 'alipay', 'wire', 'credit'];
     $payments = [];
     $payments_table = $wpdb->prefix . 'mji_payments';
     $layaway_table = $wpdb->prefix . 'mji_layaways';
