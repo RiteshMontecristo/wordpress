@@ -1073,10 +1073,18 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                 if ($payment['method'] == 'layaway') {
                     $layaway_id = $payment['layaway_id'];
                     $amount = $payment['amount'];
-                    $status = $payment['status'];
+
+                    $layaway_row = $wpdb->get_row($wpdb->prepare(
+                        "SELECT remaining_amount FROM {$wpdb->prefix}mji_layaways WHERE id = %d FOR UPDATE",
+                        $layaway_id
+                    ));
+                    if (!$layaway_row || $amount > $layaway_row->remaining_amount) {
+                        throw new RuntimeException("Layaway #$layaway_id has insufficient balance.");
+                    }
+                    $status = round($layaway_row->remaining_amount - $amount, 2) == 0 ? 'redeemed' : 'active';
 
                     $sql = $wpdb->prepare(
-                        "UPDATE {$wpdb->prefix}mji_layaways 
+                        "UPDATE {$wpdb->prefix}mji_layaways
                          SET remaining_amount = remaining_amount - %f, status = %s
                         WHERE id = %d",
                         $amount,
@@ -1090,10 +1098,18 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                 } elseif ($payment['method'] == 'credit') {
                     $credit_id = $payment['credit_id'];
                     $amount = $payment['amount'];
-                    $status = $payment['status'];
+
+                    $credit_row = $wpdb->get_row($wpdb->prepare(
+                        "SELECT remaining_amount FROM {$wpdb->prefix}mji_credits WHERE id = %d FOR UPDATE",
+                        $credit_id
+                    ));
+                    if (!$credit_row || $amount > $credit_row->remaining_amount) {
+                        throw new RuntimeException("Credit #$credit_id has insufficient balance.");
+                    }
+                    $status = round($credit_row->remaining_amount - $amount, 2) == 0 ? 'redeemed' : 'active';
 
                     $sql = $wpdb->prepare(
-                        "UPDATE {$wpdb->prefix}mji_credits 
+                        "UPDATE {$wpdb->prefix}mji_credits
                          SET remaining_amount = remaining_amount - %f, status = %s
                         WHERE id = %d",
                         $amount,
@@ -1102,7 +1118,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     );
 
                     if ($wpdb->query($sql) === false) {
-                        throw new RuntimeException("Failed to update layaway #$credit_id: " . $wpdb->last_error);
+                        throw new RuntimeException("Failed to update credit #$credit_id: " . $wpdb->last_error);
                     }
                 }
 
@@ -1141,7 +1157,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 
             $row = $wpdb->get_row(
                 $wpdb->prepare(
-                    "SELECT status, location_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
+                    "SELECT status, location_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d FOR UPDATE",
                     $item->unit_id
                 )
             );

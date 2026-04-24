@@ -1126,13 +1126,17 @@ function change_status()
 
     try {
         $existing_unit = $wpdb->get_row($wpdb->prepare(
-            "SELECT id, status FROM {$inventory_unit_table} WHERE id = %d",
+            "SELECT id, status FROM {$inventory_unit_table} WHERE id = %d FOR UPDATE",
             $unit_id
         ));
 
         if (!$existing_unit) {
             wp_send_json_error('Unit not found.');
             wp_die();
+        }
+
+        if ($existing_unit->status === 'sold') {
+            throw new Exception('Cannot change status of a sold unit.');
         }
 
         if ($existing_unit->status == $status) {
