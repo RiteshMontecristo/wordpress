@@ -1,4 +1,7 @@
 <?php
+const GST_RATE = 0.05;
+const PST_RATE = 0.07;
+
 require_once get_stylesheet_directory() . '/inventory/print.php';
 require_once get_stylesheet_directory() . '/inventory/sales.php';
 require_once get_stylesheet_directory() . '/inventory/customer.php';

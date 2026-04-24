@@ -890,8 +890,6 @@ function validate_sale_input($post_data)
 
 function calculate_sale_totals($items_data, $services_data, $exclude_gst = false, $exclude_pst = false)
 {
-    define('GST_RATE', 0.05);
-    define('PST_RATE', 0.07);
 
     $subtotal = 0;
     foreach ($items_data as $item) {

@@ -2287,9 +2287,6 @@ function check_services_price($service_item_ids, $current_service_items_data)
 function check_tax_is_correct($data)
 {
 
-    $GST_RATE = 0.05;
-    $PST_RATE = 0.07;
-
     $gst_total = 0;
     $pst_total = 0;
     $subtotal = 0;
@@ -2300,10 +2297,10 @@ function check_tax_is_correct($data)
     foreach ($refund_prices as $id => $prices) {
         $subtotal += $prices;
         if ($data['gst_total'] > 0) {
-            $gst_total += round($prices * $GST_RATE, 2);
+            $gst_total += round($prices * GST_RATE, 2);
         }
         if ($data['pst_total'] > 0) {
-            $pst_total += round($prices * $PST_RATE, 2);
+            $pst_total += round($prices * PST_RATE, 2);
         }
     }
 
