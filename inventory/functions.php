@@ -807,6 +807,7 @@ add_action('admin_enqueue_scripts', 'my_enqueue_scripts');
 // ORDER ITEM REDUCTION
 add_action('woocommerce_checkout_order_processed', 'adjust_stock_after_order', 10, 3);
 
+// TODO: CHANGE THE RECENT SKU TO SOLD WHEN ORDER PLACED ONLINE 
 function adjust_stock_after_order($order_id, $posted_data, $order)
 {
     global $wpdb;
@@ -818,94 +819,6 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
         $product_id = $item->get_product_id();       // Main product ID (parent ID for variations)
         $variation_id = $item->get_variation_id();   // Variation ID (0 if it's not a variation)
 
-        // SKU INFORMATION ABOUT THE PRODUCTS
-        $sku_data_array = get_post_meta($product_id, 'new_repeatable_sku_field', true);
-        $remove_sku = "";
-
-        if ($variation_id) {
-
-            // loop thorugh the sku to remove the first sku matched of the variation.
-            foreach ($sku_data_array as $sky_data) {
-                if ($sky_data["sku_variation"] == $variation_id) {
-                    $remove_sku = $sky_data["sku_text"];
-                    break;
-                }
-            }
-
-            // removing the first matched variaton from the array
-            $filtered_sku_data = array_filter($sku_data_array, function ($sku) use ($remove_sku) {
-                return $sku["sku_text"] != $remove_sku;
-            });
-
-            // saving the length to ensure if sku was removed or not
-            $sku_data_len = count($sku_data_array);
-            $filtered_sku_data_len = count($filtered_sku_data);
-
-            // if not removed need to store it to the sku_error to manually delete it 
-            if ($sku_data_len == $filtered_sku_data_len) {
-                array_push($sku_error, $product_id);
-            } else {
-                update_post_meta($product_id, 'new_repeatable_sku_field', array_values($filtered_sku_data));
-                $wpdb->delete(
-                    'wp_product_skus',
-                    array(
-                        'sku_text' => $remove_sku,
-                    ),
-                    array(
-                        '%s',
-                    )
-                );
-            }
-        } else {
-
-            // storing the current len before fitlering
-            $sku_data_len = count($sku_data_array);
-
-            // removing the last sku
-            $remove_sku = array_pop($sku_data_array);
-
-            // storing the current len after fitlering
-            $filtered_sku_data_len = count($sku_data_array);
-
-            // if not removed then save the error to send a manual email
-            if ($sku_data_len == $filtered_sku_data_len) {
-                array_push($sku_error, $product_id);
-            } else {
-                update_post_meta($product_id, 'new_repeatable_sku_field', $sku_data_array);
-            }
-        }
-    }
-
-    if (count($sku_error) > 0) {
-        // Send email
-        $to = 'rm@montecristo1978.com';
-        $subject = 'Online order error';
-        $message = "There was an issue in regards to removing SKU for this online order " . $order_id . ". These are the product effected.";
-
-        // Loop through the $sku_error array and append each item to the message
-        foreach ($sku_error as $item_id) {
-            $message .= "Product ID: " . $item_id . ", ";
-        }
-
-        $message = rtrim($message, ", ");
-        $message .= ".";
-
-        $headers = array('Content-Type: text/plain; charset=UTF-8');
-
-        $max_retries = 3;
-        $retry_delay = 5; // seconds
-
-        for ($i = 0; $i < $max_retries; $i++) {
-            $mail_sent = wp_mail($to, $subject, $message, $headers);
-            if ($mail_sent) {
-                break;
-            }
-            sleep($retry_delay);
-        }
-
-        if (!$mail_sent) {
-            $order->add_order_note("Failed to send email to $to after $max_retries attempts. Subject: $subject");
-        }
     }
 }
 
