@@ -2805,11 +2805,15 @@ function create_refund_layaway()
     }
 
     // === Determine Status ===
+    $refundCents    = (int) round($refund_total * 100);
+    $totalCents     = (int) round($layaway->total_amount * 100);
+    $remainingCents = (int) round($layaway->remaining_amount * 100);
+
     $new_status = 'active';
-    if ($refund_total == $layaway->total_amount) {
+    if ($refundCents === $totalCents) {
         $new_status = 'cancelled';
-    } elseif (($layaway->remaining_amount - $refund_total) <= 0) {
-        $new_status = 'active';
+    } elseif ($remainingCents - $refundCents <= 0) {
+        $new_status = 'cancelled';
     }
 
     $wpdb->query('START TRANSACTION');
@@ -2961,11 +2965,15 @@ function create_refund_credit()
     }
 
     // === Determine Status ===
+    $refundCents    = (int) round($refund_total * 100);
+    $totalCents     = (int) round($credit->total_amount * 100);
+    $remainingCents = (int) round($credit->remaining_amount * 100);
+
     $new_status = 'active';
-    if ($refund_total == $credit->total_amount) {
+    if ($refundCents === $totalCents) {
         $new_status = 'cancelled';
-    } elseif (($credit->remaining_amount - $refund_total) <= 0) {
-        $new_status = 'active';
+    } elseif ($remainingCents - $refundCents <= 0) {
+        $new_status = 'cancelled';
     }
 
     $wpdb->query('START TRANSACTION');

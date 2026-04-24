@@ -897,7 +897,6 @@ function calculate_sale_totals($items_data, $services_data, $exclude_gst = false
 {
     define('GST_RATE', 0.05);
     define('PST_RATE', 0.07);
-    define('FLOAT_COMPARE_EPSILON', 0.01);
 
     $subtotal = 0;
     foreach ($items_data as $item) {
@@ -1039,7 +1038,9 @@ function get_payments($post_data, $expected_total, $customer_id, $location_id)
 
     if (empty($payments))
         wp_send_json_error(['message' => 'No valid payments entered']);
-    if (round(abs($payment_total - $expected_total), 2) > FLOAT_COMPARE_EPSILON) {
+    $paidCents     = (int) round($payment_total * 100);
+    $expectedCents = (int) round($expected_total * 100);
+    if (abs($paidCents - $expectedCents) > 1) {
         wp_send_json_error(['message' => 'Payment total mismatch']);
     }
 
