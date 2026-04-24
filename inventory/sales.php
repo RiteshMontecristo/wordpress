@@ -430,10 +430,9 @@ function search_customer()
         return wp_send_json_error('Search and Location value is required');
     }
     $search = sanitize_text_field($_GET['search_value']);
-    $location_id = $_GET['search_value'];
+    $location_id = absint($_GET['location_id']);
     $result = customer_table("inventory", $search, 50, 1, $location_id);
     wp_send_json_success($result);
-    wp_die(); // this is required to terminate immediately and return a proper response
 }
 
 add_action('wp_ajax_search_customer', 'search_customer');
