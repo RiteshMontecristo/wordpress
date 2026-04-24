@@ -436,11 +436,11 @@ function render_invoice($results)
                                     <?php foreach ($items as $item): ?>
                                         <div class="return-item">
                                             <input type="checkbox" class="return-item-checkbox" name="return_items[]"
-                                                id="return_items[<?= $item->id ?>]" value="<?= $item->id ?>"
-                                                data-subtotal="<?= $item->sale_price ?>" data-gst="<?= $calculate_gst ?>"
-                                                data-pst="<?= $calculate_pst ?>">
-                                            <label for="return_items[<?= $item->id ?>]" class="item-content">
-                                                <img class="item-image" src="<?= $item->image_url ?>"
+                                                id="return_items[<?= esc_attr($item->id) ?>]" value="<?= esc_attr($item->id) ?>"
+                                                data-subtotal="<?= esc_attr($item->sale_price) ?>" data-gst="<?= esc_attr($calculate_gst) ?>"
+                                                data-pst="<?= esc_attr($calculate_pst) ?>">
+                                            <label for="return_items[<?= esc_attr($item->id) ?>]" class="item-content">
+                                                <img class="item-image" src="<?= esc_url($item->image_url) ?>"
                                                     alt="<?= esc_attr($product->get_name()) ?>">
                                                 <div class="item-info">
                                                     <p class="item-details">
@@ -461,9 +461,9 @@ function render_invoice($results)
                                                         <?php if (!empty($item->discount_amount) && $item->discount_amount != 0): ?>
                                                             Discount: <?= esc_html($item->discount_amount) ?>
                                                         <?php endif; ?>
-                                                        <input class="refund_price" name="refund_prices[<?= $item->id ?>]" step="0.01"
-                                                            type="number" value="<?= $item->sale_price ?>"
-                                                            max="<?= $item->sale_price ?>" />
+                                                        <input class="refund_price" name="refund_prices[<?= esc_attr($item->id) ?>]" step="0.01"
+                                                            type="number" value="<?= esc_attr($item->sale_price) ?>"
+                                                            max="<?= esc_attr($item->sale_price) ?>" />
                                                     </p>
                                                 </div>
                                             </label>
@@ -479,10 +479,10 @@ function render_invoice($results)
                                     ?>
                                         <div class="return-item">
                                             <input type="checkbox" class="return-item-checkbox" name="return_services[]"
-                                                id="return_services[<?= $service->id ?>]" value="<?= $service->id ?>"
-                                                data-subtotal="<?= $service->sold_price ?>" data-gst="<?= $calculate_gst ?>"
-                                                data-pst="<?= $calculate_pst ?>">
-                                            <label for="return_services[<?= $service->id ?>]" class="item-content">
+                                                id="return_services[<?= esc_attr($service->id) ?>]" value="<?= esc_attr($service->id) ?>"
+                                                data-subtotal="<?= esc_attr($service->sold_price) ?>" data-gst="<?= esc_attr($calculate_gst) ?>"
+                                                data-pst="<?= esc_attr($calculate_pst) ?>">
+                                            <label for="return_services[<?= esc_attr($service->id) ?>]" class="item-content">
                                                 <?= wc_placeholder_img([150, 150]); ?>
                                                 <div class="item-info">
                                                     <p class="item-details">
@@ -496,9 +496,9 @@ function render_invoice($results)
                                                             Sale Price: <?= esc_html($service->sold_price) ?><br>
                                                         <?php endif; ?>
 
-                                                        <input class="refund_price" name="refund_prices[<?= $service->id ?>]"
-                                                            step="0.01" type="number" value="<?= $service->sold_price ?>"
-                                                            max="<?= $service->sold_price ?>" />
+                                                        <input class="refund_price" name="refund_prices[<?= esc_attr($service->id) ?>]"
+                                                            step="0.01" type="number" value="<?= esc_attr($service->sold_price) ?>"
+                                                            max="<?= esc_attr($service->sold_price) ?>" />
                                                 </div>
                                             </label>
                                         </div>
@@ -570,11 +570,11 @@ function render_invoice($results)
                                     ?>
                                         <div class="return-item">
                                             <input type="checkbox" class="return-item-checkbox" name="refund_items[]"
-                                                id="refund_items[<?= $item->id ?>]" value="<?= $item->id ?>"
-                                                data-subtotal="<?= $item->sale_price ?>" data-gst="<?= $calculate_gst ?>"
-                                                data-pst="<?= $calculate_pst ?>">
-                                            <label for="refund_items[<?= $item->id ?>]" class="item-content">
-                                                <img class="item-image" src="<?= $item->image_url ?>"
+                                                id="refund_items[<?= esc_attr($item->id) ?>]" value="<?= esc_attr($item->id) ?>"
+                                                data-subtotal="<?= esc_attr($item->sale_price) ?>" data-gst="<?= esc_attr($calculate_gst) ?>"
+                                                data-pst="<?= esc_attr($calculate_pst) ?>">
+                                            <label for="refund_items[<?= esc_attr($item->id) ?>]" class="item-content">
+                                                <img class="item-image" src="<?= esc_url($item->image_url) ?>"
                                                     alt="<?= esc_attr($product->get_name()) ?>">
                                                 <div class="item-info">
                                                     <p class="item-details">
@@ -595,9 +595,9 @@ function render_invoice($results)
                                                         <?php if (!empty($item->discount_amount) && $item->discount_amount != 0): ?>
                                                             Discount: <?= esc_html($item->discount_amount) ?>
                                                         <?php endif; ?>
-                                                        <input class="refund_price" name="refund_prices[<?= $item->id ?>]" step="0.01"
-                                                            type="number" value="<?= $item->sale_price ?>"
-                                                            max="<?= $item->sale_price ?>" />
+                                                        <input class="refund_price" name="refund_prices[<?= esc_attr($item->id) ?>]" step="0.01"
+                                                            type="number" value="<?= esc_attr($item->sale_price) ?>"
+                                                            max="<?= esc_attr($item->sale_price) ?>" />
                                                     </p>
                                                 </div>
                                             </label>
@@ -613,10 +613,10 @@ function render_invoice($results)
                                     ?>
                                         <div class="return-item">
                                             <input type="checkbox" class="return-item-checkbox" name="refund_services[]"
-                                                id="refund_services[<?= $service->id ?>]" value="<?= $service->id ?>"
-                                                data-subtotal="<?= $service->sold_price ?>" data-gst="<?= $calculate_gst ?>"
-                                                data-pst="<?= $calculate_pst ?>">
-                                            <label for="refund_services[<?= $service->id ?>]" class="item-content">
+                                                id="refund_services[<?= esc_attr($service->id) ?>]" value="<?= esc_attr($service->id) ?>"
+                                                data-subtotal="<?= esc_attr($service->sold_price) ?>" data-gst="<?= esc_attr($calculate_gst) ?>"
+                                                data-pst="<?= esc_attr($calculate_pst) ?>">
+                                            <label for="refund_services[<?= esc_attr($service->id) ?>]" class="item-content">
                                                 <?= wc_placeholder_img([150, 150]); ?>
                                                 <div class="item-info">
                                                     <p class="item-details">
@@ -630,9 +630,9 @@ function render_invoice($results)
                                                             Sale Price: <?= esc_html($service->sold_price) ?><br>
                                                         <?php endif; ?>
 
-                                                        <input class="refund_price" name="refund_prices[<?= $service->id ?>]"
-                                                            step="0.01" type="number" value="<?= $service->sold_price ?>"
-                                                            max="<?= $service->sold_price ?>" />
+                                                        <input class="refund_price" name="refund_prices[<?= esc_attr($service->id) ?>]"
+                                                            step="0.01" type="number" value="<?= esc_attr($service->sold_price) ?>"
+                                                            max="<?= esc_attr($service->sold_price) ?>" />
                                                 </div>
                                             </label>
                                         </div>
