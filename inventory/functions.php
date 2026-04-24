@@ -12,17 +12,26 @@ function mji_create_all_tables()
 {
     // Define table creation order — PARENTS FIRST, CHILDREN LAST
     $tables = [
-        'customers' => 'create_customers_table',
-        'customer_phones' => 'create_customer_phones_table',
-        'salespeople' => 'create_salespeople_table',
-        'locations' => 'create_locations_table',
-        'brands' => 'create_brands_table',
-        'models' => 'create_models_table',
-        'product_inventory_units' => 'create_product_inventory_units_table',
-        'orders' => 'create_orders_table',
-        'order_items' => 'create_order_items_table',
-        'payments' => 'create_payments_table',
-        'services' => 'create_services_table',
+        'salespeople'              => 'create_salespeople_table',
+        'customers'                => 'create_customers_table',
+        'locations'                => 'create_locations_table',
+        'brands'                   => 'create_brands_table',
+        'collections'              => 'create_collections_table',
+        'models'                   => 'create_models_table',
+        'suppliers'                => 'create_suppliers_table',
+        'product_inventory_units'  => 'create_product_inventory_units_table',
+        'orders'                   => 'create_orders_table',
+        'order_items'              => 'create_order_items_table',
+        'services'                 => 'create_services_table',
+        'layaways'                 => 'create_layaways_table',
+        'credits'                  => 'create_credits_table',
+        'payments'                 => 'create_payments_table',
+        'returns'                  => 'create_returns_table',
+        'return_items'             => 'create_return_items_table',
+        'return_services'          => 'create_return_services_table',
+        'inventory_status_history' => 'create_inventory_status_history_table',
+        'product_sku_history'      => 'create_sku_history_table',
+        'products_collections'     => 'create_products_collections_table',
     ];
 
     foreach ($tables as $slug => $func_name) {
@@ -50,27 +59,34 @@ add_action('after_switch_theme', 'mji_create_all_tables');
 function create_customers_table()
 {
     global $wpdb;
-    $table_name = $wpdb->prefix . 'mji_customers';
-    $charset_collate = $wpdb->get_charset_collate();
+    $table_name        = $wpdb->prefix . 'mji_customers';
+    $salespeople_table = $wpdb->prefix . 'mji_salespeople';
+    $charset_collate   = $wpdb->get_charset_collate();
 
     $sql = "CREATE TABLE $table_name (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-        first_name VARCHAR(255) NOT NULL,
-        last_name VARCHAR(255) NOT NULL,
-        primary_phone VARCHAR(15) NOT NULL,
-        secondary_phone VARCHAR(15) NOT NULL,
-        email VARCHAR(255) UNIQUE,
-        street_address VARCHAR(255),
-        city VARCHAR(100),
-        province VARCHAR(100),
-        postal_code CHAR(7),
-        country VARCHAR(100),
-        notes TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FULLTEXT (
+        id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+        first_name       VARCHAR(255) NOT NULL,
+        last_name        VARCHAR(255) NOT NULL,
+        email            VARCHAR(255) DEFAULT NULL,
+        street_address   VARCHAR(255) DEFAULT NULL,
+        city             VARCHAR(100) DEFAULT NULL,
+        province         VARCHAR(100) DEFAULT NULL,
+        postal_code      VARCHAR(20) DEFAULT NULL,
+        country          VARCHAR(100) DEFAULT NULL,
+        created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        notes            TEXT DEFAULT NULL,
+        primary_phone    VARCHAR(20) DEFAULT NULL,
+        secondary_phone  VARCHAR(20) DEFAULT NULL,
+        salesperson_id   BIGINT DEFAULT NULL,
+        prefix           VARCHAR(10) DEFAULT NULL,
+        UNIQUE KEY email (email),
+        KEY fk_salesperson (salesperson_id),
+        FULLTEXT KEY fulltext_index_name (
             first_name, last_name,
-            street_address, city, province, postal_code, country
-        )
+            street_address, city, province, postal_code, country,
+            primary_phone, secondary_phone
+        ),
+        FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id) ON DELETE SET NULL ON UPDATE CASCADE
     ) $charset_collate;";
 
     $result = $wpdb->query($sql);
@@ -112,31 +128,36 @@ function create_orders_table()
 {
     global $wpdb;
 
-    // Define table name with WordPress prefix
-    $table_name = $wpdb->prefix . 'mji_orders';
-    $customers_table = $wpdb->prefix . 'mji_customers';
+    $table_name        = $wpdb->prefix . 'mji_orders';
+    $customers_table   = $wpdb->prefix . 'mji_customers';
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
+    $locations_table   = $wpdb->prefix . 'mji_locations';
+    $charset_collate   = $wpdb->get_charset_collate();
 
-    // Define character set and collation
-    $charset_collate = $wpdb->get_charset_collate();
-
-    // Define the SQL query to create the table
     $sql = "CREATE TABLE $table_name (
-        id BIGINT PRIMARY KEY AUTO_INCREMENT,
-        customer_id BIGINT NOT NULL,
+        id             BIGINT PRIMARY KEY AUTO_INCREMENT,
+        customer_id    BIGINT NOT NULL,
         salesperson_id BIGINT NOT NULL,
-        status ENUM('pending', 'processing', 'completed', 'cancelled') NOT NULL DEFAULT 'completed',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        reference_num VARCHAR(50) NOT NULL,
-        subtotal DECIMAL(10,2) NOT NULL,
-        gst_total DECIMAL(10,2) NOT NULL,
-        pst_total DECIMAL(10,2) NOT NULL,
-        total DECIMAL(10,2) NOT NULL,
-       
+        location_id    BIGINT DEFAULT NULL,
+        status         ENUM('pending','processing','completed','cancelled') NOT NULL DEFAULT 'completed',
+        created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        reference_num  VARCHAR(50) NOT NULL,
+        subtotal       DECIMAL(10,2) NOT NULL,
+        gst_total      DECIMAL(10,2) NOT NULL,
+        pst_total      DECIMAL(10,2) NOT NULL,
+        total          DECIMAL(10,2) NOT NULL,
+        notes          TEXT DEFAULT NULL,
+
         UNIQUE KEY unique_reference_num (reference_num),
-        FOREIGN KEY (customer_id) REFERENCES $customers_table(id),
-        FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id)
+        KEY customer_id (customer_id),
+        KEY salesperson_id (salesperson_id),
+        KEY created_at_index (created_at),
+        KEY wp_mji_orders_ibfk_3 (location_id),
+        KEY created_at_and_location_index (created_at, location_id),
+        FOREIGN KEY (customer_id)    REFERENCES $customers_table(id),
+        FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id),
+        FOREIGN KEY (location_id)    REFERENCES $locations_table(id)
         ) $charset_collate;";
 
     $result = $wpdb->query($sql);
@@ -152,34 +173,48 @@ function create_payments_table()
 {
     global $wpdb;
 
-    // Define table name with WordPress prefix
-    $table_name = $wpdb->prefix . 'mji_payments';
-    $customers_table = $wpdb->prefix . 'mji_customers';
-    $orders_table = $wpdb->prefix . 'mji_orders';
+    $table_name       = $wpdb->prefix . 'mji_payments';
+    $customers_table  = $wpdb->prefix . 'mji_customers';
+    $orders_table     = $wpdb->prefix . 'mji_orders';
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
-    $locations_table = $wpdb->prefix . 'mji_locations';
+    $locations_table  = $wpdb->prefix . 'mji_locations';
+    $layaways_table   = $wpdb->prefix . 'mji_layaways';
+    $credits_table    = $wpdb->prefix . 'mji_credits';
 
-    // Define character set and collation
     $charset_collate = $wpdb->get_charset_collate();
 
-    // Define the SQL query to create the table
     $sql = "CREATE TABLE $table_name (
         id BIGINT PRIMARY KEY AUTO_INCREMENT,
         customer_id BIGINT NOT NULL,
         salesperson_id BIGINT NOT NULL,
-        location_id BIGINT,
-        order_id BIGINT NULL,         
+        location_id BIGINT NULL,
+        order_id BIGINT NULL,
+        layaway_id BIGINT NULL,
+        credit_id BIGINT NULL,
         reference_num VARCHAR(50),
-        method ENUM('cash', 'cheque','debit', 'visa', 'master_card', 'amex', 'travel_cheque', 'cup', 'alipay', 'layaway', 'gift_card', 'credit') NOT NULL,
+        method ENUM('cash','cheque','debit','visa','master_card','amex','bank_draft','cup','alipay','layaway','gift_card','credit','wire') NOT NULL,
         amount DECIMAL(10,2) NOT NULL,
-        transaction_type ENUM('purchase', 'layaway_deposit', 'layaway_redemption', 'credit', 'credit_redemption') NOT NULL DEFAULT 'purchase',
+        transaction_type ENUM('purchase','layaway_deposit','layaway_redemption','credit_deposit','credit_redemption','refund') NOT NULL DEFAULT 'purchase',
         payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
         notes TEXT,
+        layaway_id_uc BIGINT GENERATED ALWAYS AS (IFNULL(layaway_id, 0)) STORED,
+        credit_id_uc  BIGINT GENERATED ALWAYS AS (IFNULL(credit_id, 0)) STORED,
 
-        FOREIGN KEY (customer_id) REFERENCES $customers_table(id),
-        FOREIGN KEY (order_id) REFERENCES $orders_table(id),
-        FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id),
-        FOREIGN KEY (location_id) REFERENCES $locations_table(id)
+        UNIQUE KEY reference_num_unique (customer_id, reference_num, method, transaction_type, layaway_id_uc, credit_id_uc),
+        KEY customer_id (customer_id),
+        KEY order_id (order_id),
+        KEY salesperson_id (salesperson_id),
+        KEY location_id (location_id),
+        KEY layaway_id (layaway_id),
+        KEY credit_id (credit_id),
+        KEY reference_num_index (reference_num),
+        KEY payment_date_index (payment_date),
+        FOREIGN KEY (customer_id)    REFERENCES $customers_table(id)  ON DELETE RESTRICT,
+        FOREIGN KEY (salesperson_id) REFERENCES $salespeople_table(id) ON DELETE RESTRICT,
+        FOREIGN KEY (location_id)    REFERENCES $locations_table(id)   ON DELETE RESTRICT,
+        FOREIGN KEY (order_id)       REFERENCES $orders_table(id)      ON DELETE RESTRICT,
+        FOREIGN KEY (layaway_id)     REFERENCES $layaways_table(id)    ON DELETE RESTRICT,
+        FOREIGN KEY (credit_id)      REFERENCES $credits_table(id)     ON DELETE RESTRICT
         ) $charset_collate;";
 
     $result = $wpdb->query($sql);
@@ -232,8 +267,9 @@ function create_models_table()
 
     // Define the SQL query to create the table
     $sql = "CREATE TABLE $table_name (
-        id BIGINT PRIMARY KEY AUTO_INCREMENT,
-        name VARCHAR(50)
+        id   BIGINT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(50) DEFAULT NULL,
+        KEY name_index (name)
         ) $charset_collate;";
 
     $result = $wpdb->query($sql);
@@ -257,8 +293,9 @@ function create_brands_table()
 
     // Define the SQL query to create the table
     $sql = "CREATE TABLE $table_name (
-        id BIGINT PRIMARY KEY AUTO_INCREMENT,
-        name VARCHAR(50)
+        id   BIGINT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(50) DEFAULT NULL,
+        UNIQUE KEY name_index (name)
         ) $charset_collate;";
 
     $result = $wpdb->query($sql);
@@ -284,27 +321,33 @@ function create_product_inventory_units_table()
     $charset_collate = $wpdb->get_charset_collate();
 
     $sql = "CREATE TABLE `{$table_name}` (
-        `id` BIGINT NOT NULL AUTO_INCREMENT,
-        `wc_product_id` BIGINT NOT NULL,
-        `wc_product_variant_id` BIGINT NULL,
-        `location_id` BIGINT NOT NULL,
-        `model_id` BIGINT NOT NULL,
-        `brand_id` BIGINT NOT NULL,
-        `sku` VARCHAR(50) NOT NULL,
-        `serial` VARCHAR(50),
-        `status` ENUM('in_stock', 'reserved', 'sold', 'damaged') NOT NULL,
-        `created_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
-        `sold_date` DATETIME DEFAULT NULL,
-        `cost_price` DECIMAL(10,2) NOT NULL,
-        `retail_price` DECIMAL(10,2) NOT NULL,
-        `notes` TEXT,
+        `id`                   BIGINT NOT NULL AUTO_INCREMENT,
+        `wc_product_id`        BIGINT NOT NULL,
+        `wc_product_variant_id` BIGINT DEFAULT NULL,
+        `location_id`          BIGINT NOT NULL,
+        `model_id`             BIGINT DEFAULT NULL,
+        `brand_id`             BIGINT DEFAULT NULL,
+        `sku`                  VARCHAR(50) NOT NULL,
+        `serial`               VARCHAR(50) DEFAULT NULL,
+        `status`               ENUM('in_stock','missing','sold','damaged','rtv','dismantled') NOT NULL,
+        `created_date`         DATETIME DEFAULT CURRENT_TIMESTAMP,
+        `sold_date`            DATETIME DEFAULT NULL,
+        `status_updated_date`  DATETIME DEFAULT NULL,
+        `cost_price`           DECIMAL(10,2) NOT NULL,
+        `retail_price`         DECIMAL(10,2) NOT NULL,
+        `notes`                TEXT DEFAULT NULL,
+        `supplier_id`          BIGINT DEFAULT NULL,
+        `invoice_number`       VARCHAR(100) DEFAULT NULL,
+        `true_cost`            DECIMAL(10,2) DEFAULT NULL,
 
         PRIMARY KEY (`id`),
         UNIQUE KEY `sku` (`sku`),
         UNIQUE KEY `serial` (`serial`),
+        KEY `idx_inventory_filter` (`location_id`, `status`, `created_date`, `sold_date`),
+        KEY `product_id_index` (`wc_product_id`),
         CONSTRAINT `fk_location` FOREIGN KEY (`location_id`) REFERENCES `{$locations_table}`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-        CONSTRAINT `fk_brand` FOREIGN KEY (`brand_id`) REFERENCES `{$brands_table}`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-        CONSTRAINT `fk_model` FOREIGN KEY (`model_id`) REFERENCES `{$models_table}`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+        CONSTRAINT `fk_brand`    FOREIGN KEY (`brand_id`)    REFERENCES `{$brands_table}`(`id`)    ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT `fk_model`    FOREIGN KEY (`model_id`)    REFERENCES `{$models_table}`(`id`)    ON DELETE CASCADE ON UPDATE CASCADE
     ) {$charset_collate};";
 
     $result = $wpdb->query($sql);
@@ -338,6 +381,8 @@ function create_order_items_table()
         discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
         total DECIMAL(10,2) NOT NULL,
 
+        KEY order_id (order_id),
+        KEY product_inventory_unit_id (product_inventory_unit_id),
         FOREIGN KEY (order_id) REFERENCES $orders_table(id),
         FOREIGN KEY (product_inventory_unit_id) REFERENCES $product_inventory_table(id)
         ) $charset_collate;";
@@ -384,49 +429,6 @@ function create_services_table()
     } else {
         custom_log("✅ Successfully created {$table_name}");
     }
-}
-
-function mji_update_inventory_units_table()
-{
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'mji_product_inventory_units';
-
-    // 1️⃣ Add supplier_id column if it doesn't exist
-    $column = $wpdb->get_results($wpdb->prepare(
-        "SHOW COLUMNS FROM `$table_name` LIKE %s",
-        'supplier_id'
-    ));
-    if (empty($column)) {
-        $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `supplier_id` BIGINT NULL");
-        custom_log("✅ Added column `supplier_id`");
-    }
-
-    // 2️⃣ Add invoice_number column if it doesn't exist
-    $column = $wpdb->get_results($wpdb->prepare(
-        "SHOW COLUMNS FROM `$table_name` LIKE %s",
-        'invoice_number'
-    ));
-    if (empty($column)) {
-        $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `invoice_number` VARCHAR(100) NULL");
-        custom_log("✅ Added column `invoice_number`");
-    }
-
-    // 3️⃣ Add true_cost column if it doesn't exist
-    $column = $wpdb->get_results($wpdb->prepare(
-        "SHOW COLUMNS FROM `$table_name` LIKE %s",
-        'true_cost'
-    ));
-    if (empty($column)) {
-        $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `true_cost` DECIMAL(10,2) NULL");
-        custom_log("✅ Added column `true_cost`");
-
-        // 3a️⃣ Populate true_cost with current cost_price
-        $wpdb->query("UPDATE `$table_name` SET `true_cost` = `cost_price`");
-        custom_log("✅ Populated `true_cost` with `cost_price` values");
-    }
-
-    // 4️⃣ Optional: log completion
-    custom_log("✅ Inventory units table updated successfully.");
 }
 
 function create_sku_history_table()
@@ -498,10 +500,209 @@ function create_suppliers_table()
     }
 }
 
-// Needed to add suppliers and invocies for inventory doing this both here
-// add_action('admin_init', 'mji_update_inventory_units_table');
-// add_action('admin_init', 'create_suppliers_table');
-// add_action('admin_init', 'create_sku_history_table');
+function create_collections_table()
+{
+    global $wpdb;
+    $table_name      = $wpdb->prefix . 'mji_collections';
+    $charset_collate = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE $table_name (
+        id   BIGINT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(50) NOT NULL,
+        UNIQUE KEY name_unique (name)
+        ) $charset_collate;";
+    $result = $wpdb->query($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
+
+function create_layaways_table()
+{
+    global $wpdb;
+    $table_name      = $wpdb->prefix . 'mji_layaways';
+    $customers_table = $wpdb->prefix . 'mji_customers';
+    $locations_table = $wpdb->prefix . 'mji_locations';
+    $charset_collate = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE $table_name (
+        id               BIGINT PRIMARY KEY AUTO_INCREMENT,
+        customer_id      BIGINT NOT NULL,
+        location_id      BIGINT NOT NULL,
+        reference_num    VARCHAR(50) NOT NULL,
+        total_amount     DECIMAL(10,2) NOT NULL,
+        remaining_amount DECIMAL(10,2) NOT NULL,
+        status           ENUM('active','redeemed','expired','cancelled') DEFAULT 'active',
+        created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY reference_num (reference_num),
+        FOREIGN KEY (customer_id) REFERENCES $customers_table(id) ON DELETE RESTRICT,
+        FOREIGN KEY (location_id) REFERENCES $locations_table(id) ON DELETE RESTRICT
+        ) $charset_collate;";
+    $result = $wpdb->query($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
+
+function create_credits_table()
+{
+    global $wpdb;
+    $table_name      = $wpdb->prefix . 'mji_credits';
+    $customers_table = $wpdb->prefix . 'mji_customers';
+    $locations_table = $wpdb->prefix . 'mji_locations';
+    $charset_collate = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE $table_name (
+        id               BIGINT PRIMARY KEY AUTO_INCREMENT,
+        customer_id      BIGINT NOT NULL,
+        location_id      BIGINT NOT NULL,
+        reference_num    VARCHAR(50) DEFAULT NULL,
+        total_amount     DECIMAL(10,2) NOT NULL,
+        remaining_amount DECIMAL(10,2) NOT NULL,
+        status           ENUM('active','redeemed','expired','cancelled') DEFAULT 'active',
+        created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY reference_num (reference_num),
+        FOREIGN KEY (customer_id) REFERENCES $customers_table(id) ON DELETE RESTRICT,
+        FOREIGN KEY (location_id) REFERENCES $locations_table(id) ON DELETE RESTRICT
+        ) $charset_collate;";
+    $result = $wpdb->query($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
+
+function create_returns_table()
+{
+    global $wpdb;
+    $table_name      = $wpdb->prefix . 'mji_returns';
+    $orders_table    = $wpdb->prefix . 'mji_orders';
+    $charset_collate = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE $table_name (
+        id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+        order_id      BIGINT NOT NULL,
+        reference_num VARCHAR(50) DEFAULT NULL,
+        return_date   DATE NOT NULL DEFAULT (CURDATE()),
+        reason        TEXT,
+        subtotal      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        gst_total     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        pst_total     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        total         DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        UNIQUE KEY reference_num_index (reference_num),
+        KEY created_at_index (return_date),
+        FOREIGN KEY (order_id) REFERENCES $orders_table(id) ON DELETE RESTRICT
+        ) $charset_collate;";
+    $result = $wpdb->query($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
+
+function create_return_items_table()
+{
+    global $wpdb;
+    $table_name       = $wpdb->prefix . 'mji_return_items';
+    $returns_table    = $wpdb->prefix . 'mji_returns';
+    $units_table      = $wpdb->prefix . 'mji_product_inventory_units';
+    $charset_collate  = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE $table_name (
+        id                        BIGINT PRIMARY KEY AUTO_INCREMENT,
+        return_id                 BIGINT NOT NULL,
+        order_item_id             BIGINT NOT NULL,
+        product_inventory_unit_id BIGINT NOT NULL,
+        unit_price                DECIMAL(10,2) NOT NULL,
+        created_at                DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (return_id)                 REFERENCES $returns_table(id) ON DELETE RESTRICT,
+        FOREIGN KEY (product_inventory_unit_id) REFERENCES $units_table(id)   ON DELETE RESTRICT
+        ) $charset_collate;";
+    $result = $wpdb->query($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
+
+function create_return_services_table()
+{
+    global $wpdb;
+    $table_name      = $wpdb->prefix . 'mji_return_services';
+    $returns_table   = $wpdb->prefix . 'mji_returns';
+    $services_table  = $wpdb->prefix . 'mji_services';
+    $charset_collate = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE $table_name (
+        id         BIGINT PRIMARY KEY AUTO_INCREMENT,
+        return_id  BIGINT NOT NULL,
+        service_id BIGINT NOT NULL,
+        price      DECIMAL(10,2) NOT NULL,
+        FOREIGN KEY (return_id)  REFERENCES $returns_table(id)  ON DELETE RESTRICT,
+        FOREIGN KEY (service_id) REFERENCES $services_table(id) ON DELETE RESTRICT
+        ) $charset_collate;";
+    $result = $wpdb->query($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
+
+function create_inventory_status_history_table()
+{
+    global $wpdb;
+    $table_name      = $wpdb->prefix . 'mji_inventory_status_history';
+    $units_table     = $wpdb->prefix . 'mji_product_inventory_units';
+    $charset_collate = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE $table_name (
+        id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
+        inventory_unit_id   BIGINT NOT NULL,
+        from_status         VARCHAR(50) DEFAULT NULL,
+        to_status           VARCHAR(50) NOT NULL,
+        notes               TEXT DEFAULT NULL,
+        changed_by_user_id  BIGINT DEFAULT NULL,
+        reference_num       VARCHAR(50) DEFAULT NULL,
+        created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+        KEY created_at_index (created_at),
+        KEY inventory_unit_id_index (inventory_unit_id),
+        KEY idx_to_status (to_status),
+        KEY idx_unit_id (inventory_unit_id, id),
+        FOREIGN KEY (inventory_unit_id) REFERENCES $units_table(id) ON DELETE CASCADE
+        ) $charset_collate;";
+    $result = $wpdb->query($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
+
+function create_products_collections_table()
+{
+    global $wpdb;
+    $table_name        = $wpdb->prefix . 'mji_products_collections';
+    $collections_table = $wpdb->prefix . 'mji_collections';
+    $charset_collate   = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE $table_name (
+        id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+        product_id    BIGINT NOT NULL,
+        collection_id BIGINT NOT NULL,
+        UNIQUE KEY product_collection_id_unique (product_id, collection_id),
+        KEY collection_id_index (collection_id),
+        KEY product_id_index (product_id),
+        FOREIGN KEY (collection_id) REFERENCES $collections_table(id) ON DELETE RESTRICT
+        ) $charset_collate;";
+    $result = $wpdb->query($sql);
+    if ($result === false) {
+        custom_log("❌ Failed to create {$table_name}: " . $wpdb->last_error);
+    } else {
+        custom_log("✅ Successfully created {$table_name}");
+    }
+}
 
 // Add menu page in WordPress admin
 function create_inventory_menu()
