@@ -1110,8 +1110,9 @@ function change_status()
         wp_send_json_error('Invalid date format.');
     }
 
-    $current_user = get_user_by('email', 'fc@montecristo1978.com');
-    if (!wp_check_password($password, $current_user->user_pass, $current_user->ID)) {
+    $admin_email  = get_option('admin_email');
+    $current_user = get_user_by('email', $admin_email);
+    if (!$current_user || !wp_check_password($password, $current_user->user_pass, $current_user->ID)) {
         wp_send_json_error('Incorrect password.');
     }
 
