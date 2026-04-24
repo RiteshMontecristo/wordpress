@@ -507,8 +507,6 @@ function get_layaway_sum($customer_id = null, $location_id = null)
     if ($customer_id && $location_id)
         return $balance;
     return wp_send_json_success($balance);
-
-    wp_die();
 }
 
 add_action('wp_ajax_getLayawaySum', 'get_layaway_sum');
@@ -581,7 +579,6 @@ function add_layaway()
 
     if (empty($payments)) {
         wp_send_json_error(['message' => 'No valid payments entered.']);
-        wp_die();
     }
 
     $reference_num = sanitize_text_field($_POST['layaway_reference']);
@@ -595,7 +592,6 @@ function add_layaway()
 
     if (empty($reference_num) || empty($salesperson_id) || empty($payment_date) || empty($customer_id) || empty($location_id) || empty($transaction_type)) {
         wp_send_json_error(['message' => 'Reference number, salesperson, payment date, Location ID, customer ID and deposit type are required.']);
-        wp_die();
     }
 
     $wpdb->query('START TRANSACTION');
@@ -821,7 +817,6 @@ function searchProducts()
 
         if (!$product) {
             wp_send_json_error(array("message" => "Product not found"));
-            wp_die();
         }
 
         if ($product->is_type('variable')) {
@@ -1269,7 +1264,6 @@ function finalizeSale()
 
     if (empty($location_id)) {
         wp_send_json_error(['message' => 'Location is required. Please select a store before finalizing the sale.']);
-        wp_die();
     }
     $reference_num = sanitize_text_field($_POST['reference']);
     $created_at = sanitize_text_field($_POST['date']);
