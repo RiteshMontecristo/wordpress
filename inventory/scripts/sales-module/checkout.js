@@ -1,4 +1,4 @@
-import { formatCurrency, formatLabel } from "../index.js";
+import { formatCurrency, formatLabel, esc } from "../index.js";
 import { showSelection } from "../sales.js";
 import { AppState } from "./state.js";
 
@@ -141,8 +141,8 @@ export const CheckoutSelector = {
     const layawayEl = data.map((el) => {
       return `
               <div>
-                <label for="layaway-${el.id}">Layaway #${el.reference_num}:</label>
-                <input class="layaway" type="number" min="0" step="0.01" value=${el.remaining_amount} max=${el.remaining_amount} id="layaway-${el.id}" name="layaway-${el.id}">
+                <label for="layaway-${esc(el.id)}">Layaway #${esc(el.reference_num)}:</label>
+                <input class="layaway" type="number" min="0" step="0.01" value="${esc(el.remaining_amount)}" max="${esc(el.remaining_amount)}" id="layaway-${esc(el.id)}" name="layaway-${esc(el.id)}">
               </div>
       `;
     });
@@ -159,8 +159,8 @@ export const CheckoutSelector = {
     const creditEl = data.map((el) => {
       return `
               <div>
-                <label for="credit-${el.id}">Credit #${el.reference_num}:</label>
-                <input class="credit" type="number" min="0" step="0.01" value=${el.remaining_amount} max=${el.remaining_amount} id="credit-${el.id}" name="credit-${el.id}">
+                <label for="credit-${esc(el.id)}">Credit #${esc(el.reference_num)}:</label>
+                <input class="credit" type="number" min="0" step="0.01" value="${esc(el.remaining_amount)}" max="${esc(el.remaining_amount)}" id="credit-${esc(el.id)}" name="credit-${esc(el.id)}">
               </div>
       `;
     });
@@ -322,12 +322,12 @@ export const CheckoutSelector = {
         return `
                     <tr>
                       <td>
-                          <img src="${item.image_url}" /><br />
-                          ${item.description.split("•").join("<br />•")}
-                          <br>•SKU: ${item.sku} 
-                          <br>•Serial: ${item.serial}
+                          <img src="${esc(item.image_url)}" /><br />
+                          ${esc(item.description).split("•").join("<br />•")}
+                          <br>•SKU: ${esc(item.sku)}
+                          <br>•Serial: ${esc(item.serial)}
                       </td>
-                      <td>$${item.price_after_discount}</td>
+                      <td>$${esc(item.price_after_discount)}</td>
                     </tr>
                   `;
       })
@@ -336,9 +336,7 @@ export const CheckoutSelector = {
     itemRows += data.services.map((service) => {
       return `
                 <tr>
-                    <td>${formatLabel(service.category)} <br /> ${
-                      service.description
-                    }</td>
+                    <td>${esc(formatLabel(service.category))} <br /> ${esc(service.description)}</td>
                     <td>$${formatCurrency(service.retailPrice)}</td>
                 </tr>
               `;
@@ -347,11 +345,9 @@ export const CheckoutSelector = {
     const paymentLines = data.payments
       .map((payment) => {
         if (payment.method == "layaway" || payment.method == "credit") {
-          return `${payment.method} #${
-            payment.reference_num
-          }: $${formatCurrency(payment.amount)}`;
+          return `${esc(payment.method)} #${esc(payment.reference_num)}: $${formatCurrency(payment.amount)}`;
         } else {
-          return `${payment.method}: $${formatCurrency(payment.amount)}`;
+          return `${esc(payment.method)}: $${formatCurrency(payment.amount)}`;
         }
       })
       .join(", ");
@@ -364,14 +360,14 @@ export const CheckoutSelector = {
                   </div>
                   <div>
                     <address>
-                      <p>${AppState.customer.firstName} ${AppState.customer.lastName}</p>
-                      <p>${AppState.customer.address.split(",").join("<br/>")}</p>
+                      <p>${esc(AppState.customer.firstName)} ${esc(AppState.customer.lastName)}</p>
+                      <p>${esc(AppState.customer.address).split(",").join("<br/>")}</p>
                     </address>
                   </div>
                   <div>
-                    <p>Reference # ${data.reference_num}</p>
-                    <p>Date: <time datetime="${data.date}">${data.date}</time></p>
-                    <p>Served by ${data.salesperson_name}</p>
+                    <p>Reference # ${esc(data.reference_num)}</p>
+                    <p>Date: <time datetime="${esc(data.date)}">${esc(data.date)}</time></p>
+                    <p>Served by ${esc(data.salesperson_name)}</p>
                   </div>
                 </header>
 
@@ -389,7 +385,7 @@ export const CheckoutSelector = {
                     <tfoot>
                       <tr>
                         <td class="payment-summary">
-                        ${data.notes ? `<p>${data.notes}</p>` : ""}
+                        ${data.notes ? `<p>${esc(data.notes)}</p>` : ""}
                           <p>${
                             data.payments.length == 0
                               ? "This is a gift!!"

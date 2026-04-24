@@ -1,4 +1,4 @@
-import { formatCurrency, formatLabel } from "../index.js";
+import { formatCurrency, formatLabel, esc } from "../index.js";
 import { showSelection } from "../sales.js";
 import { AppState } from "./state.js";
 
@@ -50,20 +50,20 @@ export const LayawaySelector = {
               const layawayItem = document.createElement("tr");
               layawayItem.classList.add("layaway-item");
               layawayItem.innerHTML = `
-            <td>${item.payment_date.split(" ")[0]}</p>
-            <td>${item.reference_num}</p>
-            <td>${formatLabel(item.transaction_type)}</p>
-            <td>${formatLabel(item.method)}</p>
-            <td>${item.amount}</p>
-            <td>${item.notes}</p>
-            <td>${item.salesperson_first_name} ${item.salesperson_last_name}</p>
+            <td>${esc(item.payment_date.split(" ")[0])}</td>
+            <td>${esc(item.reference_num)}</td>
+            <td>${esc(formatLabel(item.transaction_type))}</td>
+            <td>${esc(formatLabel(item.method))}</td>
+            <td>${esc(item.amount)}</td>
+            <td>${esc(item.notes)}</td>
+            <td>${esc(item.salesperson_first_name)} ${esc(item.salesperson_last_name)}</td>
           `;
               this.items.appendChild(layawayItem);
             });
 
-            this.layawayTotal.innerHTML = formatCurrency(AppState.layawayTotal);
+            this.layawayTotal.textContent = formatCurrency(AppState.layawayTotal);
           } else {
-            this.items.innerHTML = res.data;
+            this.items.textContent = res.data;
           }
         })
         .catch((error) => {
@@ -203,7 +203,7 @@ export const LayawaySelector = {
       .map(
         (payment) =>
           `<div class="layaway-receipt-row">
-            <span>Paid by ${payment.method}</span>
+            <span>Paid by ${esc(payment.method)}</span>
             <span>$${formatCurrency(payment.amount)}</span>
           </div>`,
       )
@@ -217,20 +217,20 @@ export const LayawaySelector = {
         </div>
         <div>
           <address>
-            <p>${AppState.customer.firstName} ${AppState.customer.lastName}</p>
-            <p>${AppState.customer.address.split(",").join("<br/>")}</p>
+            <p>${esc(AppState.customer.firstName)} ${esc(AppState.customer.lastName)}</p>
+            <p>${esc(AppState.customer.address).split(",").join("<br/>")}</p>
           </address>
         </div>
         <div>
-          <p>Reference # ${reference}</p>
-          <p>Date: <time datetime="${data.payment_date}">${data.payment_date}</time></p>
-          <p>Served by ${data.salesperson}</p>
+          <p>Reference # ${esc(reference)}</p>
+          <p>Date: <time datetime="${esc(data.payment_date)}">${esc(data.payment_date)}</time></p>
+          <p>Served by ${esc(data.salesperson)}</p>
         </div>
       </header>
 
       <div class="layaway-receipt-body">
         <hr class="layaway-receipt-divider" />
-        ${data.notes ? `<p class="layaway-receipt-notes">${data.notes}</p>` : ""}
+        ${data.notes ? `<p class="layaway-receipt-notes">${esc(data.notes)}</p>` : ""}
         ${paymentLines}
         <hr class="layaway-receipt-divider" />
         <div class="layaway-receipt-row">

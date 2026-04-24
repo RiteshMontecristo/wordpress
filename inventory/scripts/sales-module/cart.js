@@ -1,4 +1,4 @@
-import { formatCurrency, formatLabel } from "../index.js";
+import { formatCurrency, formatLabel, esc } from "../index.js";
 import { showSelection } from "../sales.js";
 import { ServiceSelector } from "./service.js";
 import { AppState } from "./state.js";
@@ -34,23 +34,19 @@ export const CartSelector = {
         .map((item) => {
           return `
                 <div class="product-item">
-                  <img src="${item.image_url}" alt="${item.title}" />
-                  <div data-unitId="${item.unit_id}">
-                    <strong>${item.title}</strong><br />
+                  <img src="${esc(item.image_url)}" alt="${esc(item.title)}" />
+                  <div data-unitId="${esc(item.unit_id)}">
+                    <strong>${esc(item.title)}</strong><br />
                     ${
                       item.variation_detail &&
-                      `<span>Variation: ${item.variation_detail}</span><br />`
+                      `<span>Variation: ${esc(item.variation_detail)}</span><br />`
                     }
-                    <span>SKU: ${item.sku}</span><br />
-                    <span>Serial: ${item.serial}</span><br />
-                    <span>Price: ${item.price} CAD</span><br />
-                    <span>Discount: ${item.discount_amount}</span><br />
-                    <span>Discount Percent: ${
-                      item.discount_percent
-                    }%</span><br />
-                    <span>Discounted Price: ${
-                      item.price_after_discount
-                    }</span><br />
+                    <span>SKU: ${esc(item.sku)}</span><br />
+                    <span>Serial: ${esc(item.serial)}</span><br />
+                    <span>Price: ${esc(item.price)} CAD</span><br />
+                    <span>Discount: ${esc(item.discount_amount)}</span><br />
+                    <span>Discount Percent: ${esc(item.discount_percent)}%</span><br />
+                    <span>Discounted Price: ${esc(item.price_after_discount)}</span><br />
                     <button type="button">Edit</button>
                     <button type="button">Remove</button>
                   </div>
@@ -66,23 +62,23 @@ export const CartSelector = {
         .map((service) => {
           return `
           <div class="service-item">
-            <img src="${placeholderImg}" alt="Service" />
+            <img src="${esc(placeholderImg)}" alt="Service" />
             <div>
-              <strong>${formatLabel(service.category)}</strong><br />
+              <strong>${esc(formatLabel(service.category))}</strong><br />
               ${
                 service.description
-                  ? `<span>Description: ${service.description}</span><br />`
+                  ? `<span>Description: ${esc(service.description)}</span><br />`
                   : ``
               }
               <span>Cost Price: ${formatCurrency(service.costPrice)} CAD</span><br />
               <span>Retail Price: ${formatCurrency(service.retailPrice)} CAD</span><br />
               ${
                 service.reference
-                  ? `<span>Reference: ${service.reference}</span><br />`
+                  ? `<span>Reference: ${esc(service.reference)}</span><br />`
                   : ``
               }
-              <button id="${service.id}" type="edit">Edit</button>
-              <button id="${service.id}" type="button">Remove</button>
+              <button id="${esc(service.id)}" type="edit">Edit</button>
+              <button id="${esc(service.id)}" type="button">Remove</button>
             </div>
           </div>
       `;
