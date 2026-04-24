@@ -575,8 +575,8 @@ function add_layaway()
 
     foreach ($payment_methods as $method) {
         $amount = isset($_POST[$method]) ? floatval($_POST[$method]) : 0;
-        $total_sum += $amount;
         if ($amount > 0) {
+            $total_sum += $amount;
             $payments[] = [
                 'method' => $method,
                 'amount' => $amount
