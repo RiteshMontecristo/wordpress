@@ -1266,8 +1266,8 @@ function reports_render_layaway_report($results)
         if ($status === "deposit") {
             echo '<thead>
             <tr>
-                <th>Invoice</th>
-                <th>Date</th>
+                <th>Deposit Invoice</th>
+                <th>Deposit Date</th>
                 <th>Customer</th>
                 <th>Salesperson</th>
                 <th>Method</th>
@@ -1316,11 +1316,11 @@ function reports_render_layaway_report($results)
             echo '<thead>
                 <tr>
                     <th>Redeeed Invoice</th>
-                    <th>Date</th>
+                    <th>Redeeed Date</th>
                     <th>Customer</th>
                     <th>Salesperson</th>
-                    <th>Method</th>
-                    <th>Amount</th>
+                    <th>Redeeed Method</th>
+                    <th>Redeeed Amount</th>
                     <th>Deposit Invoice</th>
                     <th>Deposit Date</th>
                     <th>Deposit Method</th>
@@ -1377,11 +1377,11 @@ function reports_render_layaway_report($results)
             echo '<thead>
                 <tr>
                     <th>Deposit Invoice</th>
-                    <th>Date</th>
+                    <th>Deposit Date</th>
                     <th>Customer</th>
                     <th>Salesperson</th>
                     <th>Deposit Method</th>
-                    <th>Amount</th>
+                    <th>Deposit Amount</th>
                     <th>Redeemed Invoice</th>
                     <th>Redeemed Date</th>
                     <th>Redeemed Amount</th>
@@ -1752,7 +1752,7 @@ function reports_render_credit_report($results)
             echo '<thead>
                 <tr>
                     <th>Redeem Invoice</th>
-                    <th>Date</th>
+                    <th>Redeem Date</th>
                     <th>Customer</th>
                     <th>Salesperson</th>
                     <th>Method</th>
@@ -2050,7 +2050,7 @@ function reports_render_refund_report($results)
         echo '<thead>
             <tr>
                 <th>Refund Invoice</th>
-                <th>Date</th>
+                <th>Refund Date</th>
                 <th>Customer</th>
                 <th>Salesperson</th>
                 <th>Refund Method</th>
