@@ -22,60 +22,10 @@ function toggleFavourite()
 }
 add_action('wp_ajax_toggleFavourite', 'toggleFavourite'); // For logged-in users
 
-
-function reduce_product_quantity($product_id)
-{
-    try {
-        $product = wc_get_product($product_id);
-        if ($product->get_stock_quantity() > 0) {
-            $product->set_stock_quantity($product->get_stock_quantity() - 1);
-            $product->save();
-            return array("success" => true);
-        } else {
-            return array("success" => false);
-        }
-    } catch (Exception $e) {
-        return array("success" => false);
-    }
-}
-
-function remove_sku($split_product)
-{
-    global $wpdb;
-    try {
-        $sku_data = get_post_meta($split_product[0], 'new_repeatable_sku_field', true);
-        $sku_data_len = count($sku_data);
-
-        $filtered_data = array_values(array_filter($sku_data, function ($var) use ($split_product) {
-            return $var["sku_text"] !== $split_product[1];
-        }));
-
-        $filtered_data_len = count($filtered_data);
-
-        if ($filtered_data_len === $sku_data_len) {
-            return array("success" => false);
-        }
-
-        update_post_meta($split_product[0], 'new_repeatable_sku_field', $filtered_data);
-        $wpdb->delete(
-            'wp_product_skus',
-            array(
-                'sku_text' => $split_product[1],
-            ),
-            array(
-                '%s', // Format specifier for the sku_text value
-            )
-        );
-
-        return array("success" => true);
-    } catch (Exception $e) {
-        return array("success" => false);
-    }
-}
-
 function mji_check_rate_limit(string $action, int $limit = 10): bool
 {
     $ip     = WC_Geolocation::get_ip_address();
+    // time returns the unix value and when divided by hours and floored the value only changes hourly so in 1 hour they can only run 10 times hence rate limiting the customer
     $bucket = (int) floor(time() / HOUR_IN_SECONDS);
     $key    = 'mji_rl_' . $action . '_' . md5($ip) . '_' . $bucket;
     $count  = (int) get_transient($key);
