@@ -157,6 +157,10 @@ if (!empty($children) || $parent_category_name == "Jewellery") {
                 if ($parent_category_name != "Jewellery" && $current_slug != "jewellery") {
                     $jewellery = get_term_by("slug", "jewellery", "product_cat");
 
+                    if (!$jewellery || is_wp_error($jewellery)) {
+                        return;
+                    }
+
                     $jewellery_children = get_terms(array(
                         'taxonomy' => 'product_cat',
                         'parent' => $jewellery->term_id,
