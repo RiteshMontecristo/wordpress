@@ -2431,16 +2431,14 @@ function reports_get_financial_results()
         if ($p->transaction_type === 'layaway_redemption' && $p->layaway_id) {
             $deposits = $layaway_deposits_map[(int) $p->layaway_id] ?? [];
             if (!empty($deposits)) {
-                foreach ($deposits as $d) {
-                    $dep_date = date('Y-m-d', strtotime($d->payment_date));
-                    $payments_map[$p->reference_num][] = [
-                        'method' => 'Layaway – ' . ucwords(str_replace('_', ' ', $d->method)) . ' (' . $dep_date . ')',
-                        'amount' => $d->amount,
-                        'reference_num' => $p->ref,
-                        'transaction_type' => 'layaway_deposit',
-                    ];
-                }
-                continue; // skip adding the redemption row itself
+                $payments_map[$p->reference_num][] = [
+                    'method'           => 'layaway',
+                    'amount'           => $p->amount,
+                    'reference_num'    => $p->ref,
+                    'transaction_type' => 'layaway_redemption',
+                    'layaway_deposits' => $deposits,
+                ];
+                continue;
             }
         }
         $entry = [
@@ -2705,7 +2703,8 @@ function reports_render_financial_report($results)
                     // For purchase payments made with store credit:
                     // Credit (#REF) – Visa $600.00 / Cash $400.00 (2024-03-10)
                     // Falls back to the deposit method when no original order is traceable.
-                    $credit_orig = $payments[$i]['credit_orig'] ?? null;
+                    $credit_orig      = $payments[$i]['credit_orig'] ?? null;
+                    $layaway_deposits = $payments[$i]['layaway_deposits'] ?? null;
                     if ($method === 'credit' && $credit_orig) {
                         $credit_date = !empty($credit_orig['credit_date']) ? date('Y-m-d', strtotime($credit_orig['credit_date'])) : '';
                         $date_str    = $credit_date ? ' (' . $credit_date . ')' : '';
@@ -2718,6 +2717,13 @@ function reports_render_financial_report($results)
                             $method_str = ucwords(str_replace('_', ' ', $credit_orig['deposit_method'] ?? 'Credit'));
                         }
                         echo '<td>Credit' . $ref . ' – ' . esc_html($method_str . $date_str) . '</td>';
+                    } elseif ($method === 'layaway' && $layaway_deposits) {
+                        $parts = array_map(function ($d) {
+                            $dep_date = date('Y-m-d', strtotime($d->payment_date));
+                            return ucwords(str_replace('_', ' ', $d->method)) . ' $' . number_format((float) $d->amount, 2) . ' (' . $dep_date . ')';
+                        }, $layaway_deposits);
+                        $method_str = implode(' / ', $parts);
+                        echo '<td>Layaway' . $ref . ' – ' . esc_html($method_str) . '</td>';
                     } else {
                         echo '<td>' . esc_html(ucwords(str_replace('_', ' ', $method))) . $ref . '</td>';
                     }
@@ -2754,7 +2760,7 @@ function reports_render_financial_report($results)
             echo '<tr>';
             echo '<td colspan="2" ' . $td . '><strong>' . esc_html($label) . '</strong></td>';
             echo '<td ' . $td . '>Total Cost $' . number_format($cost, 2) . '</td>';
-            echo '<td ' . $td . '>Total Retail $' . number_format($retail, 2) . '</td>';
+            echo '<td ' . $td . '>Total Retail Paid $' . number_format($retail, 2) . '</td>';
             echo '<td ' . $td . '>Total GST $' . number_format($gst, 2) . '</td>';
             echo '<td ' . $td . '>Total PST $' . number_format($pst, 2) . '</td>';
             echo '<td ' . $td . '>w/GST $' . number_format($retail + $gst, 2) . '</td>';
