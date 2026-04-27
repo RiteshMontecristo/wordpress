@@ -73,6 +73,19 @@ function remove_sku($split_product)
     }
 }
 
+function mji_check_rate_limit(string $action, int $limit = 10): bool
+{
+    $ip     = WC_Geolocation::get_ip_address();
+    $bucket = (int) floor(time() / HOUR_IN_SECONDS);
+    $key    = 'mji_rl_' . $action . '_' . md5($ip) . '_' . $bucket;
+    $count  = (int) get_transient($key);
+    if ($count >= $limit) {
+        return false;
+    }
+    set_transient($key, $count + 1, HOUR_IN_SECONDS + 60);
+    return true;
+}
+
 function captcha_verify($captcha_token)
 {
 

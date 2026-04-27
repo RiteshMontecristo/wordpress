@@ -301,6 +301,10 @@ function contact_us()
         wp_send_json_error(array('message' => 'Server error while trying to send email, Please try again later.'));
         return;
     }
+    if (!mji_check_rate_limit('contact_us')) {
+        wp_send_json_error(['message' => 'Too many requests. Please try again later.']);
+        return;
+    }
     // Honeypot
     if (! empty($_POST['website'])) {
         wp_send_json_success(['message' => 'Thank you for your message!']);
@@ -429,6 +433,10 @@ function appointment()
     // Verify the nonce
     if (!isset($_POST['appointment_nonce']) || !wp_verify_nonce($_POST['appointment_nonce'], 'appointment_nonce')) {
         wp_send_json_error(['error' => 'Invalid nonce.']);
+        return;
+    }
+    if (!mji_check_rate_limit('appointment')) {
+        wp_send_json_error(['error' => 'Too many requests. Please try again later.']);
         return;
     }
 
@@ -563,6 +571,11 @@ function customize_contact_us()
     if (! empty($_POST['website'])) {
         wp_send_json_success(['message' => 'Thank you for your message!']);
         exit;
+    }
+
+    if (!mji_check_rate_limit('customize_contact_us')) {
+        wp_send_json_error(['error' => 'Too many requests. Please try again later.']);
+        return;
     }
 
     // Verify the nonce
@@ -863,23 +876,21 @@ function handle_newsletter_subscribe_form()
 // To log issues when i cant echo out in the frontend
 function custom_log($message)
 {
-    $log_file = WP_CONTENT_DIR . '/custom_logs/custom_log.txt'; // Path to your log file
+    $log_file = WP_CONTENT_DIR . '/custom_logs/custom_log.txt';
 
-    // Ensure the directory exists
     if (!file_exists(dirname($log_file))) {
-        mkdir(dirname($log_file), 0755, true);
+        mkdir(dirname($log_file), 0750, true);
     }
 
     if (is_array($message) || is_object($message)) {
-        $message = print_r($message, true); // Use print_r for readability
+        $message = print_r($message, true);
     } else {
-        $message = (string) $message; // Convert scalar values to string
+        $message = (string) $message;
     }
-    // Prepare the message with the current date and time
     $message = '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL;
 
-    // Write the message to the log file
-    error_log($message, 3, $log_file);  // 3 is the "append" flag
+    error_log($message, 3, $log_file);
+    chmod($log_file, 0640);
 }
 
 // Footer Menu 
