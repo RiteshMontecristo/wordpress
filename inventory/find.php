@@ -117,14 +117,20 @@ function render_search_section()
         $reference_num = sanitize_text_field($_GET['reference_num']);
 
         if ($active_tab == "sales") {
-            $results = reports_search_sales_results($reference_num);
-            if (!$results) {
+            try {
+                $results = reports_search_sales_results($reference_num);
+                if (!$results) {
+                    echo "<div class='wrap'>";
+                    echo "<h2>Invoice " . esc_html($reference_num) . " not found!!";
+                    echo "</div>";
+                } else {
+                    render_invoice($results);
+                    return;
+                }
+            } catch (Exception $e) {
                 echo "<div class='wrap'>";
-                echo "<h2>Invoice " . esc_html($reference_num) . " not found!!";
+                echo "<h2>" . esc_html($e->getMessage()) . "</h2>";
                 echo "</div>";
-            } else {
-                render_invoice($results);
-                return;
             }
         } else if ($active_tab == "layaway") {
             try {
@@ -143,14 +149,20 @@ function render_search_section()
                 echo "</div>";
             }
         } else {
-            $results = search_refund_results($reference_num);
-            if (!$results) {
+            try {
+                $results = search_refund_results($reference_num);
+                if (!$results) {
+                    echo "<div class='wrap'>";
+                    echo "<h2>Invoice " . esc_html($reference_num) . " not found!!";
+                    echo "</div>";
+                } else {
+                    render_refund_invoice($results);
+                    return;
+                }
+            } catch (Exception $e) {
                 echo "<div class='wrap'>";
-                echo "<h2>Invoice " . esc_html($reference_num) . " not found!!";
+                echo "<h2>" . esc_html($e->getMessage()) . "</h2>";
                 echo "</div>";
-            } else {
-                render_refund_invoice($results);
-                return;
             }
         }
     }
@@ -263,6 +275,7 @@ function reports_search_sales_results($reference_num)
         ];
     } catch (Exception $e) {
         custom_log($e->getMessage());
+        throw $e;
     }
 }
 
@@ -1120,6 +1133,7 @@ function search_layaway_results($reference_num)
         return $results;
     } catch (Exception $e) {
         custom_log($e->getMessage());
+        throw $e;
     }
 }
 
@@ -1551,6 +1565,7 @@ function search_refund_results($reference_num)
         return $results;
     } catch (Exception $e) {
         custom_log($e->getMessage());
+        throw $e;
     }
 }
 

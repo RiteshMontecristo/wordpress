@@ -122,6 +122,8 @@ function render_product_card_print_section($post)
         $sku_options .= '</select>';
     } catch (Exception $err) {
         custom_log($err->getMessage());
+        echo '<div class="notice notice-error"><p>' . esc_html($err->getMessage()) . '</p></div>';
+        return;
     }
 
 ?>

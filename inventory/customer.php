@@ -17,8 +17,8 @@ function customer_page()
                 <div class="store-btn-group">
                     <?php foreach ($locations as $location) : ?>
                         <button class="store-btn button button-hero"
-                                data-id="<?= esc_attr($location->id) ?>"
-                                data-name="<?= esc_attr($location->name) ?>">
+                            data-id="<?= esc_attr($location->id) ?>"
+                            data-name="<?= esc_attr($location->name) ?>">
                             <span class="dashicons dashicons-store"></span>
                             <?= esc_html($location->name) ?>
                         </button>
@@ -41,7 +41,7 @@ function customer_page()
         <div class="customer-page-header">
             <h1 class="wp-heading-inline">Customer Management</h1>
             <a href="?page=customer-management&action=add&location=<?= esc_attr($_GET['location'] ?? '') ?>"
-               class="page-title-action">Add New Customer</a>
+                class="page-title-action">Add New Customer</a>
         </div>
 
         <?php
@@ -61,25 +61,25 @@ function customer_page()
             $current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
         ?>
 
-        <!-- Search toolbar -->
-        <div class="customer-toolbar">
-            <form method="get" class="customer-search-form">
-                <input type="hidden" name="page" value="customer-management">
-                <input type="hidden" name="location" value="<?= esc_attr($location_id ?: '') ?>">
-                <div class="search-input-wrap">
-                    <span class="dashicons dashicons-search"></span>
-                    <input type="text" name="search"
-                           placeholder="Search by name or phone…"
-                           value="<?= esc_attr($search_query) ?>"
-                           class="customer-search-input">
-                </div>
-                <button type="submit" class="button">Search</button>
-                <?php if (!empty($search_query)) : ?>
-                    <a href="?page=customer-management&location=<?= esc_attr($location_id ?: '') ?>"
-                       class="button">Clear</a>
-                <?php endif; ?>
-            </form>
-        </div>
+            <!-- Search toolbar -->
+            <div class="customer-toolbar">
+                <form method="get" class="customer-search-form">
+                    <input type="hidden" name="page" value="customer-management">
+                    <input type="hidden" name="location" value="<?= esc_attr($location_id ?: '') ?>">
+                    <div class="search-input-wrap">
+                        <span class="dashicons dashicons-search"></span>
+                        <input type="text" name="search"
+                            placeholder="Search by name or phone…"
+                            value="<?= esc_attr($search_query) ?>"
+                            class="customer-search-input">
+                    </div>
+                    <button type="submit" class="button">Search</button>
+                    <?php if (!empty($search_query)) : ?>
+                        <a href="?page=customer-management&location=<?= esc_attr($location_id ?: '') ?>"
+                            class="button">Clear</a>
+                    <?php endif; ?>
+                </form>
+            </div>
 
         <?php
             $output = customer_table("customer", $search_query, $per_page, $current_page, $location_id);
@@ -451,7 +451,8 @@ function add_customer_form()
             }
             exit;
         } catch (Exception $e) {
-            custom_log($wpdb->last_error);
+            custom_log($e->getMessage());
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($e->getMessage()) . '</p></div>';
         }
     }
 }
@@ -933,7 +934,7 @@ function view_customer_page()
         <!-- Back link + edit action -->
         <div class="customer-view-topbar">
             <a href="<?= esc_url(admin_url('admin.php?page=customer-management&location=' . $view_location_id)) ?>"
-               class="button">
+                class="button">
                 &larr; All Customers
             </a>
             <a href="<?= esc_url($edit_url) ?>" class="button">
@@ -953,38 +954,38 @@ function view_customer_page()
                 </h2>
                 <div class="customer-profile-grid">
                     <?php if ($customer->email) : ?>
-                    <div class="profile-field">
-                        <span class="profile-field-label"><span class="dashicons dashicons-email-alt"></span> Email</span>
-                        <span><?= esc_html($customer->email) ?></span>
-                    </div>
+                        <div class="profile-field">
+                            <span class="profile-field-label"><span class="dashicons dashicons-email-alt"></span> Email</span>
+                            <span><?= esc_html($customer->email) ?></span>
+                        </div>
                     <?php endif; ?>
                     <?php if ($customer->primary_phone) : ?>
-                    <div class="profile-field">
-                        <span class="profile-field-label"><span class="dashicons dashicons-phone"></span> Primary Phone</span>
-                        <span><?= esc_html($customer->primary_phone) ?></span>
-                    </div>
+                        <div class="profile-field">
+                            <span class="profile-field-label"><span class="dashicons dashicons-phone"></span> Primary Phone</span>
+                            <span><?= esc_html($customer->primary_phone) ?></span>
+                        </div>
                     <?php endif; ?>
                     <?php if ($customer->secondary_phone) : ?>
-                    <div class="profile-field">
-                        <span class="profile-field-label"><span class="dashicons dashicons-phone"></span> Secondary Phone</span>
-                        <span><?= esc_html($customer->secondary_phone) ?></span>
-                    </div>
+                        <div class="profile-field">
+                            <span class="profile-field-label"><span class="dashicons dashicons-phone"></span> Secondary Phone</span>
+                            <span><?= esc_html($customer->secondary_phone) ?></span>
+                        </div>
                     <?php endif; ?>
                     <?php if ($customer->street_address) : ?>
-                    <div class="profile-field">
-                        <span class="profile-field-label"><span class="dashicons dashicons-location"></span> Address</span>
-                        <span><?= esc_html($customer->street_address . ', ' . $customer->city . ' ' . $customer->province . ', ' . $customer->postal_code) ?></span>
-                    </div>
+                        <div class="profile-field">
+                            <span class="profile-field-label"><span class="dashicons dashicons-location"></span> Address</span>
+                            <span><?= esc_html($customer->street_address . ', ' . $customer->city . ' ' . $customer->province . ', ' . $customer->postal_code) ?></span>
+                        </div>
                     <?php endif; ?>
                     <div class="profile-field">
                         <span class="profile-field-label"><span class="dashicons dashicons-calendar-alt"></span> Customer Since</span>
                         <span><?= date('F j, Y', strtotime($customer->created_at)) ?></span>
                     </div>
                     <?php if ($salesperson_fullname) : ?>
-                    <div class="profile-field">
-                        <span class="profile-field-label"><span class="dashicons dashicons-businessman"></span> Served By</span>
-                        <span><?= esc_html($salesperson_fullname) ?></span>
-                    </div>
+                        <div class="profile-field">
+                            <span class="profile-field-label"><span class="dashicons dashicons-businessman"></span> Served By</span>
+                            <span><?= esc_html($salesperson_fullname) ?></span>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -1175,8 +1176,7 @@ function view_customer_page()
                     id="save-customer-notes"
                     class="button button-primary"
                     data-customer-id="<?= esc_attr($customer_id) ?>"
-                    data-nonce="<?= esc_attr(wp_create_nonce('save_customer_notes_nonce')) ?>"
-                >Save Notes</button>
+                    data-nonce="<?= esc_attr(wp_create_nonce('save_customer_notes_nonce')) ?>">Save Notes</button>
                 <span id="notes-save-status" style="margin-left:8px;"></span>
             </p>
         </div>
