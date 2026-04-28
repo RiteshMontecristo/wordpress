@@ -808,6 +808,7 @@ function reports_get_inventory_result()
         'start_date' => $start_date,
         'end_date'   => $end_date,
         'status'     => $status,
+        'location'   => $location,
     ];
 
     set_transient($cache_key, $result, 15 * MINUTE_IN_SECONDS);
@@ -831,9 +832,9 @@ function reports_render_inventory_report($results)
     $total_retail_price = 0;
     $missing_count = 0;
 
-    if (isset($_GET['location']) && !empty($_GET['location'])) {
+    if (!empty($results['location'])) {
         $store_locations = mji_get_locations();
-        $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+        $location_obj = array_find($store_locations, fn($loc) => $loc->id == $results['location']);
         $location_name = $location_obj->name;
     } else {
         $location_name = 'All Location';
@@ -1241,9 +1242,9 @@ function reports_get_layaway_results()
 function reports_render_layaway_report($results)
 {
     if (!empty($results["rows"])) {
-        if (isset($_GET['location']) && !empty($_GET['location'])) {
+        if (!empty($results['location'])) {
             $store_locations = mji_get_locations();
-            $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+            $location_obj = array_find($store_locations, fn($loc) => $loc->id == $results['location']);
             $location_name = $location_obj->name;
         } else {
             $location_name = 'All Location';
@@ -1666,9 +1667,9 @@ function reports_get_credit_results()
 function reports_render_credit_report($results)
 {
     if (!empty($results['rows'])) {
-        if (isset($_GET['location']) && !empty($_GET['location'])) {
+        if (!empty($results['location'])) {
             $store_locations = mji_get_locations();
-            $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+            $location_obj = array_find($store_locations, fn($loc) => $loc->id == $results['location']);
             $location_name = $location_obj->name;
         } else {
             $location_name = 'All Location';
@@ -1982,7 +1983,7 @@ function reports_get_refund_results()
     $params = [];
 
     if ($location !== null) {
-        $where[] = "location_id = %d";
+        $where[] = "p.location_id = %d";
         $params[] = $location;
     }
 
@@ -2017,20 +2018,22 @@ function reports_get_refund_results()
             ORDER BY p.reference_num";
 
 
-    $results = $wpdb->get_results($wpdb->prepare($sql_query, ...$params));
+    $rows = $wpdb->get_results($wpdb->prepare($sql_query, ...$params));
 
-    $results['start_date'] = $start_date;
-    $results['end_date'] = $end_date;
-    $results['location'] = $location;
-    return $results;
+    return [
+        'rows' => $rows,
+        'start_date' => $start_date,
+        'end_date' => $end_date,
+        'location' => $location
+    ];
 }
 
 function reports_render_refund_report($results)
 {
     if (!empty($results['rows'])) {
-        if (isset($_GET['location']) && !empty($_GET['location'])) {
+        if (!empty($results['location'])) {
             $store_locations = mji_get_locations();
-            $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+            $location_obj = array_find($store_locations, fn($loc) => $loc->id == $results['location']);
             $location_name = $location_obj->name;
         } else {
             $location_name = 'All Location';
@@ -2573,18 +2576,20 @@ function reports_get_financial_results()
     }
     unset($row);
 
-    $results['start_date'] = $start_date;
-    $results['end_date'] = $end_date;
-    $results['location'] = $location;
-    return $results;
+    return [
+        'rows'       => $results,
+        'start_date' => $start_date,
+        'end_date'   => $end_date,
+        'location'   => $location,
+    ];
 }
 
 function reports_render_financial_report($results)
 {
     if (!empty($results['rows'])) {
-        if (isset($_GET['location']) && !empty($_GET['location'])) {
+        if (!empty($results['location'])) {
             $store_locations = mji_get_locations();
-            $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
+            $location_obj = array_find($store_locations, fn($loc) => $loc->id == $results['location']);
             $location_name = $location_obj->name;
         } else {
             $location_name = 'All Location';
@@ -2640,9 +2645,7 @@ function reports_render_financial_report($results)
           </thead>';
         echo '<tbody>';
 
-        foreach ($results as $index => $row) {
-            if (!is_object($row))
-                continue;
+        foreach ($results['rows'] as $index => $row) {
 
             $is_order = $row->type === 'order';
             $is_credit = !$is_order && ($row->return_type ?? 'refund') === 'credit';
