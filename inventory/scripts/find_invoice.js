@@ -457,3 +457,82 @@ function createLayawayRefundReceipt(data) {
     layawayRefundEl.classList.remove("refund");
   });
 }
+
+// Edit invoice
+const editBtn   = document.getElementById("edit-invoice-btn");
+const editEl    = document.getElementById("edit-invoice");
+const cancelBtn = document.getElementById("cancel-edit-btn");
+const saveBtn   = document.getElementById("save-invoice-btn");
+
+function updatePaymentSum() {
+  const orderTotal = parseFloat(document.getElementById("edit_order_total")?.value ?? 0);
+  const sumEl      = document.getElementById("edit-payment-sum");
+  const statusEl   = document.getElementById("edit-payment-sum-status");
+  if (!sumEl) return;
+
+  const sum = Array.from(
+    document.querySelectorAll('#edit-payment-grid input[type="number"]')
+  ).reduce((acc, input) => acc + (parseFloat(input.value) || 0), 0);
+
+  sumEl.textContent = "$" + sum.toFixed(2);
+
+  if (Math.round(sum * 100) === Math.round(orderTotal * 100)) {
+    sumEl.style.color    = "green";
+    statusEl.textContent = "✓";
+    statusEl.style.color = "green";
+  } else {
+    sumEl.style.color    = "red";
+    statusEl.textContent = sum > orderTotal ? "▲ over" : "▼ under";
+    statusEl.style.color = "red";
+  }
+}
+
+editBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  editEl.classList.toggle("refund");
+  if (editEl.classList.contains("refund")) updatePaymentSum();
+});
+
+document.getElementById("edit-payment-grid")?.addEventListener("input", (e) => {
+  if (e.target.type === "number") updatePaymentSum();
+});
+
+cancelBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  editEl.classList.remove("refund");
+});
+
+saveBtn?.addEventListener("click", async () => {
+  const formData = new FormData();
+  formData.append("action",             "edit_sale");
+  formData.append("nonce",              ajax_inventory.nonce);
+  formData.append("order_id",           document.getElementById("edit_order_id").value);
+  formData.append("original_reference", document.getElementById("edit_original_reference").value);
+  formData.append("reference_num",      document.getElementById("edit_reference_num").value.trim());
+  formData.append("date",               document.getElementById("edit_date").value);
+  formData.append("salesperson_id",     document.getElementById("edit_salesperson").value);
+  formData.append("notes",              document.getElementById("edit_notes").value);
+
+  document.querySelectorAll('#edit-payment-grid input[type="number"]').forEach((input) => {
+    formData.append(input.name, input.value || "0");
+  });
+
+  saveBtn.disabled    = true;
+  saveBtn.textContent = "Saving…";
+
+  try {
+    const response = await fetch(ajax_inventory.ajax_url, { method: "POST", body: formData });
+    const data     = await response.json();
+    if (data.success) {
+      location.reload();
+    } else {
+      alert(data.data.message);
+      saveBtn.disabled    = false;
+      saveBtn.textContent = "Save Changes";
+    }
+  } catch {
+    alert("Network error. Please try again.");
+    saveBtn.disabled    = false;
+    saveBtn.textContent = "Save Changes";
+  }
+});
