@@ -340,7 +340,7 @@ function reports_get_sales_results()
         ($query1)
         UNION ALL
         ($query2)
-        ORDER BY sold_date ASC
+        ORDER BY invoice ASC, sold_date ASC
     ";
 
         $params = array_merge($params1, $params2);
@@ -370,34 +370,36 @@ function reports_render_sales_report($results)
 
         $location_id = isset($_GET['location']) ? intval($_GET['location']) : 0;
         $location_arr = mji_get_locations();
-        $location = $location_id > 0 ? $location_arr[$location_id]->name : '';
+        $location_obj = array_find($location_arr, fn($loc) => $loc->id == $location_id);
+        $location_name = $location_obj->name;
 
         echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
         echo '<button id="printInventory" class="button button-secondary" style="margin-bottom:10px;">Print Report</button>';
+        $th = 'style="position:sticky; top:20px; background:#fff; z-index:10;"';
         echo '<div id="report">
                 <header>
-                        <h2>Sales Report - Montecristo Jewellers ' . esc_html($location) . '</h2>
+                        <h2>Sales Report - Montecristo Jewellers ' . esc_html($location_name) . '</h2>
                         <p>Date: ' . esc_html($_GET['start_date']) . ' to ' . esc_html($_GET['end_date']) . '</p>
                 </header>
                 <table id="inventoryTable" class="widefat striped"><thead>
                     <tr>
-                        <th>Image</th>
-                        <th>Invoice</th>
-                        <th>Date</th>
-                        <th>Item</th>
-                        <th>SKU</th>
-                        <th>Model</th>
-                        <th>Serial</th>
-                        <th>Cost</th>
-                        <th>Retail</th>
-                        <th>Retail Paid</th>
-                        <th>Discount</th>
-                        <th>Discount(%)</th>
-                        <th>Profit</th>
-                        <th>Margin(%)</th>
-                        <th>Salesperson</th>
-                        <th>Customer</th>
-                        <th>Notes</th>
+                        <th ' . $th . '>Image</th>
+                        <th ' . $th . '>Invoice</th>
+                        <th ' . $th . '>Date</th>
+                        <th ' . $th . '>Item</th>
+                        <th ' . $th . '>SKU</th>
+                        <th ' . $th . '>Model</th>
+                        <th ' . $th . '>Serial</th>
+                        <th ' . $th . '>Cost</th>
+                        <th ' . $th . '>Retail</th>
+                        <th ' . $th . '>Retail Paid</th>
+                        <th ' . $th . '>Discount</th>
+                        <th ' . $th . '>Discount(%)</th>
+                        <th ' . $th . '>Profit</th>
+                        <th ' . $th . '>Margin(%)</th>
+                        <th ' . $th . '>Salesperson</th>
+                        <th ' . $th . '>Customer</th>
+                        <th ' . $th . '>Notes</th>
                     </tr>
                 </thead><tbody>';
 
@@ -502,7 +504,7 @@ function reports_render_sales_report($results)
             echo '<td style="white-space: nowrap;">' . $invoice_display . '</td>';
             echo '<td style="white-space: nowrap;">' . $date . '</td>';
             echo '<td>' . $name . '</td>';
-            echo '<td>' . esc_html($row->sku) . '</td>';
+            echo '<td style="white-space:nowrap;">' . esc_html($row->sku) . '</td>';
             echo '<td>' . esc_html($row->model_name) . '</td>';
             echo '<td>' . esc_html($row->serial) . '</td>';
             echo '<td>$' . number_format($row->cost_price, 2) . '</td>';
