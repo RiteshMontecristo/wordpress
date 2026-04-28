@@ -1913,6 +1913,7 @@ function reports_render_refund_section()
 
 function reports_render_refund_filters()
 {
+    $location_id = isset($_GET['location']) ? absint($_GET['location']) : 0;
 ?>
     <form method="get" action="">
         <input type="hidden" name="page" value="reports-management">
@@ -1945,7 +1946,7 @@ function reports_render_refund_filters()
             <tr>
                 <th scope="row"><label for="location">Store</label></th>
                 <td>
-                    <?= mji_store_dropdown(false) ?>
+                    <?= mji_store_dropdown(false, $location_id) ?>
                 </td>
             </tr>
         </table>
@@ -2156,6 +2157,7 @@ function reports_render_financial_section()
 
 function reports_render_financial_filters()
 {
+    $location_id = isset($_GET['location']) ? absint($_GET['location']) : 0;
 ?>
     <form method="get" action="">
         <input type="hidden" name="page" value="reports-management">
@@ -2188,7 +2190,7 @@ function reports_render_financial_filters()
             <tr>
                 <th scope="row"><label for="location">Store</label></th>
                 <td>
-                    <?= mji_store_dropdown(false) ?>
+                    <?= mji_store_dropdown(false, $location_id) ?>
                 </td>
             </tr>
         </table>
@@ -2779,9 +2781,13 @@ function reports_render_financial_report($results)
         };
 
         echo '<table id="reportTotals" style="margin-top:6px; border-collapse:collapse; font-weight:bold; width:100%;">';
-        $footer_row('Sales', $cost_total, $sales_total, $gst_total, $pst_total);
-        $footer_row('Refunds', $refund_cost_total, $refund_sales_total, $refund_gst_total, $refund_pst_total);
-        $footer_row('Credits', $credit_cost_total, $credit_sales_total, $credit_gst_total, $credit_pst_total);
+        $footer_row(
+            'Sales',
+            $cost_total + $refund_cost_total + $credit_cost_total,
+            $sales_total + $refund_sales_total + $credit_sales_total,
+            $gst_total + $refund_gst_total + $credit_gst_total,
+            $pst_total + $refund_pst_total + $credit_pst_total
+        );
         echo '</table>';
 
         echo '</div>';
