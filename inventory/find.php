@@ -1004,9 +1004,12 @@ function search_layaway_results($reference_num)
             SELECT
                 p.layaway_id,
                 p.credit_id,
+                p.order_id,
                 p.reference_num,
                 p.payment_date,
                 p.notes,
+                p.salesperson_id,
+                p.customer_id,
                 c.prefix,
                 c.first_name AS customer_first_name,
                 c.last_name  AS customer_last_name,
@@ -1014,7 +1017,7 @@ function search_layaway_results($reference_num)
                 c.street_address,
                 c.city,
                 c.province,
-                c.postal_code,  
+                c.postal_code,
                 c.country,
                 s.first_name AS salesperson_first_name,
                 s.last_name  AS salesperson_last_name
@@ -1146,6 +1149,14 @@ function search_layaway_results($reference_num)
             $results->return_services = $return_services;
             $results->items = $items;
             $results->type = 'credit';
+
+            if (!empty($results->order_id)) {
+                $original_order = $wpdb->get_row($wpdb->prepare(
+                    "SELECT reference_num FROM {$wpdb->prefix}mji_orders WHERE id = %d",
+                    $results->order_id
+                ));
+                $results->original_order_reference = $original_order ? $original_order->reference_num : null;
+            }
         }
 
         $results->usage = $usage;
@@ -1271,8 +1282,8 @@ function render_edit_sale_form($results)
     <p>
         <strong>Order total: $<?= number_format((float) $order->total, 2) ?></strong>
         &nbsp;&mdash;&nbsp;
-        Payment sum: <strong id="edit-payment-sum">$0.00</strong>
-        <span id="edit-payment-sum-status" style="margin-left:6px;"></span>
+        <strong id="edit-payment-sum">$0.00</strong>
+        <span id="edit-payment-sum-status"></span>
     </p>
     <input type="hidden" id="edit_order_total" value="<?= esc_attr($order->total) ?>">
 
@@ -1320,6 +1331,99 @@ function render_edit_sale_form($results)
         <input type="hidden" id="edit_original_reference" value="<?= esc_attr($order->reference_num) ?>">
         <button type="button" class="button button-primary" id="save-invoice-btn">Save Changes</button>
         <button type="button" class="button" id="cancel-edit-btn" style="margin-left:8px;">Cancel</button>
+    </p>
+<?php
+}
+
+function render_edit_layaway_form($invoice)
+{
+    $salespeople = mji_get_salespeople();
+
+    $regular_methods = [
+        'cash'        => 'Cash',
+        'cheque'      => 'Cheque',
+        'debit'       => 'Debit / Interac',
+        'visa'        => 'Visa',
+        'master_card' => 'Mastercard',
+        'amex'        => 'Amex',
+        'bank_draft'  => 'Bank Draft',
+        'cup'         => 'Cup',
+        'alipay'      => 'Alipay',
+        'gift_card'   => 'Gift Card',
+        'wire'        => 'Wire',
+    ];
+
+    $payment_map   = [];
+    $deposit_total = 0.0;
+    foreach ($invoice->payment as $p) {
+        if (array_key_exists($p->method, $regular_methods)) {
+            $payment_map[$p->method] = (float) $p->amount;
+            $deposit_total += (float) $p->amount;
+        }
+    }
+
+    $type       = $invoice->type;
+    $account_id = $type === 'layaway' ? (int) $invoice->layaway_id : (int) $invoice->credit_id;
+?>
+    <h3>Edit <?= esc_html(ucfirst($type)) ?></h3>
+    <table class="form-table">
+        <tr>
+            <th><label for="edit_lay_reference_num">Reference Number</label></th>
+            <td><input type="text" id="edit_lay_reference_num"
+                    value="<?= esc_attr($invoice->reference_num) ?>" class="regular-text"></td>
+        </tr>
+        <tr>
+            <th><label for="edit_lay_date">Date</label></th>
+            <td><input type="date" id="edit_lay_date"
+                    value="<?= esc_attr(date('Y-m-d', strtotime($invoice->payment_date))) ?>"></td>
+        </tr>
+        <tr>
+            <th><label for="edit_lay_salesperson">Salesperson</label></th>
+            <td>
+                <select id="edit_lay_salesperson">
+                    <?php foreach ($salespeople as $s): ?>
+                        <option value="<?= intval($s->id) ?>"
+                            <?= selected($invoice->salesperson_id, $s->id, false) ?>>
+                            <?= esc_html($s->first_name . ' ' . $s->last_name) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <th><label for="edit_lay_notes">Notes</label></th>
+            <td><textarea id="edit_lay_notes" rows="3" class="large-text"><?= esc_textarea($invoice->notes) ?></textarea></td>
+        </tr>
+    </table>
+
+    <h4>Payments</h4>
+    <p>
+        <strong>Deposit total: $<?= number_format($deposit_total, 2) ?></strong>
+        &nbsp;&mdash;&nbsp;
+        <strong id="edit-lay-payment-sum">$0.00</strong>
+        <span id="edit-lay-payment-sum-status"></span>
+    </p>
+    <input type="hidden" id="edit_lay_deposit_total" value="<?= esc_attr($deposit_total) ?>">
+
+    <div class="payment-methods-grid" id="edit-lay-payment-grid">
+        <?php foreach ($regular_methods as $key => $label):
+            $val = isset($payment_map[$key]) ? number_format($payment_map[$key], 2, '.', '') : '';
+        ?>
+            <div class="payment-method-field">
+                <label><?= esc_html($label) ?></label>
+                <input type="number" name="lay_pay[<?= esc_attr($key) ?>]"
+                    value="<?= esc_attr($val) ?>"
+                    min="0" step="0.01" placeholder="0.00">
+            </div>
+        <?php endforeach; ?>
+    </div>
+
+    <p style="margin-top:12px;">
+        <input type="hidden" id="edit_lay_type" value="<?= esc_attr($type) ?>">
+        <input type="hidden" id="edit_lay_account_id" value="<?= intval($account_id) ?>">
+        <input type="hidden" id="edit_lay_original_reference" value="<?= esc_attr($invoice->reference_num) ?>">
+        <button type="button" class="button button-primary" id="save-layaway-btn">Save Changes</button>
+        <button type="button" class="button" id="cancel-edit-lay-btn" style="margin-left:8px;">Cancel</button>
     </p>
 <?php
 }
@@ -1381,6 +1485,10 @@ function render_layaway_invoice($invoice)
             <?php echo esc_html($purchased_date); ?> <br />
             Notes: <?= esc_html($invoice->notes) ?>
         </p>
+
+        <?php if ($type === 'credit' && !empty($invoice->original_order_reference)): ?>
+        <p><strong>Purchase Invoice:</strong> #<?= esc_html($invoice->original_order_reference) ?></p>
+        <?php endif; ?>
 
         <?php
         if (!empty($invoice->items)):
@@ -1474,6 +1582,7 @@ function render_layaway_invoice($invoice)
                 </button>
                 <button type="button" class="button print" id="main-print-btn">Print</button>
                 <button type="button" class="button issue-refund" id="issue-layaway-refund-btn">Issue refund</button>
+                <button type="button" class="button" id="edit-layaway-btn">Edit <?php echo ucfirst(esc_html($type)); ?></button>
             </form>
         <?php else: ?>
 
@@ -1513,7 +1622,14 @@ function render_layaway_invoice($invoice)
             </table>
 
             <button type="button" class="button print" id="main-print-btn">Print</button>
+            <button type="button" class="button" id="edit-layaway-btn">Edit <?php echo ucfirst(esc_html($type)); ?></button>
         <?php endif; ?>
+    </div>
+
+    <div class="hidden" id="edit-layaway">
+        <div class="edit-layaway-container">
+            <?php render_edit_layaway_form($invoice); ?>
+        </div>
     </div>
 
     <!-- Refund items -->
@@ -3490,3 +3606,183 @@ function edit_sale()
     }
 }
 add_action('wp_ajax_edit_sale', 'edit_sale');
+
+function edit_layaway()
+{
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(['message' => 'Unauthorised.'], 403);
+    }
+
+    global $wpdb;
+    $layaways_table = $wpdb->prefix . 'mji_layaways';
+    $credits_table  = $wpdb->prefix . 'mji_credits';
+    $payments_table = $wpdb->prefix . 'mji_payments';
+
+    $type           = sanitize_key($_POST['type'] ?? '');
+    $account_id     = absint($_POST['account_id'] ?? 0);
+    $new_reference  = sanitize_text_field($_POST['reference_num'] ?? '');
+    $original_ref   = sanitize_text_field($_POST['original_reference'] ?? '');
+    $date           = sanitize_text_field($_POST['date'] ?? '');
+    $salesperson_id = absint($_POST['salesperson_id'] ?? 0);
+    $notes          = sanitize_textarea_field($_POST['notes'] ?? '');
+    $pay_raw        = $_POST['lay_pay'] ?? [];
+
+    if (!in_array($type, ['layaway', 'credit'], true)) {
+        wp_send_json_error(['message' => 'Invalid type.']);
+    }
+    if (!$account_id || !$new_reference || !$date || !$salesperson_id) {
+        wp_send_json_error(['message' => 'Required fields missing.']);
+    }
+    if (!strtotime($date)) {
+        wp_send_json_error(['message' => 'Invalid date.']);
+    }
+
+    $acc_table = $type === 'layaway' ? $layaways_table : $credits_table;
+
+    $allowed_regular = [
+        'cash', 'cheque', 'debit', 'visa', 'master_card', 'amex',
+        'bank_draft', 'cup', 'alipay', 'gift_card', 'wire',
+    ];
+    $pay = [];
+    foreach ($pay_raw as $key => $raw_amount) {
+        $amount = max(0.0, (float) $raw_amount);
+        if (in_array(sanitize_key($key), $allowed_regular, true)) {
+            $pay[sanitize_key($key)] = $amount;
+        } else {
+            wp_send_json_error(['message' => 'Invalid payment field: ' . sanitize_text_field($key)]);
+        }
+    }
+
+    // Fetch existing deposit rows and calculate total
+    $existing_rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT id, method, amount FROM {$payments_table} WHERE reference_num = %s",
+        $original_ref
+    ));
+    if (!$existing_rows) {
+        wp_send_json_error(['message' => 'No payment records found for this reference.']);
+    }
+    $deposit_total = round(array_sum(array_map(fn($r) => (float) $r->amount, $existing_rows)), 2);
+
+    $payment_sum = round(array_sum($pay), 2);
+    if ($payment_sum !== $deposit_total) {
+        wp_send_json_error(['message' => sprintf(
+            'Payment total ($%.2f) does not match deposit total ($%.2f).',
+            $payment_sum,
+            $deposit_total
+        )]);
+    }
+
+    // Check reference uniqueness
+    if ($new_reference !== $original_ref) {
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$payments_table} WHERE reference_num = %s LIMIT 1",
+            $new_reference
+        ));
+        if ($exists) {
+            wp_send_json_error(['message' => 'Reference number already in use.']);
+        }
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$acc_table} WHERE reference_num = %s LIMIT 1",
+            $new_reference
+        ));
+        if ($exists) {
+            wp_send_json_error(['message' => 'Reference number already in use.']);
+        }
+    }
+
+    // Fetch account row for customer_id and location_id
+    $acc_row = $wpdb->get_row($wpdb->prepare(
+        "SELECT customer_id, location_id FROM {$acc_table} WHERE id = %d",
+        $account_id
+    ));
+    if (!$acc_row) {
+        wp_send_json_error(['message' => ucfirst($type) . ' not found.']);
+    }
+
+    $wpdb->query('START TRANSACTION');
+    try {
+        // Update account table: reference_num and created_at
+        $updated = $wpdb->update(
+            $acc_table,
+            [
+                'reference_num' => $new_reference,
+                'created_at'    => date('Y-m-d H:i:s', strtotime($date)),
+            ],
+            ['id' => $account_id],
+            ['%s', '%s'],
+            ['%d']
+        );
+        if ($updated === false) {
+            throw new Exception($wpdb->last_error ?: 'Failed to update ' . $type . '.');
+        }
+
+        // Build existing map by method
+        $existing_map = [];
+        foreach ($existing_rows as $er) {
+            $existing_map[$er->method] = $er;
+        }
+
+        // Process each payment field
+        foreach ($pay as $key => $new_amount) {
+            $existing = $existing_map[$key] ?? null;
+
+            if ($new_amount > 0 && $existing) {
+                $wpdb->update(
+                    $payments_table,
+                    [
+                        'amount'         => $new_amount,
+                        'reference_num'  => $new_reference,
+                        'payment_date'   => date('Y-m-d H:i:s', strtotime($date)),
+                        'salesperson_id' => $salesperson_id,
+                        'notes'          => $notes,
+                    ],
+                    ['id' => $existing->id],
+                    ['%f', '%s', '%s', '%d', '%s'],
+                    ['%d']
+                );
+                if ($wpdb->last_error) throw new Exception('Failed to update payment: ' . $wpdb->last_error);
+            } elseif ($new_amount > 0 && !$existing) {
+                $transaction_type = $type === 'layaway' ? 'layaway_deposit' : 'credit_deposit';
+                $layaway_id = $type === 'layaway' ? $account_id : null;
+                $credit_id  = $type === 'credit'  ? $account_id : null;
+                $wpdb->insert($payments_table, [
+                    'reference_num'    => $new_reference,
+                    'method'           => $key,
+                    'amount'           => $new_amount,
+                    'transaction_type' => $transaction_type,
+                    'customer_id'      => $acc_row->customer_id,
+                    'salesperson_id'   => $salesperson_id,
+                    'location_id'      => $acc_row->location_id,
+                    'layaway_id'       => $layaway_id,
+                    'credit_id'        => $credit_id,
+                    'payment_date'     => date('Y-m-d H:i:s', strtotime($date)),
+                    'notes'            => $notes,
+                ], ['%s', '%s', '%f', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s']);
+                if ($wpdb->last_error) throw new Exception('Failed to insert payment: ' . $wpdb->last_error);
+            } elseif ($new_amount == 0 && $existing) {
+                $wpdb->delete($payments_table, ['id' => $existing->id], ['%d']);
+            }
+            // $new_amount == 0 && !$existing → nothing to do
+        }
+
+        // Cascade reference_num change to any remaining payment rows
+        if ($new_reference !== $original_ref) {
+            $wpdb->update(
+                $payments_table,
+                ['reference_num' => $new_reference],
+                ['reference_num' => $original_ref],
+                ['%s'],
+                ['%s']
+            );
+        }
+
+        $wpdb->query('COMMIT');
+        wp_send_json_success(['message' => ucfirst($type) . ' updated successfully.']);
+    } catch (Exception $e) {
+        $wpdb->query('ROLLBACK');
+        custom_log('[Edit Layaway/Credit Failed] ' . $e->getMessage());
+        wp_send_json_error(['message' => $e->getMessage()]);
+    }
+}
+add_action('wp_ajax_edit_layaway', 'edit_layaway');

@@ -474,17 +474,19 @@ function updatePaymentSum() {
     document.querySelectorAll('#edit-payment-grid input[type="number"]')
   ).reduce((acc, input) => acc + (parseFloat(input.value) || 0), 0);
 
-  sumEl.textContent = "$" + sum.toFixed(2);
+  const diff = Math.round((orderTotal - sum) * 100) / 100;
 
-  if (Math.round(sum * 100) === Math.round(orderTotal * 100)) {
-    sumEl.style.color    = "green";
-    statusEl.textContent = "✓";
-    statusEl.style.color = "green";
+  if (diff === 0) {
+    sumEl.textContent = "✓ $0.00 remaining";
+    sumEl.style.color = "green";
+  } else if (diff > 0) {
+    sumEl.textContent = "$" + diff.toFixed(2) + " remaining";
+    sumEl.style.color = "red";
   } else {
-    sumEl.style.color    = "red";
-    statusEl.textContent = sum > orderTotal ? "▲ over" : "▼ under";
-    statusEl.style.color = "red";
+    sumEl.textContent = "$" + Math.abs(diff).toFixed(2) + " over";
+    sumEl.style.color = "red";
   }
+  statusEl.textContent = "";
 }
 
 editBtn?.addEventListener("click", (e) => {
@@ -534,5 +536,87 @@ saveBtn?.addEventListener("click", async () => {
     alert("Network error. Please try again.");
     saveBtn.disabled    = false;
     saveBtn.textContent = "Save Changes";
+  }
+});
+
+// Edit layaway / credit
+const editLayBtn    = document.getElementById("edit-layaway-btn");
+const editLayEl     = document.getElementById("edit-layaway");
+const cancelLayBtn  = document.getElementById("cancel-edit-lay-btn");
+const saveLayBtn    = document.getElementById("save-layaway-btn");
+
+function updateLayawayPaymentSum() {
+  const depositTotal = parseFloat(document.getElementById("edit_lay_deposit_total")?.value ?? 0);
+  const sumEl        = document.getElementById("edit-lay-payment-sum");
+  const statusEl     = document.getElementById("edit-lay-payment-sum-status");
+  if (!sumEl) return;
+
+  const sum = Array.from(
+    document.querySelectorAll('#edit-lay-payment-grid input[type="number"]')
+  ).reduce((acc, input) => acc + (parseFloat(input.value) || 0), 0);
+
+  const diff = Math.round((depositTotal - sum) * 100) / 100;
+
+  if (diff === 0) {
+    sumEl.textContent = "✓ $0.00 remaining";
+    sumEl.style.color = "green";
+  } else if (diff > 0) {
+    sumEl.textContent = "$" + diff.toFixed(2) + " remaining";
+    sumEl.style.color = "red";
+  } else {
+    sumEl.textContent = "$" + Math.abs(diff).toFixed(2) + " over";
+    sumEl.style.color = "red";
+  }
+  statusEl.textContent = "";
+}
+
+editLayBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  editLayEl.classList.toggle("refund");
+  if (editLayEl.classList.contains("refund")) updateLayawayPaymentSum();
+});
+
+document.getElementById("edit-lay-payment-grid")?.addEventListener("input", (e) => {
+  if (e.target.type === "number") updateLayawayPaymentSum();
+});
+
+cancelLayBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  editLayEl.classList.remove("refund");
+});
+
+saveLayBtn?.addEventListener("click", async () => {
+  const formData = new FormData();
+  formData.append("action",             "edit_layaway");
+  formData.append("nonce",              ajax_inventory.nonce);
+  formData.append("type",               document.getElementById("edit_lay_type").value);
+  formData.append("account_id",         document.getElementById("edit_lay_account_id").value);
+  formData.append("original_reference", document.getElementById("edit_lay_original_reference").value);
+  formData.append("reference_num",      document.getElementById("edit_lay_reference_num").value.trim());
+  formData.append("date",               document.getElementById("edit_lay_date").value);
+  formData.append("salesperson_id",     document.getElementById("edit_lay_salesperson").value);
+  formData.append("notes",              document.getElementById("edit_lay_notes").value);
+
+  document.querySelectorAll('#edit-lay-payment-grid input[type="number"]').forEach((input) => {
+    formData.append(input.name, input.value || "0");
+  });
+
+  saveLayBtn.disabled    = true;
+  saveLayBtn.textContent = "Saving…";
+
+  try {
+    const response = await fetch(ajax_inventory.ajax_url, { method: "POST", body: formData });
+    const data     = await response.json();
+    if (data.success) {
+      location.reload();
+    } else {
+      alert(data.data.message);
+      saveLayBtn.disabled    = false;
+      saveLayBtn.textContent = "Save Changes";
+    }
+  } catch {
+    alert("Network error. Please try again.");
+    saveLayBtn.disabled    = false;
+    saveLayBtn.textContent = "Save Changes";
   }
 });

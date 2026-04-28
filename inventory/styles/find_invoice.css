@@ -23,7 +23,8 @@
 
 .refund-container,
 .credit-container,
-.edit-invoice-container {
+.edit-invoice-container,
+.edit-layaway-container {
   margin: 0 auto;
   font-family: sans-serif;
   background: white;
@@ -37,7 +38,8 @@
   width: 650px;
 }
 
-.edit-invoice-container {
+.edit-invoice-container,
+.edit-layaway-container {
   width: 750px;
 }
 
