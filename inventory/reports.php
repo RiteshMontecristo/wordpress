@@ -1547,7 +1547,7 @@ function reports_get_credit_results()
     $params = [];
 
     if ($location !== null) {
-        $where[] = "location_id = %d";
+        $where[] = "p.location_id = %d";
         $params[] = $location;
     }
 
@@ -1893,6 +1893,8 @@ function reports_render_credit_report($results)
         }
 
         echo '</div>';
+    } else {
+        echo '<p>No entries found for the selected filters.</p>';
     }
 }
 
@@ -2025,7 +2027,7 @@ function reports_get_refund_results()
 
 function reports_render_refund_report($results)
 {
-    if ($results) {
+    if (!empty($results['rows'])) {
         if (isset($_GET['location']) && !empty($_GET['location'])) {
             $store_locations = mji_get_locations();
             $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
@@ -2132,6 +2134,8 @@ function reports_render_refund_report($results)
         echo '</table>';
         echo '<div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; font-weight:bold;">Total Refund: $' . number_format($total_refund, 2) . ' &nbsp;&nbsp;&nbsp; Total Original Amount: $' . number_format($total_original, 2) . '</div>';
         echo '</div>';
+    } else {
+        echo '<p>No entries found for the selected filters.</p>';
     }
 }
 
@@ -2577,7 +2581,7 @@ function reports_get_financial_results()
 
 function reports_render_financial_report($results)
 {
-    if ($results) {
+    if (!empty($results['rows'])) {
         if (isset($_GET['location']) && !empty($_GET['location'])) {
             $store_locations = mji_get_locations();
             $location_obj = array_find($store_locations, fn($loc) => $loc->id == intval($_GET['location']));
@@ -2778,5 +2782,7 @@ function reports_render_financial_report($results)
         echo '</table>';
 
         echo '</div>';
+    } else {
+        echo '<p>No entries found for the selected filters.</p>';
     }
 }
