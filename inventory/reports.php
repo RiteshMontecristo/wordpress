@@ -717,11 +717,11 @@ function reports_get_inventory_result()
         FROM {$inventory_table} i
         LEFT JOIN {$models_table} m ON m.id = i.model_id
         LEFT JOIN (
-            SELECT pc.product_id, GROUP_CONCAT(c.name) AS collections
+            SELECT pc.inventory_unit_id, GROUP_CONCAT(c.name) AS collections
             FROM {$products_collections_table} pc
             JOIN {$collections_table} c ON c.id = pc.collection_id
-            GROUP BY pc.product_id
-        ) collections ON collections.product_id = i.wc_product_id
+            GROUP BY pc.inventory_unit_id
+        ) collections ON collections.inventory_unit_id = i.id
         JOIN (
             SELECT ish.*
             FROM {$inventory_status_history} ish

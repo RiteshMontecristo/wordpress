@@ -1,6 +1,7 @@
 <?php
 const GST_RATE = 0.05;
 const PST_RATE = 0.07;
+define('MJI_DB_VERSION', '1.1');
 
 require_once get_stylesheet_directory() . '/inventory/print.php';
 require_once get_stylesheet_directory() . '/inventory/sales.php';
@@ -58,6 +59,182 @@ function mji_create_all_tables()
 }
 
 add_action('after_switch_theme', 'mji_create_all_tables');
+
+function mji_run_migrations()
+{
+    $installed = get_option('mji_db_version', '0');
+    if (version_compare($installed, MJI_DB_VERSION, '>=')) {
+        return;
+    }
+
+    global $wpdb;
+
+    if (version_compare($installed, '1.1', '<')) {
+        mji_migrate_1_1($wpdb);
+    }
+
+    update_option('mji_db_version', MJI_DB_VERSION);
+}
+add_action('init', 'mji_run_migrations');
+
+function mji_migrate_1_1($wpdb)
+{
+    $units_table = $wpdb->prefix . 'mji_product_inventory_units';
+    $pc_table    = $wpdb->prefix . 'mji_products_collections';
+
+    // --- product_inventory_units ---
+
+    $wpdb->query("ALTER TABLE `{$units_table}`
+        MODIFY COLUMN `wc_product_id` BIGINT DEFAULT NULL");
+    if ($wpdb->last_error) {
+        custom_log('❌ Migration 1.1 step 1 failed: ' . $wpdb->last_error);
+        return;
+    }
+
+    $wpdb->query("ALTER TABLE `{$units_table}`
+        ADD COLUMN IF NOT EXISTS `name`        VARCHAR(255) DEFAULT NULL,
+        ADD COLUMN IF NOT EXISTS `description` TEXT DEFAULT NULL,
+        ADD COLUMN IF NOT EXISTS `image_id`    BIGINT DEFAULT NULL");
+    if ($wpdb->last_error) {
+        custom_log('❌ Migration 1.1 step 2 failed: ' . $wpdb->last_error);
+        return;
+    }
+
+    // --- backfill name, description, image_id from WooCommerce ---
+    $units = $wpdb->get_results(
+        "SELECT id, wc_product_id, wc_product_variant_id
+         FROM `{$units_table}`
+         WHERE wc_product_id IS NOT NULL AND name IS NULL"
+    );
+    foreach ($units as $unit) {
+        $product = wc_get_product($unit->wc_product_id);
+        if (!$product) {
+            continue;
+        }
+        $name = $product->get_name();
+        if ($unit->wc_product_variant_id) {
+            $description = (string) get_post_meta($unit->wc_product_variant_id, '_variation_description', true);
+            $raw_image   = (int) get_post_meta($unit->wc_product_variant_id, '_thumbnail_id', true);
+            $image_id    = $raw_image ?: null;
+        } else {
+            $description = $product->get_short_description();
+            $raw_image   = (int) get_post_thumbnail_id($unit->wc_product_id);
+            $image_id    = $raw_image ?: null;
+        }
+        $wpdb->update(
+            $units_table,
+            [
+                'name'        => $name,
+                'description' => $description ?: null,
+                'image_id'    => $image_id,
+            ],
+            ['id' => $unit->id],
+            ['%s', '%s', $image_id ? '%d' : '%s'],
+            ['%d']
+        );
+        if ($wpdb->last_error) {
+            custom_log('❌ Migration 1.1 backfill failed for unit ' . $unit->id . ': ' . $wpdb->last_error);
+        }
+    }
+
+    // --- products_collections ---
+    // Re-point from wc_product_id to product_inventory_units.id
+
+    // 1. Make product_id nullable so we can INSERT rows without it during backfill
+    $wpdb->query("ALTER TABLE `{$pc_table}`
+        MODIFY COLUMN `product_id` BIGINT DEFAULT NULL");
+    if ($wpdb->last_error) {
+        custom_log('❌ Migration 1.1 step 3 failed: ' . $wpdb->last_error);
+        return;
+    }
+
+    // 2. Add inventory_unit_id column
+    $wpdb->query("ALTER TABLE `{$pc_table}`
+        ADD COLUMN IF NOT EXISTS `inventory_unit_id` BIGINT DEFAULT NULL");
+    if ($wpdb->last_error) {
+        custom_log('❌ Migration 1.1 step 4 failed: ' . $wpdb->last_error);
+        return;
+    }
+
+    // 3. Drop old unique key so we can add the new one
+    $old_key = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = 'product_collection_id_unique'",
+        $pc_table
+    ));
+    if ($old_key) {
+        $wpdb->query("ALTER TABLE `{$pc_table}` DROP INDEX `product_collection_id_unique`");
+        if ($wpdb->last_error) {
+            custom_log('❌ Migration 1.1 step 5 failed: ' . $wpdb->last_error);
+            return;
+        }
+    }
+
+    // 4. Add new unique key (inventory_unit_id is all NULL right now — MySQL allows that)
+    $new_key = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = 'unit_collection_unique'",
+        $pc_table
+    ));
+    if (!$new_key) {
+        $wpdb->query("ALTER TABLE `{$pc_table}`
+            ADD UNIQUE KEY `unit_collection_unique` (`inventory_unit_id`, `collection_id`)");
+        if ($wpdb->last_error) {
+            custom_log('❌ Migration 1.1 step 6 failed: ' . $wpdb->last_error);
+            return;
+        }
+    }
+
+    // 5. Backfill: one row per (unit, collection) — expands many-units-per-WC-product correctly
+    $wpdb->query("INSERT IGNORE INTO `{$pc_table}` (`inventory_unit_id`, `collection_id`)
+        SELECT piu.id, pc.collection_id
+        FROM `{$pc_table}` pc
+        JOIN `{$units_table}` piu ON piu.wc_product_id = pc.product_id
+        WHERE pc.product_id IS NOT NULL");
+    if ($wpdb->last_error) {
+        custom_log('❌ Migration 1.1 step 7 failed: ' . $wpdb->last_error);
+        return;
+    }
+
+    // 6. Delete the old product_id-based rows (those never got inventory_unit_id set)
+    $wpdb->query("DELETE FROM `{$pc_table}` WHERE `inventory_unit_id` IS NULL");
+    if ($wpdb->last_error) {
+        custom_log('❌ Migration 1.1 step 8 failed: ' . $wpdb->last_error);
+        return;
+    }
+
+    // 7. Add FK on inventory_unit_id
+    $fk_exists = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+         WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = %s AND CONSTRAINT_NAME = 'fk_inventory_unit'",
+        $pc_table
+    ));
+    if (!$fk_exists) {
+        $wpdb->query("ALTER TABLE `{$pc_table}`
+            ADD CONSTRAINT `fk_inventory_unit`
+            FOREIGN KEY (`inventory_unit_id`) REFERENCES `{$units_table}`(`id`) ON DELETE CASCADE");
+        if ($wpdb->last_error) {
+            custom_log('❌ Migration 1.1 step 9 failed: ' . $wpdb->last_error);
+            return;
+        }
+    }
+
+    // 8. Drop old product_id column
+    $col_exists = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = 'product_id'",
+        $pc_table
+    ));
+    if ($col_exists) {
+        $wpdb->query("ALTER TABLE `{$pc_table}` DROP COLUMN `product_id`");
+        if ($wpdb->last_error) {
+            custom_log('❌ Migration 1.1 step 10 failed: ' . $wpdb->last_error);
+            return;
+        }
+    }
+
+    custom_log('✅ Migration 1.1 completed.');
+}
 
 function create_customers_table()
 {
@@ -325,7 +502,7 @@ function create_product_inventory_units_table()
 
     $sql = "CREATE TABLE `{$table_name}` (
         `id`                   BIGINT NOT NULL AUTO_INCREMENT,
-        `wc_product_id`        BIGINT NOT NULL,
+        `wc_product_id`        BIGINT DEFAULT NULL,
         `wc_product_variant_id` BIGINT DEFAULT NULL,
         `location_id`          BIGINT NOT NULL,
         `model_id`             BIGINT DEFAULT NULL,
@@ -342,6 +519,9 @@ function create_product_inventory_units_table()
         `supplier_id`          BIGINT DEFAULT NULL,
         `invoice_number`       VARCHAR(100) DEFAULT NULL,
         `true_cost`            DECIMAL(10,2) DEFAULT NULL,
+        `name`                 VARCHAR(255) DEFAULT NULL,
+        `description`          TEXT DEFAULT NULL,
+        `image_id`             BIGINT DEFAULT NULL,
 
         PRIMARY KEY (`id`),
         UNIQUE KEY `sku` (`sku`),
@@ -690,14 +870,16 @@ function create_products_collections_table()
     $table_name        = $wpdb->prefix . 'mji_products_collections';
     $collections_table = $wpdb->prefix . 'mji_collections';
     $charset_collate   = $wpdb->get_charset_collate();
+    $units_table = $wpdb->prefix . 'mji_product_inventory_units';
     $sql = "CREATE TABLE $table_name (
-        id            BIGINT PRIMARY KEY AUTO_INCREMENT,
-        product_id    BIGINT NOT NULL,
-        collection_id BIGINT NOT NULL,
-        UNIQUE KEY product_collection_id_unique (product_id, collection_id),
+        id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
+        inventory_unit_id   BIGINT DEFAULT NULL,
+        collection_id       BIGINT NOT NULL,
+        UNIQUE KEY unit_collection_unique (inventory_unit_id, collection_id),
         KEY collection_id_index (collection_id),
-        KEY product_id_index (product_id),
-        FOREIGN KEY (collection_id) REFERENCES $collections_table(id) ON DELETE RESTRICT
+        KEY inventory_unit_id_index (inventory_unit_id),
+        FOREIGN KEY (collection_id) REFERENCES $collections_table(id) ON DELETE RESTRICT,
+        CONSTRAINT fk_inventory_unit FOREIGN KEY (inventory_unit_id) REFERENCES $units_table(id) ON DELETE CASCADE
         ) $charset_collate;";
     $result = $wpdb->query($sql);
     if ($result === false) {

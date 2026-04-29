@@ -244,7 +244,7 @@ function render_inventory_units_meta_box($post)
                 <tr>
                     <th><label for="supplierID">Supplier</label></th>
                     <td>
-                        <?= mji_suppliers_dropdown(false) ?>
+                        <? mji_suppliers_dropdown(false) ?>
                     </td>
                 </tr>
 
@@ -463,14 +463,7 @@ function delete_inventory_unit()
             }
             wc_update_product_stock($variant_id ?: $product_id, 1, 'decrease');
 
-            // Resync the deletion
-            $product_collection = get_the_terms($product_id, 'collection');
-            if ($product_collection && !is_wp_error($product_collection)) {
-                $product_collection_names = wp_list_pluck($product_collection, 'name');
-                sync_product_collections($product_id, $product_collection_names);
-            } else {
-                sync_product_collections($product_id, array());
-            }
+            // CASCADE on products_collections handles cleanup when the unit is deleted
 
             $wpdb->query('COMMIT');
             wp_send_json_success($result);
@@ -756,9 +749,9 @@ function create_inventory_units()
             $product_collection = get_the_terms($product_id, 'collection');
             if ($product_collection && !is_wp_error($product_collection)) {
                 $product_collection_names = wp_list_pluck($product_collection, 'name');
-                sync_product_collections($product_id, $product_collection_names);
+                sync_product_collections($inventory_unit_id, $product_collection_names);
             } else {
-                sync_product_collections($product_id, array());
+                sync_product_collections($inventory_unit_id, array());
             }
             $wpdb->query('COMMIT');
             wp_send_json_success($result);
@@ -1253,17 +1246,25 @@ function watch_product_collection_changes($object_id, $terms, $tt_ids, $taxonomy
     }
 
     if ($taxonomy == 'collection' && ($terms != $old_tt_ids)) {
+        global $wpdb;
+        $units_table = $wpdb->prefix . 'mji_product_inventory_units';
+        $unit_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM {$units_table} WHERE wc_product_id = %d",
+            $object_id
+        ));
+
         $product_collection = get_the_terms($object_id, 'collection');
-        if ($product_collection && !is_wp_error($product_collection)) {
-            $product_collection_names = wp_list_pluck($product_collection, 'name');
-            sync_product_collections($object_id, $product_collection_names);
-        } else {
-            sync_product_collections($object_id, array());
+        $collection_names = ($product_collection && !is_wp_error($product_collection))
+            ? wp_list_pluck($product_collection, 'name')
+            : [];
+
+        foreach ($unit_ids as $unit_id) {
+            sync_product_collections((int) $unit_id, $collection_names);
         }
     }
 }
 
-function sync_product_collections($product_id, $collection_names)
+function sync_product_collections($unit_id, $collection_names)
 {
     global $wpdb;
 
@@ -1278,8 +1279,8 @@ function sync_product_collections($product_id, $collection_names)
         $wpdb->prepare(
             "SELECT collection_id
              FROM {$product_collections_table}
-             WHERE product_id = %d",
-            $product_id
+             WHERE inventory_unit_id = %d",
+            $unit_id
         )
     );
 
@@ -1326,9 +1327,9 @@ function sync_product_collections($product_id, $collection_names)
         $wpdb->query(
             $wpdb->prepare(
                 "DELETE FROM {$product_collections_table}
-                 WHERE product_id = %d
+                 WHERE inventory_unit_id = %d
                  AND collection_id IN ($placeholders)",
-                array_merge([$product_id], $to_remove)
+                array_merge([$unit_id], $to_remove)
             )
         );
     }
@@ -1340,14 +1341,14 @@ function sync_product_collections($product_id, $collection_names)
 
         foreach ($to_add as $id) {
             $placeholders[] = '(%d,%d)';
-            $values[] = $product_id;
+            $values[] = $unit_id;
             $values[] = $id;
         }
 
         $wpdb->query(
             $wpdb->prepare(
                 "INSERT INTO {$product_collections_table}
-                 (product_id, collection_id)
+                 (inventory_unit_id, collection_id)
                  VALUES " . implode(',', $placeholders),
                 $values
             )
