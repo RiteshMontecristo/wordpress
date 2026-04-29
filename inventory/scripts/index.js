@@ -22,6 +22,11 @@ if (window.location.href.includes("/admin.php?page=invoice-management")) {
     console.error("Error loading invoice module:", error),
   );
 }
+if (window.location.href.includes("/admin.php?page=items-management")) {
+  import("./items.js").catch((error) =>
+    console.error("Error loading items module:", error),
+  );
+}
 
 export function formatCurrency(amount) {
   return amount.toFixed(2);

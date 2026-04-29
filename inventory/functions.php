@@ -10,6 +10,7 @@ require_once get_stylesheet_directory() . '/inventory/salespeople.php';
 require_once get_stylesheet_directory() . '/inventory/product_units.php';
 require_once get_stylesheet_directory() . '/inventory/find.php';
 require_once get_stylesheet_directory() . '/inventory/reports.php';
+require_once get_stylesheet_directory() . '/inventory/items.php';
 
 // Create the table when theme activated
 function mji_create_all_tables()
@@ -901,6 +902,17 @@ function create_inventory_menu()
         'dashicons-id', // Icon
         25 // Position
     );
+
+    // Submenu: Items
+    add_submenu_page(
+        'inventory-management',
+        'Items',
+        'Items',
+        'manage_options',
+        'items-management',
+        'items_page'
+    );
+
     // Submenu: Add Customer
     add_submenu_page(
         'inventory-management', // Parent slug
@@ -1026,7 +1038,7 @@ function add_cost_price_field()
 
 // Save Cost Price field
 add_action('woocommerce_process_product_meta', 'save_cost_price_field');
-function save_cost_price_field($post_id)
+function save_cost_price_field(int $post_id)
 {
     if (isset($_POST['_cost_price'])) {
         update_post_meta($post_id, '_cost_price', sanitize_text_field($_POST['_cost_price']));
@@ -1169,6 +1181,17 @@ function mji_brands_dropdown($required = true, $selected_id = '')
 
     $html .= '</select>';
     return $html;
+}
+
+function mji_get_models(): array
+{
+    $cached = get_transient('mji_models');
+    if ($cached !== false) return $cached;
+
+    global $wpdb;
+    $results = $wpdb->get_results("SELECT id, name FROM {$wpdb->prefix}mji_models ORDER BY name ASC") ?: [];
+    set_transient('mji_models', $results, DAY_IN_SECONDS);
+    return $results;
 }
 
 function mji_get_suppliers()
