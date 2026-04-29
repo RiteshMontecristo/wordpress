@@ -117,7 +117,7 @@ function render_product_card_print_section($post)
                 ];
             }
 
-            $sku_options .= '<option data-serial="' . $serial . '" data-price="' . $retail_price . '" data-desc="' . $desc . '" data-img-src="' . $image_src . '" value="' . $sku . '">' . $sku . '</option>';
+            $sku_options .= '<option data-serial="' . esc_attr($serial) . '" data-price="' . esc_attr($retail_price) . '" data-desc="' . esc_attr($desc) . '" data-img-src="' . esc_attr($image_src) . '" value="' . esc_attr($sku) . '">' . esc_html($sku) . '</option>';
         }
         $sku_options .= '</select>';
     } catch (Exception $err) {
