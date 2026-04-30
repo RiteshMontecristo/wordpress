@@ -133,6 +133,28 @@ if (clearBtn) {
   });
 }
 
+// ─── SELECT2  ─────────────────────────────────────────────────────────────────
+jQuery(document).ready(function ($) {
+  $(".supplier-select").select2({
+    tags: true,
+    placeholder: "Select or type supplier name",
+    allowClear: true,
+  });
+  $(".brand-select").select2({
+    tags: true,
+    placeholder: "Select or type to create brand",
+    allowClear: true,
+  });
+  $(".model-select").select2({
+    tags: true,
+    placeholder: "Select or type to create model",
+    allowClear: true,
+  });
+  $(".items-select2-multi").select2({
+    placeholder: "Select collections",
+    allowClear: true,
+  });
+});
 
 // ─── Status change modal ──────────────────────────────────────────────────────
 const changeStatusBtn = document.getElementById("items-change-status-btn");
@@ -159,7 +181,10 @@ if (changeStatusBtn) {
     body.append("status", document.getElementById("items-modal-status").value);
     body.append("date", document.getElementById("items-modal-date").value);
     body.append("notes", document.getElementById("items-modal-notes").value);
-    body.append("password", document.getElementById("items-modal-password").value);
+    body.append(
+      "password",
+      document.getElementById("items-modal-password").value,
+    );
 
     const res = await fetch(ajax_url, { method: "POST", body });
     const json = await res.json();

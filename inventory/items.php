@@ -57,7 +57,13 @@ function items_list_view(): void
         $where   = "WHERE piu.sku LIKE %s OR piu.name LIKE %s OR m.name LIKE %s OR c.name LIKE %s OR piu.serial LIKE %s";
         $units   = $wpdb->get_results($wpdb->prepare(
             $base_select . $where . " GROUP BY piu.id ORDER BY piu.created_date DESC LIMIT %d OFFSET %d",
-            $like, $like, $like, $like, $like, $per_page, $offset
+            $like,
+            $like,
+            $like,
+            $like,
+            $like,
+            $per_page,
+            $offset
         ));
         $total = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(DISTINCT piu.id) FROM {$units_table} piu
@@ -65,12 +71,17 @@ function items_list_view(): void
              LEFT JOIN {$pc_table}          pc ON pc.inventory_unit_id = piu.id
              LEFT JOIN {$collections_table} c  ON c.id  = pc.collection_id
              WHERE piu.sku LIKE %s OR piu.name LIKE %s OR m.name LIKE %s OR c.name LIKE %s OR piu.serial LIKE %s",
-            $like, $like, $like, $like, $like
+            $like,
+            $like,
+            $like,
+            $like,
+            $like
         ));
     } else {
         $units = $wpdb->get_results($wpdb->prepare(
             $base_select . "GROUP BY piu.id ORDER BY piu.created_date DESC LIMIT %d OFFSET %d",
-            $per_page, $offset
+            $per_page,
+            $offset
         ));
         $total = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$units_table}");
     }
@@ -78,7 +89,7 @@ function items_list_view(): void
     $total_pages = $per_page > 0 ? (int) ceil($total / $per_page) : 1;
     $base_args   = array_filter(['page' => 'items-management', 'search' => $search, 'per_page' => $per_page]);
 
-    ?>
+?>
     <div class="wrap items-management">
         <h1 class="wp-heading-inline">Items</h1>
         <a href="<?= esc_url(admin_url('admin.php?page=items-management&action=add')) ?>" class="page-title-action">Add Unit</a>
@@ -141,7 +152,7 @@ function items_list_view(): void
             <?php endif; ?>
         <?php endif; ?>
     </div>
-    <?php
+<?php
 }
 
 // ─── Add form ────────────────────────────────────────────────────────────────
@@ -166,7 +177,7 @@ function items_add_form(): void
     }
 
     $back_url = esc_url(admin_url('admin.php?page=items-management'));
-    ?>
+?>
     <div class="wrap items-management">
         <h1><?= $prefill ? 'Duplicate Unit' : 'Add Unit' ?></h1>
         <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
@@ -182,7 +193,7 @@ function items_add_form(): void
             </p>
         </form>
     </div>
-    <?php
+<?php
 }
 
 function items_handle_insert(): void
@@ -251,7 +262,7 @@ function items_edit_form(): void
     }
 
     $back_url = esc_url(admin_url('admin.php?page=items-management'));
-    ?>
+?>
     <div class="wrap items-management">
         <h1>Edit Unit — <?= esc_html($unit->sku) ?></h1>
         <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
@@ -327,7 +338,7 @@ function items_edit_form(): void
             </table>
         <?php endif; ?>
     </div>
-    <?php
+<?php
 }
 
 function items_handle_update(int $id, string $old_status): void
@@ -388,7 +399,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
     $brands    = mji_get_brands();
     $models    = mji_get_models();
     $suppliers = mji_get_suppliers();
-    ?>
+?>
     <div class="items-form-grid">
 
         <div class="items-form-section">
@@ -456,12 +467,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
             <div class="form-field">
                 <label for="supplier_id">Supplier</label>
-                <select id="supplier_id" name="supplier_id" class="supplier-select">
-                    <option value="">— select or type to create —</option>
-                    <?php foreach ($suppliers as $s): ?>
-                        <option value="<?= esc_attr($s->id) ?>" <?= selected($s->id, $supplier_id, false) ?>><?= esc_html($s->name) ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <?php mji_suppliers_dropdown(false) ?>
             </div>
 
             <div class="form-field">
@@ -565,15 +571,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
     </div>
 
-    <script>
-    jQuery(document).ready(function ($) {
-        $(".brand-select").select2({ tags: true, placeholder: "Select or type brand name", allowClear: true });
-        $(".model-select").select2({ tags: true, placeholder: "Select or type model name", allowClear: true });
-        $(".supplier-select").select2({ tags: true, placeholder: "Select or type supplier name", allowClear: true });
-        $("#collections").select2({ tags: true, placeholder: "Select collections", allowClear: true });
-    });
-    </script>
-    <?php
+<?php
 }
 
 // ─── Sanitize / format helpers ───────────────────────────────────────────────
@@ -721,7 +719,7 @@ function items_sync_wc_to_units(int $product_id): void
     $name        = $product->get_name() ?: null;
     $description = $is_variation
         ? (get_post_meta($product_id, '_variation_description', true) ?: null)
-        : ($product->get_description() ?: null);
+        : ($product->get_short_description() ?: null);
     $price       = (float) $product->get_regular_price() ?: null;
     $image_id    = (int) get_post_thumbnail_id($product_id) ?: null;
 
