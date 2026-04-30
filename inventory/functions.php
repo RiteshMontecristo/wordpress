@@ -992,8 +992,8 @@ add_filter('posts_where', 'custom_woocommerce_admin_search', 10, 2);
 // IMPORTING SELECT2 for select search HTML
 function my_enqueue_scripts()
 {
-    wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js', ['jquery']);
-    wp_enqueue_style('select2-css', 'https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/css/select2.min.css');
+    wp_enqueue_script('select2', WC()->plugin_url() . '/assets/js/select2/select2.full.min.js', ['jquery'], WC()->version);
+    wp_enqueue_style('select2-css', WC()->plugin_url() . '/assets/css/select2.css', [], WC()->version);
 }
 add_action('admin_enqueue_scripts', 'my_enqueue_scripts');
 
@@ -1212,7 +1212,7 @@ function mji_get_suppliers()
     return $brands;
 }
 
-function mji_suppliers_dropdown($required = true)
+function mji_suppliers_dropdown(bool $required = true)
 {
     $suppliers = mji_get_suppliers();
     $required_attr = $required ? 'required' : '';
