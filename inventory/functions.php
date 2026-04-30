@@ -1379,6 +1379,30 @@ add_action('admin_notices', function () {
     }
 });
 
+// ─── Shared unit-history helper ──────────────────────────────────────────────
+function mji_insert_unit_history(
+    int $unit_id,
+    ?string $from_status,
+    string $to_status,
+    ?string $notes = null,
+    ?string $created_at = null,
+    ?int $changed_by_user_id = null
+): bool {
+    global $wpdb;
+    return $wpdb->insert(
+        $wpdb->prefix . 'mji_inventory_status_history',
+        [
+            'inventory_unit_id'  => $unit_id,
+            'from_status'        => $from_status,
+            'to_status'          => $to_status,
+            'notes'              => $notes,
+            'created_at'         => $created_at ?? current_time('mysql'),
+            'changed_by_user_id' => $changed_by_user_id ?? get_current_user_id(),
+        ],
+        ['%d', '%s', '%s', '%s', '%s', '%d']
+    ) !== false;
+}
+
 function format_label($input)
 {
     // Split by any non-alphanumeric characters

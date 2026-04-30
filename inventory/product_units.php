@@ -14,7 +14,7 @@ function add_inventory_units_meta_box()
     );
 }
 
-function render_inventory_units_meta_box($post)
+function render_inventory_units_meta_box(object $post)
 {
     global $wpdb;
 
@@ -244,7 +244,7 @@ function render_inventory_units_meta_box($post)
                 <tr>
                     <th><label for="supplierID">Supplier</label></th>
                     <td>
-                        <? mji_suppliers_dropdown(false) ?>
+                        <?php mji_suppliers_dropdown(false) ?>
                     </td>
                 </tr>
 
@@ -689,26 +689,13 @@ function create_inventory_units()
 
             $inventory_unit_id = $wpdb->insert_id;
 
-            $history_result = $wpdb->insert(
-                $inventory_unit_history_table,
-                [
-                    'inventory_unit_id' => $inventory_unit_id,
-                    'from_status' => null,
-                    'to_status' => 'in_stock',
-                    'notes' => 'Initial status on creation',
-                    'created_at' => $invoice_date
-                ]
-            );
-
-            if ($history_result === false) {
+            if (!mji_insert_unit_history($inventory_unit_id, null, 'in_stock', 'Initial status on creation', $invoice_date)) {
                 custom_log('Status history insert error: ' . $wpdb->last_error);
                 $wpdb->query('ROLLBACK');
-                wp_send_json_error(
-                    [
-                        'message' => 'Inventory inserted but failed to create status history',
-                        'errors' => 'Database error: ' . $wpdb->last_error
-                    ]
-                );
+                wp_send_json_error([
+                    'message' => 'Inventory inserted but failed to create status history',
+                    'errors'  => 'Database error: ' . $wpdb->last_error,
+                ]);
             }
             // if price changed, need to change woocommerce products price and quantity change as well
             if ($variation) {
@@ -1127,27 +1114,7 @@ function change_status()
             wp_send_json_success('Status did not change.');
         }
 
-        $history_data = [
-            'inventory_unit_id' => $unit_id,
-            'from_status'       => $existing_unit->status,
-            'to_status'         => $status,
-            'notes'             => $notes ?? null,
-            'created_at'        => $date
-        ];
-
-        $insert_result = $wpdb->insert(
-            $inventory_unit_history_table,
-            $history_data,
-            [
-                '%d',
-                '%s',
-                '%s',
-                '%s',
-                '%s'
-            ]
-        );
-
-        if ($insert_result === false) {
+        if (!mji_insert_unit_history($unit_id, $existing_unit->status, $status, $notes ?? null, $date)) {
             $wpdb->query('ROLLBACK');
             throw new Exception('Failed to insert status history: ' . $wpdb->last_error);
         }

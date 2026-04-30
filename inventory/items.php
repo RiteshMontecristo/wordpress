@@ -200,17 +200,10 @@ function items_handle_insert(): void
 
     $unit_id = $wpdb->insert_id;
 
-    $wpdb->insert(
-        "{$wpdb->prefix}mji_inventory_status_history",
-        [
-            'inventory_unit_id' => $unit_id,
-            'from_status'       => null,
-            'to_status'         => $data['status'],
-            'notes'             => 'Unit created',
-            'changed_by_user_id' => get_current_user_id(),
-        ],
-        ['%d', '%s', '%s', '%s', '%d']
-    );
+    mji_insert_unit_history($unit_id, null, $data['status'], 'Unit created');
+
+    $collection_names = array_map('sanitize_text_field', (array) ($_POST['collections'] ?? []));
+    sync_product_collections($unit_id, $collection_names);
 
     wp_redirect(admin_url('admin.php?page=items-management&added=1'));
     exit;
@@ -271,8 +264,32 @@ function items_edit_form(): void
 
             <p class="submit">
                 <?php submit_button('Save Changes', 'primary', 'submit', false) ?>
+                <button type="button" id="items-change-status-btn" class="button" data-unit-id="<?= esc_attr($id) ?>">Change Status</button>
             </p>
         </form>
+
+        <div id="items-status-modal" class="items-modal" style="display:none;">
+            <div class="items-modal-inner">
+                <h2>Change Status</h2>
+                <label>New Status
+                    <select id="items-modal-status">
+                        <option value="in_stock">In Stock</option>
+                        <option value="missing">Missing</option>
+                        <option value="damaged">Damaged</option>
+                        <option value="rtv">RTV</option>
+                        <option value="dismantled">Dismantled</option>
+                    </select>
+                </label>
+                <label>Date <input type="date" id="items-modal-date" value="<?= esc_attr(date('Y-m-d')) ?>"></label>
+                <label>Notes <textarea id="items-modal-notes"></textarea></label>
+                <label>Admin Password <input type="password" id="items-modal-password" autocomplete="off"></label>
+                <p id="items-modal-error" style="color:red;display:none;"></p>
+                <div class="items-modal-actions">
+                    <button type="button" id="items-modal-confirm" class="button button-primary">Confirm</button>
+                    <button type="button" id="items-modal-cancel" class="button">Cancel</button>
+                </div>
+            </div>
+        </div>
 
         <?php if (!empty($history)): ?>
             <h2>Status History</h2>
@@ -317,8 +334,9 @@ function items_handle_update(int $id, string $old_status): void
 {
     global $wpdb;
 
-    $data    = items_sanitize_form();
-    $formats = items_formats($data);
+    $data            = items_sanitize_form();
+    $data['status']  = $old_status; // status only changes via the Change Status modal
+    $formats         = items_formats($data);
 
     $result = $wpdb->update(
         "{$wpdb->prefix}mji_product_inventory_units",
@@ -333,19 +351,11 @@ function items_handle_update(int $id, string $old_status): void
         wp_die('Failed to update unit. Please go back and try again.');
     }
 
-    // Log status change only if it changed
-    if ($data['status'] !== $old_status) {
-        $wpdb->insert(
-            "{$wpdb->prefix}mji_inventory_status_history",
-            [
-                'inventory_unit_id'  => $id,
-                'from_status'        => $old_status,
-                'to_status'          => $data['status'],
-                'notes'              => sanitize_text_field($_POST['status_note'] ?? ''),
-                'changed_by_user_id' => get_current_user_id(),
-            ],
-            ['%d', '%s', '%s', '%s', '%d']
-        );
+    $collection_names = array_map('sanitize_text_field', (array) ($_POST['collections'] ?? []));
+    sync_product_collections($id, $collection_names);
+
+    if (!empty($data['wc_product_id']) && !empty($data['image_id'])) {
+        update_post_meta((int) $data['wc_product_id'], '_thumbnail_id', (int) $data['image_id']);
     }
 
     wp_redirect(admin_url("admin.php?page=items-management&action=edit&id={$id}&updated=1"));
@@ -355,11 +365,9 @@ function items_handle_update(int $id, string $old_status): void
 // ─── Shared form rendering ───────────────────────────────────────────────────
 function items_render_form_fields(?object $unit, bool $is_new, string $wc_product_name = ''): void
 {
-    $allowed_statuses = ['in_stock', 'missing', 'sold', 'damaged', 'rtv', 'dismantled'];
-
     $sku            = $is_new ? '' : esc_attr($unit->sku ?? '');
     $serial         = $is_new ? '' : esc_attr($unit->serial ?? '');
-    $status         = $is_new ? 'in_stock' : esc_attr($unit->status ?? 'in_stock');
+    $status         = $is_new ? 'in_stock' : ($unit->status ?? 'in_stock');
     $location_id    = esc_attr($unit->location_id ?? '');
     $brand_id       = esc_attr($unit->brand_id ?? '');
     $model_id       = esc_attr($unit->model_id ?? '');
@@ -397,20 +405,15 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
             </div>
 
             <div class="form-field">
-                <label for="status">Status <span class="required">*</span></label>
-                <select id="status" name="status" required>
-                    <?php foreach ($allowed_statuses as $s): ?>
-                        <option value="<?= esc_attr($s) ?>" <?= selected($s, $status, false) ?>><?= esc_html($s) ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <label>Status</label>
+                <?php if ($is_new): ?>
+                    <input type="hidden" name="status" value="in_stock">
+                    <span class="items-status items-status--in_stock">in_stock</span>
+                <?php else: ?>
+                    <span class="items-status items-status--<?= esc_attr($status) ?>"><?= esc_html($status) ?></span>
+                    <p class="description" style="margin-top:4px;">Use "Change Status" to update.</p>
+                <?php endif; ?>
             </div>
-
-            <?php if (!$is_new): ?>
-                <div class="form-field">
-                    <label for="status_note">Status Change Note</label>
-                    <input type="text" id="status_note" name="status_note" class="regular-text" placeholder="Reason for status change (only saved if status changed)">
-                </div>
-            <?php endif; ?>
 
             <div class="form-field">
                 <label for="invoice_date">Invoice Date <span class="required">*</span></label>
@@ -433,8 +436,8 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
             <div class="form-field">
                 <label for="brand_id">Brand</label>
-                <select id="brand_id" name="brand_id">
-                    <option value="">Select brand</option>
+                <select id="brand_id" name="brand_id" class="brand-select">
+                    <option value="">— select or type to create —</option>
                     <?php foreach ($brands as $b): ?>
                         <option value="<?= esc_attr($b->id) ?>" <?= selected($b->id, $brand_id, false) ?>><?= esc_html($b->name) ?></option>
                     <?php endforeach; ?>
@@ -443,8 +446,8 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
             <div class="form-field">
                 <label for="model_id">Model</label>
-                <select id="model_id" name="model_id">
-                    <option value="">Select model</option>
+                <select id="model_id" name="model_id" class="model-select">
+                    <option value="">— select or type to create —</option>
                     <?php foreach ($models as $m): ?>
                         <option value="<?= esc_attr($m->id) ?>" <?= selected($m->id, $model_id, false) ?>><?= esc_html($m->name) ?></option>
                     <?php endforeach; ?>
@@ -453,8 +456,8 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
             <div class="form-field">
                 <label for="supplier_id">Supplier</label>
-                <select id="supplier_id" name="supplier_id">
-                    <option value="">Select supplier</option>
+                <select id="supplier_id" name="supplier_id" class="supplier-select">
+                    <option value="">— select or type to create —</option>
                     <?php foreach ($suppliers as $s): ?>
                         <option value="<?= esc_attr($s->id) ?>" <?= selected($s->id, $supplier_id, false) ?>><?= esc_html($s->name) ?></option>
                     <?php endforeach; ?>
@@ -529,11 +532,65 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
             </div>
         </div>
 
+        <div class="items-form-section items-form-section--full">
+            <h3>Collections</h3>
+            <?php
+            global $wpdb;
+            $all_collections = $wpdb->get_results(
+                "SELECT id, name FROM {$wpdb->prefix}mji_collections ORDER BY name"
+            );
+            $current_collections = [];
+            if ($unit && !empty($unit->id)) {
+                $rows = $wpdb->get_results($wpdb->prepare(
+                    "SELECT c.name FROM {$wpdb->prefix}mji_products_collections pc
+                     JOIN {$wpdb->prefix}mji_collections c ON c.id = pc.collection_id
+                     WHERE pc.inventory_unit_id = %d",
+                    $unit->id
+                ));
+                $current_collections = wp_list_pluck($rows, 'name');
+            }
+            ?>
+            <div class="form-field">
+                <label for="collections">Collections</label>
+                <select name="collections[]" id="collections" multiple class="items-select2-multi">
+                    <?php foreach ($all_collections as $col): ?>
+                        <option value="<?= esc_attr($col->name) ?>"
+                            <?= in_array($col->name, $current_collections, true) ? 'selected' : '' ?>>
+                            <?= esc_html($col->name) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+
     </div>
+
+    <script>
+    jQuery(document).ready(function ($) {
+        $(".brand-select").select2({ tags: true, placeholder: "Select or type brand name", allowClear: true });
+        $(".model-select").select2({ tags: true, placeholder: "Select or type model name", allowClear: true });
+        $(".supplier-select").select2({ tags: true, placeholder: "Select or type supplier name", allowClear: true });
+        $("#collections").select2({ tags: true, placeholder: "Select collections", allowClear: true });
+    });
+    </script>
     <?php
 }
 
 // ─── Sanitize / format helpers ───────────────────────────────────────────────
+
+// If $raw_value is a numeric string, returns that ID. If it's a plain name,
+// inserts a new record in the given table and returns the new ID.
+function items_resolve_or_create(string $table_suffix, string $raw_value): ?int
+{
+    global $wpdb;
+    $val = sanitize_text_field($raw_value);
+    if ($val === '') return null;
+    if (is_numeric($val)) return absint($val) ?: null;
+    $wpdb->insert($wpdb->prefix . 'mji_' . $table_suffix, ['name' => $val], ['%s']);
+    delete_transient('mji_' . $table_suffix);
+    return $wpdb->insert_id ?: null;
+}
+
 function items_sanitize_form(): array
 {
     $allowed_statuses = ['in_stock', 'missing', 'sold', 'damaged', 'rtv', 'dismantled'];
@@ -544,9 +601,6 @@ function items_sanitize_form(): array
 
     $wc_product_id = absint($_POST['wc_product_id'] ?? 0);
     $image_id      = absint($_POST['image_id'] ?? 0);
-    $supplier_id   = absint($_POST['supplier_id'] ?? 0);
-    $brand_id      = absint($_POST['brand_id'] ?? 0);
-    $model_id      = absint($_POST['model_id'] ?? 0);
     $location_id   = absint($_POST['location_id'] ?? 0);
 
     return [
@@ -554,12 +608,12 @@ function items_sanitize_form(): array
         'serial'         => sanitize_text_field($_POST['serial'] ?? '') ?: null,
         'status'         => $status,
         'location_id'    => $location_id ?: null,
-        'brand_id'       => $brand_id ?: null,
-        'model_id'       => $model_id ?: null,
+        'brand_id'       => items_resolve_or_create('brands', $_POST['brand_id'] ?? ''),
+        'model_id'       => items_resolve_or_create('models', $_POST['model_id'] ?? ''),
         'cost_price'     => max(0, (float) ($_POST['cost_price'] ?? 0)),
         'true_cost'      => $_POST['true_cost'] !== '' ? max(0, (float) $_POST['true_cost']) : null,
         'retail_price'   => max(0, (float) ($_POST['retail_price'] ?? 0)),
-        'supplier_id'    => $supplier_id ?: null,
+        'supplier_id'    => items_resolve_or_create('suppliers', $_POST['supplier_id'] ?? ''),
         'invoice_number' => sanitize_text_field($_POST['invoice_number'] ?? '') ?: null,
         'created_date'   => $created_date,
         'name'           => sanitize_text_field($_POST['item_name'] ?? '') ?: null,
@@ -616,6 +670,7 @@ function items_ajax_delete(): void
         wp_send_json_error(['message' => 'Delete failed']);
     }
 
+    // TODO: Delete from item status history as well
     wp_send_json_success();
 }
 add_action('wp_ajax_mji_delete_item', 'items_ajax_delete');
@@ -652,3 +707,36 @@ function items_ajax_search_wc_products(): void
     wp_send_json_success($results);
 }
 add_action('wp_ajax_mji_search_wc_products', 'items_ajax_search_wc_products');
+
+// ─── WC → units sync ─────────────────────────────────────────────────────────
+function items_sync_wc_to_units(int $product_id): void
+{
+    global $wpdb;
+
+    $product = wc_get_product($product_id);
+    if (!$product) return;
+
+    $is_variation = $product->get_type() === 'variation';
+
+    $name        = $product->get_name() ?: null;
+    $description = $is_variation
+        ? (get_post_meta($product_id, '_variation_description', true) ?: null)
+        : ($product->get_description() ?: null);
+    $price       = (float) $product->get_regular_price() ?: null;
+    $image_id    = (int) get_post_thumbnail_id($product_id) ?: null;
+
+    $wpdb->update(
+        $wpdb->prefix . 'mji_product_inventory_units',
+        [
+            'name'         => $name,
+            'description'  => $description,
+            'retail_price' => $price,
+            'image_id'     => $image_id,
+        ],
+        ['wc_product_id' => $product_id],
+        ['%s', '%s', '%f', '%d'],
+        ['%d']
+    );
+}
+add_action('woocommerce_update_product',           'items_sync_wc_to_units');
+add_action('woocommerce_update_product_variation', 'items_sync_wc_to_units');

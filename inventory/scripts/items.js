@@ -132,3 +132,43 @@ if (clearBtn) {
     resultsBox.style.display = "none";
   });
 }
+
+
+// ─── Status change modal ──────────────────────────────────────────────────────
+const changeStatusBtn = document.getElementById("items-change-status-btn");
+const statusModal = document.getElementById("items-status-modal");
+const modalConfirm = document.getElementById("items-modal-confirm");
+const modalCancel = document.getElementById("items-modal-cancel");
+const modalError = document.getElementById("items-modal-error");
+
+if (changeStatusBtn) {
+  changeStatusBtn.addEventListener("click", () => {
+    statusModal.style.display = "flex";
+  });
+
+  modalCancel.addEventListener("click", () => {
+    statusModal.style.display = "none";
+    modalError.style.display = "none";
+  });
+
+  modalConfirm.addEventListener("click", async () => {
+    const body = new FormData();
+    body.append("action", "update_unit_status");
+    body.append("nonce", nonce);
+    body.append("unit_id", changeStatusBtn.dataset.unitId);
+    body.append("status", document.getElementById("items-modal-status").value);
+    body.append("date", document.getElementById("items-modal-date").value);
+    body.append("notes", document.getElementById("items-modal-notes").value);
+    body.append("password", document.getElementById("items-modal-password").value);
+
+    const res = await fetch(ajax_url, { method: "POST", body });
+    const json = await res.json();
+
+    if (json.success) {
+      location.reload();
+    } else {
+      modalError.textContent = json.data?.message ?? "Failed.";
+      modalError.style.display = "block";
+    }
+  });
+}
