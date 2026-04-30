@@ -48,6 +48,10 @@ function add_missing_alt_menu()
 }
 add_action('admin_menu', 'add_missing_alt_menu', 999);
 
+add_filter('single_product_archive_thumbnail_size', function() {
+    return 'large';
+});
+
 // Add a sender email field to General Settings to customize the sender email address
 function custom_email_settings_init()
 {
