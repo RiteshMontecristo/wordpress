@@ -505,7 +505,11 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
             <div class="form-field">
                 <label for="description">Description</label>
-                <textarea id="description" name="description" rows="4" class="large-text"><?= wp_kses_post($description) ?></textarea>
+                <?php wp_editor($description, 'description', [
+                    'textarea_name' => 'description',
+                    'textarea_rows' => 10,
+                    'media_buttons' => false,
+                ]); ?>
             </div>
 
             <div class="form-field">
