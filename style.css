@@ -1368,6 +1368,7 @@ ul.products li.product .woocommerce-LoopProduct-link img {
 
 .category-thumbnail img {
   width: 100%;
+    max-height: 768px;
 }
 
 .tax-product_cat .site-main,
