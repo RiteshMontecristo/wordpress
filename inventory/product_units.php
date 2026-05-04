@@ -957,6 +957,8 @@ function watch_simple_product_changes($post_id, $post, $update)
 
         if ($result === false) {
             mji_log_admin_error("Failed to update model name for model ID $model_id: " . $wpdb->last_error);
+        } else {
+            delete_transient('mji_models');
         }
     }
 }
@@ -1030,6 +1032,8 @@ function watch_variation_retail_price($variation_id, $i)
 
     if ($result === false) {
         mji_log_admin_error("Failed to update model name for model ID $model_id: " . $wpdb->last_error);
+    } else {
+        delete_transient('mji_models');
     }
 }
 
