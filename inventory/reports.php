@@ -441,7 +441,11 @@ function reports_render_sales_report($results)
             $margin_percent = 0;
 
             if ($total_current_retail_paid > 0) {
-                $discount_percent = $row->retail_price ? ($row->discount_amount / $row->retail_price) * 100 : 0;
+                $retail_price = (float) $row->retail_price;
+
+                $discount_percent = ($retail_price > 0)
+                    ? ($row->discount_amount / $retail_price) * 100
+                    : 0;
                 $profit = $total_current_retail_paid - $row->cost_price;
                 $margin_percent = $total_current_retail_paid ? ($profit / $total_current_retail_paid) * 100 : 0;
 
