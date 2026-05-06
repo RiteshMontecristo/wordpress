@@ -213,8 +213,17 @@ function items_handle_insert(): void
 
     mji_insert_unit_history($unit_id, null, $data['status'], 'Unit created');
 
+    $wc_product_id = (int) ($data['wc_product_id'] ?? 0);
+
     $collection_names = array_map('sanitize_text_field', (array) ($_POST['collections'] ?? []));
     sync_product_collections($unit_id, $collection_names);
+    items_sync_wc_taxonomy($wc_product_id, $collection_names);
+    items_sync_wc_product($wc_product_id, $data['name'], $data['description'], $data['retail_price'] ?? null, $data['model_id'] ?? null, $data['brand_id'] ?? null);
+    items_sync_sibling_units($unit_id, $wc_product_id, $data, $collection_names);
+
+    if ($wc_product_id) {
+        wc_update_product_stock($wc_product_id, 1, 'increase');
+    }
 
     wp_redirect(admin_url('admin.php?page=items-management&added=1'));
     exit;
@@ -362,8 +371,16 @@ function items_handle_update(int $id, string $old_status): void
         wp_die('Failed to update unit. Please go back and try again.');
     }
 
+    $wc_variant_id = (int) $wpdb->get_var($wpdb->prepare(
+        "SELECT wc_product_variant_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
+        $id
+    )) ?: null;
+
     $collection_names = array_map('sanitize_text_field', (array) ($_POST['collections'] ?? []));
     sync_product_collections($id, $collection_names);
+    items_sync_wc_taxonomy((int) ($data['wc_product_id'] ?? 0), $collection_names);
+    items_sync_wc_product((int) ($data['wc_product_id'] ?? 0), $data['name'], $data['description'], $data['retail_price'] ?? null, $data['model_id'] ?? null, $data['brand_id'] ?? null, $wc_variant_id);
+    items_sync_sibling_units($id, (int) ($data['wc_product_id'] ?? 0), $data, $collection_names);
 
     if (!empty($data['wc_product_id']) && !empty($data['image_id'])) {
         update_post_meta((int) $data['wc_product_id'], '_thumbnail_id', (int) $data['image_id']);
@@ -467,7 +484,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
             <div class="form-field">
                 <label for="supplier_id">Supplier</label>
-                <?php mji_suppliers_dropdown(false) ?>
+                <?php mji_suppliers_dropdown(false, (int) ($unit->supplier_id ?? 0)) ?>
             </div>
 
             <div class="form-field">
@@ -578,6 +595,189 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 <?php
 }
 
+// ─── Sibling unit sync ───────────────────────────────────────────────────────
+
+function items_sync_sibling_units(int $unit_id, int $wc_product_id, array $data, array $collection_names): void
+{
+    if (!$wc_product_id) return;
+
+    global $wpdb;
+
+    $table = $wpdb->prefix . 'mji_product_inventory_units';
+
+    // Only sync active units — sold/rtv are frozen records
+    $sibling_ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT id FROM {$table}
+         WHERE wc_product_id = %d AND id != %d
+           AND status NOT IN ('sold', 'rtv')",
+        $wc_product_id,
+        $unit_id
+    ));
+
+    if (!$sibling_ids) return;
+
+    // ── Field update ─────────────────────────────────────────────────────────
+    $shared = [
+        'name'         => $data['name'],
+        'description'  => $data['description'],
+        'retail_price' => $data['retail_price'],
+        'brand_id'     => $data['brand_id'],
+        'model_id'     => $data['model_id'],
+        'image_id'     => $data['image_id'],
+    ];
+
+    $set_parts = [];
+    $values    = [];
+
+    foreach ($shared as $col => $val) {
+        if ($val === null) {
+            $set_parts[] = "`{$col}` = NULL";
+        } elseif ($col === 'retail_price') {
+            $set_parts[] = "`{$col}` = %f";
+            $values[]    = $val;
+        } elseif (in_array($col, ['brand_id', 'model_id', 'image_id'], true)) {
+            $set_parts[] = "`{$col}` = %d";
+            $values[]    = $val;
+        } else {
+            $set_parts[] = "`{$col}` = %s";
+            $values[]    = $val;
+        }
+    }
+
+    if ($set_parts) {
+        $id_placeholders = implode(',', array_fill(0, count($sibling_ids), '%d'));
+        $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$table}
+                 SET " . implode(', ', $set_parts) . "
+                 WHERE id IN ({$id_placeholders})",
+                array_merge($values, $sibling_ids)
+            )
+        );
+    }
+
+    // ── Collection sync ───────────────────────────────────────────────────────
+    foreach ($sibling_ids as $sibling_id) {
+        sync_product_collections((int) $sibling_id, $collection_names);
+    }
+}
+
+// ─── WC product sync (items → WC) ────────────────────────────────────────────
+
+function items_sync_wc_taxonomy(int $wc_product_id, array $collection_names): void
+{
+    if (!$wc_product_id) {
+        return;
+    }
+
+    $collection_names = array_unique(array_filter(array_map('trim', $collection_names)));
+    $term_ids = [];
+
+    foreach ($collection_names as $name) {
+        $existing = term_exists($name, 'collection');
+        if ($existing) {
+            $term_ids[] = (int) $existing['term_id'];
+        } else {
+            $result = wp_insert_term($name, 'collection');
+            if (!is_wp_error($result)) {
+                $term_ids[] = (int) $result['term_id'];
+            }
+        }
+    }
+
+    // Always call — passing [] clears all terms when every collection is removed
+    wp_set_object_terms($wc_product_id, $term_ids, 'collection');
+    wc_delete_product_transients($wc_product_id);
+}
+
+function items_sync_wc_product(
+    int $wc_product_id,
+    ?string $name,
+    ?string $description,
+    ?float $retail_price,
+    ?int $model_id,
+    ?int $brand_id,
+    ?int $wc_variant_id = null
+): void {
+    if (!$wc_product_id) return;
+
+    $effective_id = ($wc_variant_id && $wc_variant_id > 0) ? $wc_variant_id : $wc_product_id;
+    $product = wc_get_product($effective_id);
+    if (!$product) return;
+
+    $is_variation = $product->get_type() === 'variation';
+
+    global $wpdb;
+
+    // Model name becomes the WC SKU
+    $model_name = $model_id
+        ? $wpdb->get_var($wpdb->prepare("SELECT name FROM {$wpdb->prefix}mji_models WHERE id = %d", $model_id))
+        : null;
+
+    // Resolve brand to a product_brand term ID
+    $brand_term_id = null;
+    if ($brand_id) {
+        $brand_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM {$wpdb->prefix}mji_brands WHERE id = %d", $brand_id));
+        if ($brand_name) {
+            $existing = term_exists($brand_name, 'product_brand');
+            if ($existing) {
+                $brand_term_id = (int) $existing['term_id'];
+            } else {
+                $result = wp_insert_term($brand_name, 'product_brand');
+                if (!is_wp_error($result)) {
+                    $brand_term_id = (int) $result['term_id'];
+                }
+            }
+        }
+    }
+
+    // Unhook everything that could corrupt data on a programmatic save
+    remove_action('woocommerce_update_product',           'items_sync_wc_to_units');
+    remove_action('woocommerce_update_product_variation', 'items_sync_wc_to_units');
+    remove_action('save_post_product',                    'watch_simple_product_changes', 20);
+
+    try {
+        if ($is_variation) {
+            if ($model_name !== null) {
+                $parent_id  = $product->get_parent_id();
+                $parent     = $parent_id ? wc_get_product($parent_id) : null;
+                $parent_sku = $parent ? $parent->get_sku() : '';
+                if ($model_name !== $parent_sku) {
+                    $product->set_sku($model_name);
+                }
+            }
+            if ($retail_price !== null) $product->set_regular_price((string) $retail_price);
+            $product->save();
+            // Write after save so WC doesn't overwrite it during the save lifecycle
+            update_post_meta($wc_product_id, '_variation_description', $description ?? '');
+
+            // Brand lives on the parent product, not the variation
+            $parent_id = $product->get_parent_id();
+            if ($parent_id && $brand_term_id) {
+                wp_set_object_terms($parent_id, [$brand_term_id], 'product_brand');
+                update_post_meta($parent_id, 'rank_math_primary_product_brand', $brand_term_id);
+                wc_delete_product_transients($parent_id);
+            }
+        } else {
+            if ($name !== null) $product->set_name($name);
+            if ($description !== null) $product->set_short_description($description);
+            if ($retail_price !== null) $product->set_regular_price((string) $retail_price);
+            if ($model_name !== null) $product->set_sku($model_name);
+            $product->save();
+
+            if ($brand_term_id) {
+                wp_set_object_terms($wc_product_id, [$brand_term_id], 'product_brand');
+                update_post_meta($wc_product_id, 'rank_math_primary_product_brand', $brand_term_id);
+                wc_delete_product_transients($wc_product_id);
+            }
+        }
+    } finally {
+        add_action('woocommerce_update_product',           'items_sync_wc_to_units');
+        add_action('woocommerce_update_product_variation', 'items_sync_wc_to_units');
+        add_action('save_post_product',                    'watch_simple_product_changes', 20, 3);
+    }
+}
+
 // ─── Sanitize / format helpers ───────────────────────────────────────────────
 
 // If $raw_value is a numeric string, returns that ID. If it's a plain name,
@@ -618,8 +818,8 @@ function items_sanitize_form(): array
         'supplier_id'    => items_resolve_or_create('suppliers', $_POST['supplier_id'] ?? ''),
         'invoice_number' => sanitize_text_field($_POST['invoice_number'] ?? '') ?: null,
         'created_date'   => $created_date,
-        'name'           => sanitize_text_field($_POST['item_name'] ?? '') ?: null,
-        'description'    => wp_kses_post($_POST['description'] ?? '') ?: null,
+        'name'           => sanitize_text_field(wp_unslash($_POST['item_name'] ?? '')) ?: null,
+        'description'    => wp_kses_post(wp_unslash($_POST['description'] ?? '')) ?: null,
         'image_id'       => $image_id ?: null,
         'wc_product_id'  => $wc_product_id ?: null,
     ];
@@ -659,11 +859,14 @@ function items_ajax_delete(): void
     $id    = absint($_POST['id'] ?? 0);
     $table = $wpdb->prefix . 'mji_product_inventory_units';
 
-    $status = $wpdb->get_var($wpdb->prepare("SELECT status FROM {$table} WHERE id = %d", $id));
-    if ($status === null) {
+    $unit = $wpdb->get_row($wpdb->prepare(
+        "SELECT status, wc_product_id, wc_product_variant_id FROM {$table} WHERE id = %d",
+        $id
+    ));
+    if ($unit === null) {
         wp_send_json_error(['message' => 'Unit not found']);
     }
-    if ($status === 'sold') {
+    if ($unit->status === 'sold') {
         wp_send_json_error(['message' => 'Cannot delete a sold unit']);
     }
 
@@ -672,7 +875,10 @@ function items_ajax_delete(): void
         wp_send_json_error(['message' => 'Delete failed']);
     }
 
-    // TODO: Delete from item status history as well
+    if ($unit->status === 'in_stock' && $unit->wc_product_id) {
+        wc_update_product_stock((int) ($unit->wc_product_variant_id ?: $unit->wc_product_id), 1, 'decrease');
+    }
+
     wp_send_json_success();
 }
 add_action('wp_ajax_mji_delete_item', 'items_ajax_delete');
@@ -720,24 +926,52 @@ function items_sync_wc_to_units(int $product_id): void
 
     $is_variation = $product->get_type() === 'variation';
 
-    $name        = $product->get_name() ?: null;
+    // Build SET clause dynamically — skip any field that has no value so we
+    // never coerce null to '' / 0.00 / 0 via prepare() placeholders.
+    $set_parts = [];
+    $values    = [];
+
+    $name = $product->get_name() ?: null;
+    if ($name !== null) {
+        $set_parts[] = '`name` = %s';
+        $values[]    = $name;
+    }
+
     $description = $is_variation
         ? (get_post_meta($product_id, '_variation_description', true) ?: null)
         : ($product->get_short_description() ?: null);
-    $price       = (float) $product->get_regular_price() ?: null;
-    $image_id    = (int) get_post_thumbnail_id($product_id) ?: null;
+    if ($description !== null) {
+        $set_parts[] = '`description` = %s';
+        $values[]    = $description;
+    }
 
-    $wpdb->update(
-        $wpdb->prefix . 'mji_product_inventory_units',
-        [
-            'name'         => $name,
-            'description'  => $description,
-            'retail_price' => $price,
-            'image_id'     => $image_id,
-        ],
-        ['wc_product_id' => $product_id],
-        ['%s', '%s', '%f', '%d'],
-        ['%d']
+    $price_raw = $product->get_regular_price();
+    if ($price_raw !== '' && $price_raw !== null && (float) $price_raw > 0) {
+        $set_parts[] = '`retail_price` = %f';
+        $values[]    = (float) $price_raw;
+    }
+
+    $image_id = (int) get_post_thumbnail_id($product_id) ?: null;
+    if ($image_id !== null) {
+        $set_parts[] = '`image_id` = %d';
+        $values[]    = $image_id;
+    } else {
+        $set_parts[] = '`image_id` = NULL';
+    }
+
+    if (!$set_parts) return;
+
+    // Only sold and rtv are frozen — all other statuses stay in sync with WC
+    $values[] = $product_id;
+    $where_col = $is_variation ? 'wc_product_variant_id' : 'wc_product_id';
+    $wpdb->query(
+        $wpdb->prepare(
+            "UPDATE {$wpdb->prefix}mji_product_inventory_units
+             SET " . implode(', ', $set_parts) . "
+             WHERE {$where_col} = %d
+               AND status NOT IN ('sold', 'rtv')",
+            $values
+        )
     );
 }
 add_action('woocommerce_update_product',           'items_sync_wc_to_units');

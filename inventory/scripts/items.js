@@ -151,7 +151,8 @@ jQuery(document).ready(function ($) {
     allowClear: true,
   });
   $(".items-select2-multi").select2({
-    placeholder: "Select collections",
+    tags: true,
+    placeholder: "Select or type to create collection",
     allowClear: true,
   });
 });
@@ -177,9 +178,9 @@ if (changeStatusBtn) {
     const body = new FormData();
     body.append("action", "update_unit_status");
     body.append("nonce", nonce);
-    body.append("unit_id", changeStatusBtn.dataset.unitId);
+    body.append("unit-id", changeStatusBtn.dataset.unitId);
     body.append("status", document.getElementById("items-modal-status").value);
-    body.append("date", document.getElementById("items-modal-date").value);
+    body.append("updateDate", document.getElementById("items-modal-date").value);
     body.append("notes", document.getElementById("items-modal-notes").value);
     body.append(
       "password",
@@ -192,7 +193,7 @@ if (changeStatusBtn) {
     if (json.success) {
       location.reload();
     } else {
-      modalError.textContent = json.data?.message ?? "Failed.";
+      modalError.textContent = json.data?.message ?? json.data ?? "Failed.";
       modalError.style.display = "block";
     }
   });

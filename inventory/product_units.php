@@ -452,6 +452,12 @@ function delete_inventory_unit()
                 );
             }
 
+            // Read status before deleting — only in_stock units contribute to WC stock
+            $unit_status = $wpdb->get_var($wpdb->prepare(
+                "SELECT status FROM {$table_name} WHERE id = %d",
+                $unit_id
+            ));
+
             // Deletes the product_collections_table and inventory history with the inventory unit as its a cascade
             $result = $wpdb->delete(
                 $table_name,
@@ -461,7 +467,12 @@ function delete_inventory_unit()
             if ($result === false) {
                 throw new Exception($wpdb->last_error);
             }
-            wc_update_product_stock($variant_id ?: $product_id, 1, 'decrease');
+
+            // Non-in_stock statuses already decremented WC stock when status changed;
+            // decrementing again on delete would make stock go negative
+            if ($unit_status === 'in_stock') {
+                wc_update_product_stock($variant_id ?: $product_id, 1, 'decrease');
+            }
 
             // CASCADE on products_collections handles cleanup when the unit is deleted
 
@@ -543,7 +554,6 @@ function create_inventory_units()
     $models_table = $wpdb->prefix . 'mji_models';
     $brands_table = $wpdb->prefix . 'mji_brands';
     $suppliers_table = $wpdb->prefix . 'mji_suppliers';
-    $inventory_unit_history_table = $wpdb->prefix . "mji_inventory_status_history";
 
     // Grab the model number
     if ($variation) {
@@ -556,6 +566,10 @@ function create_inventory_units()
     }
 
     $model_id = get_brand_model_id($models_table, $model);
+    if ($model_id === false) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(['message' => 'Failed to find or create model.']);
+    }
     $brand_id = $brand_id != 0 ? get_brand_model_id($brands_table, $brand) : NULL;
 
     // If numeric, it is an existing supplier else create new
@@ -778,7 +792,7 @@ function get_brand_model_id($table_name, $value)
         );
         if ($inserted === false) {
             custom_log('Database error: ' . $wpdb->last_error);
-            wp_send_json_error($table_name . ' could\'nt be inserted: ' . $wpdb->last_error);
+            return false;
         } else {
             $id = $wpdb->insert_id;
         }
@@ -866,42 +880,34 @@ function watch_simple_product_changes($post_id, $post, $update)
 
     if (!$exists_units) return;
 
-    if ($_POST['rank_math_primary_product_brand']) {
+    if (isset($_POST['rank_math_primary_product_brand']) && $_POST['rank_math_primary_product_brand']) {
+        // Brand explicitly set in the WC form
         $new_primary_brand = intval($_POST['rank_math_primary_product_brand']);
         $brand = get_term($new_primary_brand, 'product_brand');
         if ($brand && !is_wp_error($brand)) {
-            $brand = $brand->name;
+            $brand_name = $brand->name;
             $brands_table = $wpdb->prefix . 'mji_brands';
-            $brand_id = get_brand_model_id($brands_table, $brand);
-            try {
-                $wpdb->update(
-                    $table_name,
-                    [
-                        'brand_id' => $brand_id,
-                    ],
-                    ['wc_product_id' => $post_id],
-                    ['%d'],
-                    ['%d']
-                );
-            } catch (Exception $e) {
-                custom_log("Error " . $e->getMessage());
-            }
+            $brand_id = get_brand_model_id($brands_table, $brand_name);
+            if ($brand_id === false) return;
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$table_name}
+                 SET brand_id = %d
+                 WHERE wc_product_id = %d
+                   AND status NOT IN ('sold','rtv')",
+                $brand_id, $post_id
+            ));
         }
-    } else {
-        try {
-            $wpdb->update(
-                $table_name,
-                [
-                    'brand_id' => NULL,
-                ],
-                ['wc_product_id' => $post_id],
-                ['%s'],
-                ['%d']
-            );
-        } catch (Exception $e) {
-            custom_log("Error " . $e->getMessage());
-        }
+    } elseif (isset($_POST['rank_math_primary_product_brand'])) {
+        // Brand explicitly cleared in the WC form (field present but empty)
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$table_name}
+             SET brand_id = NULL
+             WHERE wc_product_id = %d
+               AND status NOT IN ('sold','rtv')",
+            $post_id
+        ));
     }
+    // If $_POST has no brand key at all it's a programmatic save — don't touch brand
 
     // Update prices for simple products only
     $product = wc_get_product($post_id);
@@ -910,55 +916,89 @@ function watch_simple_product_changes($post_id, $post, $update)
         return;
     }
 
-    $old_price = get_post_meta($post_id, '_price', true);
-    $new_price = isset($_POST['_regular_price']) ? sanitize_text_field($_POST['_regular_price']) : $old_price;
+    // Post meta is already updated at priority 20 — can't use it as the "old"
+    // value. Compare the incoming form value against what we have stored in the
+    // inventory DB so the comparison is meaningful.
+    $new_price = (isset($_POST['_regular_price']) && $_POST['_regular_price'] !== '')
+        ? (float) sanitize_text_field($_POST['_regular_price'])
+        : null;
+    $new_model = isset($_POST['_sku']) ? sanitize_text_field($_POST['_sku']) : null;
 
-    $old_model = get_post_meta($post_id, '_sku', true);
-    $new_model = isset($_POST['_sku']) ?
-        sanitize_text_field($_POST['_sku']) : $old_model;
-
-    if ($old_price != $new_price) {
-        $result = $wpdb->update(
-            $table_name,
-            [
-                'retail_price' => $new_price,
-            ],
-            [
-                'wc_product_id' => $post_id,
-                'status' => 'in_stock'
-            ],
-            ['%f'],
-            ['%d', '%s']
-        );
-        if ($result === false) {
-            mji_log_admin_error('Error updating price' . $wpdb->last_error);
+    if ($new_price !== null) {
+        $current_price = (float) $wpdb->get_var($wpdb->prepare(
+            "SELECT retail_price FROM {$table_name}
+             WHERE wc_product_id = %d
+               AND status NOT IN ('sold','rtv')
+             LIMIT 1",
+            $post_id
+        ));
+        if ($new_price != $current_price) {
+            $result = $wpdb->query($wpdb->prepare(
+                "UPDATE {$table_name}
+                 SET retail_price = %f
+                 WHERE wc_product_id = %d
+                   AND status NOT IN ('sold','rtv')",
+                $new_price, $post_id
+            ));
+            if ($result === false) {
+                mji_log_admin_error('Error updating price: ' . $wpdb->last_error);
+            }
         }
     }
-    if ($old_model != $new_model) {
-        $model_id = $wpdb->get_var(
-            $wpdb->prepare(
-                "SELECT model_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE wc_product_id = %d LIMIT 1",
-                $post_id
-            )
-        );
+
+    if ($new_model === null) {
+        // SKU field absent from POST — programmatic save, don't touch model
+    } elseif ($new_model === '') {
+        // SKU explicitly cleared — remove model link from all active units
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$table_name} SET model_id = NULL
+             WHERE wc_product_id = %d
+               AND status NOT IN ('sold','rtv')",
+            $post_id
+        ));
+    } else {
+        $models_table = $wpdb->prefix . 'mji_models';
+        $model_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT model_id FROM {$table_name}
+             WHERE wc_product_id = %d
+               AND status NOT IN ('sold','rtv')
+             LIMIT 1",
+            $post_id
+        ));
 
         if (!$model_id) {
-            mji_log_admin_error("No model found for ID $post_id");
+            // No active unit has a model linked — find or create by SKU name and link all active units
+            $model_id = get_brand_model_id($models_table, $new_model);
+            if ($model_id) {
+                $wpdb->query($wpdb->prepare(
+                    "UPDATE {$table_name} SET model_id = %d
+                     WHERE wc_product_id = %d
+                       AND status NOT IN ('sold','rtv')",
+                    $model_id, $post_id
+                ));
+                delete_transient('mji_models');
+            }
             return;
         }
 
-        $result = $wpdb->update(
-            $wpdb->prefix . 'mji_models',
-            ['name' => $new_model],
-            ['id' => $model_id],
-            ['%s'],
-            ['%d']
-        );
+        $current_model = $wpdb->get_var($wpdb->prepare(
+            "SELECT name FROM {$models_table} WHERE id = %d",
+            $model_id
+        ));
 
-        if ($result === false) {
-            mji_log_admin_error("Failed to update model name for model ID $model_id: " . $wpdb->last_error);
-        } else {
-            delete_transient('mji_models');
+        if ($current_model != $new_model) {
+            $result = $wpdb->update(
+                $models_table,
+                ['name' => $new_model],
+                ['id' => $model_id],
+                ['%s'],
+                ['%d']
+            );
+            if ($result === false) {
+                mji_log_admin_error("Failed to update model name for model ID $model_id: " . $wpdb->last_error);
+            } else {
+                delete_transient('mji_models');
+            }
         }
     }
 }
@@ -977,63 +1017,81 @@ function watch_variation_retail_price($variation_id, $i)
 
     if (!$exists_units) return;
 
-    $old_price = get_post_meta($variation_id, '_price', true);
+    // Compare incoming form values against inventory DB — post meta is already
+    // updated at the time this hook fires, so it can't serve as the "old" value
+    $new_price = (isset($_POST['variable_regular_price'][$i]) && $_POST['variable_regular_price'][$i] !== '')
+        ? (float) sanitize_text_field($_POST['variable_regular_price'][$i])
+        : null;
 
-    $new_price = isset($_POST['variable_regular_price'][$i])
-        ? sanitize_text_field($_POST['variable_regular_price'][$i])
-        : $old_price;
+    $is_human_save = isset($_POST['variable_sku'][$i]);
+    $new_model = $is_human_save
+        ? sanitize_text_field($_POST['variable_sku'][$i])
+        : null;
 
-    $old_model = get_post_meta($variation_id, '_sku', true);
-    $new_model = isset($_POST['variable_sku'][$i]) ?
-        sanitize_text_field($_POST['variable_sku'][$i]) : $old_model;
-
+    // Fall back to parent SKU when variant SKU is empty — whether absent or cleared
+    // Only on human save; '' after fallback means both are empty so model should be cleared
     if (empty($new_model)) {
         $parent_id = wp_get_post_parent_id($variation_id);
-        $new_model = get_post_meta($parent_id, '_sku', true);
+        $new_model = get_post_meta($parent_id, '_sku', true) ?: ($is_human_save ? '' : null);
     }
 
-    $result = $wpdb->update(
-        $wpdb->prefix . 'mji_product_inventory_units',
-        [
-            'retail_price' => $new_price,
-        ],
-        [
-            'wc_product_variant_id' => $variation_id,
-            'status' => 'in_stock'
-        ],
-        ['%f'],
-        ['%d', '%s']
-    );
-
-    if ($result === false) {
-        // Save the error so we can show it later as an admin notice
-        mji_log_admin_error('Error updating price' . $wpdb->last_error);
-    }
-
-    $model_id = $wpdb->get_var(
-        $wpdb->prepare(
-            "SELECT model_id FROM $table_name WHERE wc_product_variant_id = %d LIMIT 1",
+    if ($new_price !== null) {
+        $current_price = (float) $wpdb->get_var($wpdb->prepare(
+            "SELECT retail_price FROM {$table_name}
+             WHERE wc_product_variant_id = %d
+               AND status NOT IN ('sold','rtv')
+             LIMIT 1",
             $variation_id
-        )
-    );
-
-    if (!$model_id) {
-        mji_log_admin_error("No model found for variation ID $variation_id");
-        return;
+        ));
+        if ($new_price != $current_price) {
+            $result = $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}mji_product_inventory_units
+                 SET retail_price = %f
+                 WHERE wc_product_variant_id = %d
+                   AND status NOT IN ('sold','rtv')",
+                $new_price, $variation_id
+            ));
+            if ($result === false) {
+                mji_log_admin_error('Error updating price: ' . $wpdb->last_error);
+            }
+        }
     }
 
-    $result = $wpdb->update(
-        $wpdb->prefix . 'mji_models',
-        ['name' => $new_model],
-        ['id' => $model_id],
-        ['%s'],
-        ['%d']
-    );
-
-    if ($result === false) {
-        mji_log_admin_error("Failed to update model name for model ID $model_id: " . $wpdb->last_error);
+    if ($new_model === null) {
+        // Field absent and no parent SKU — programmatic save, don't touch model
+    } elseif ($new_model === '') {
+        // Explicitly cleared — remove model link from all active units for this variation
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$table_name} SET model_id = NULL
+             WHERE wc_product_variant_id = %d
+               AND status NOT IN ('sold','rtv')",
+            $variation_id
+        ));
     } else {
-        delete_transient('mji_models');
+        $models_table = $wpdb->prefix . 'mji_models';
+        $current_model_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT model_id FROM {$table_name}
+             WHERE wc_product_variant_id = %d
+               AND status NOT IN ('sold','rtv')
+             LIMIT 1",
+            $variation_id
+        ));
+
+        // Always find-or-create the target model by name — never rename in place.
+        // Renaming would affect all other units sharing the same model row (e.g. the
+        // other variant that still uses the parent SKU).
+        $new_model_id = get_brand_model_id($models_table, $new_model);
+        if ($new_model_id === false) return;
+
+        if ($new_model_id != $current_model_id) {
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$table_name} SET model_id = %d
+                 WHERE wc_product_variant_id = %d
+                   AND status NOT IN ('sold','rtv')",
+                $new_model_id, $variation_id
+            ));
+            delete_transient('mji_models');
+        }
     }
 }
 
@@ -1061,19 +1119,15 @@ function change_status()
 {
     check_ajax_referer('mji_inventory_nonce', 'nonce');
 
-    $product_id = isset($_POST['product-id']) ? sanitize_text_field(wp_unslash($_POST['product-id'])) : '';
-    $unit_id = isset($_POST['unit-id']) ? sanitize_text_field(wp_unslash($_POST['unit-id'])) : '';
-    $status  = isset($_POST['status']) ? sanitize_text_field(wp_unslash($_POST['status'])) : '';
-    $date    = isset($_POST['updateDate']) ? sanitize_text_field(wp_unslash($_POST['updateDate'])) : '';
-    $notes   = isset($_POST['notes']) ? sanitize_textarea_field(wp_unslash($_POST['notes'])) : '';
-    $password = isset($_POST['password']) ? wp_unslash($_POST['password']) : '';
-
-    if (empty($product_id)) {
-        wp_send_json_error('Product ID is required.');
-    }
+    $product_id = absint($_POST['product-id'] ?? 0);
+    $unit_id    = absint($_POST['unit-id'] ?? 0);
+    $status     = isset($_POST['status']) ? sanitize_text_field(wp_unslash($_POST['status'])) : '';
+    $date       = isset($_POST['updateDate']) ? sanitize_text_field(wp_unslash($_POST['updateDate'])) : '';
+    $notes      = isset($_POST['notes']) ? sanitize_textarea_field(wp_unslash($_POST['notes'])) : '';
+    $password   = isset($_POST['password']) ? wp_unslash($_POST['password']) : '';
 
     if (empty($unit_id)) {
-        wp_send_json_error('Unit ID is required.');
+        wp_send_json_error(['message' => 'Unit ID is required.']);
     }
 
     $allowed_statuses = ['in_stock', 'damaged', 'dismantled', 'missing', 'rtv'];
@@ -1094,7 +1148,6 @@ function change_status()
     global $wpdb;
 
     $inventory_unit_table = $wpdb->prefix . "mji_product_inventory_units";
-    $inventory_unit_history_table = $wpdb->prefix . "mji_inventory_status_history";
 
     // Start transaction
     $wpdb->query('START TRANSACTION');
@@ -1142,18 +1195,22 @@ function change_status()
         if ($updated_result === false) {
             $wpdb->query('ROLLBACK');
             throw new Exception('Database update failed.' . $wpdb->last_error);
-        } else {
-            $product = wc_get_product($product_id);
-            if ($product) {
-                $old_status = $existing_unit->status;
-                handle_stock_adjustment_based_on_status_change($old_status, $status, $product_id);
-                $wpdb->query('COMMIT');
-                wp_send_json_success('Status updated successfully.');
-            } else {
-                $wpdb->query('ROLLBACK');
-                throw new Exception('Product not found');
-            }
         }
+
+        // If product_id not provided in POST, look it up from the unit row
+        if (!$product_id) {
+            $product_id = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT wc_product_id FROM {$inventory_unit_table} WHERE id = %d",
+                $unit_id
+            ));
+        }
+
+        $product = $product_id ? wc_get_product($product_id) : null;
+        if ($product) {
+            handle_stock_adjustment_based_on_status_change($existing_unit->status, $status, $product_id);
+        }
+        $wpdb->query('COMMIT');
+        wp_send_json_success(['message' => 'Status updated successfully.']);
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
         wp_send_json_error('Error: ' . $e->getMessage());
@@ -1220,7 +1277,9 @@ function watch_product_collection_changes($object_id, $terms, $tt_ids, $taxonomy
         global $wpdb;
         $units_table = $wpdb->prefix . 'mji_product_inventory_units';
         $unit_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT id FROM {$units_table} WHERE wc_product_id = %d",
+            "SELECT id FROM {$units_table}
+             WHERE wc_product_id = %d
+               AND status NOT IN ('sold','rtv')",
             $object_id
         ));
 
@@ -1547,6 +1606,7 @@ function migrate_product_collections()
         $brand = get_term($brand_id, 'product_brand');
         $brand = $brand->name;
         $brand_id = get_brand_model_id($brands_table, $brand);
+        if ($brand_id === false) continue;
 
         try {
             $wpdb->update(
