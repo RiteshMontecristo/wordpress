@@ -1212,7 +1212,7 @@ function mji_get_suppliers()
     return $brands;
 }
 
-function mji_suppliers_dropdown(bool $required = true)
+function mji_suppliers_dropdown(bool $required = true, int $selected = 0)
 {
     $suppliers = mji_get_suppliers();
     $required_attr = $required ? 'required' : '';
@@ -1221,7 +1221,7 @@ function mji_suppliers_dropdown(bool $required = true)
     <select id="supplierID" name="supplier_id" class="supplier-select" <?= $required_attr ?>>
         <option value="">Select or add supplier</option>
         <?php foreach ($suppliers as $supplier): ?>
-            <option value="<?= $supplier->id ?>"><?= esc_html($supplier->name) ?></option>
+            <option value="<?= $supplier->id ?>" <?= selected($supplier->id, $selected, false) ?>><?= esc_html($supplier->name) ?></option>
         <?php endforeach; ?>
     </select>
 
