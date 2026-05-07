@@ -75,7 +75,7 @@ add_action("woocommerce_single_product_summary", "price_container", 9);
 function custom_price_zero_message($price, $product)
 {
     $brand_name = get_brand_name();
-    if ($brand_name === 'Montecristo' || $brand_name == 'Mikimoto') {
+    if ($brand_name === 'Montecristo') {
         return;
     }
     if ($product->get_price() == 0) {
