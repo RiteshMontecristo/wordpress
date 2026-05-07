@@ -207,3 +207,24 @@
     gap: 8px;
     justify-content: flex-end;
 }
+
+/* ─── Readonly description ────────────────────────────────────────────────── */
+
+.items-readonly-editor {
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 12px 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    min-height: 60px;
+}
+
+.items-readonly-editor p { margin: 0 0 12px; }
+.items-readonly-editor p:last-child { margin-bottom: 0; }
+.items-readonly-editor h1,
+.items-readonly-editor h2,
+.items-readonly-editor h3 { margin: 0 0 8px; font-weight: 600; }
+.items-readonly-editor ul,
+.items-readonly-editor ol  { margin: 0 0 12px; padding-left: 20px; }
+.items-readonly-editor li  { margin-bottom: 4px; }

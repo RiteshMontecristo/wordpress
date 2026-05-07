@@ -12,9 +12,11 @@ function items_page(): void
         echo '<div class="notice notice-success is-dismissible"><p>Unit updated successfully.</p></div>';
     }
 
+
     $action_map = [
         'add'  => 'items_add_form',
         'edit' => 'items_edit_form',
+        'view' => 'items_view_form',
     ];
     $action = $_GET['action'] ?? '';
     if (isset($action_map[$action])) {
@@ -132,7 +134,10 @@ function items_list_view(): void
                             <td><?= esc_html($unit->serial ?? '—') ?></td>
                             <td><span class="items-status items-status--<?= esc_attr($unit->status) ?>"><?= esc_html($unit->status) ?></span></td>
                             <td class="items-actions">
+                                <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=view&id={$unit->id}")) ?>" class="button button-small">View</a>
+                                <?php if ($unit->status !== 'sold'): ?>
                                 <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=edit&id={$unit->id}")) ?>" class="button button-small">Edit</a>
+                                <?php endif; ?>
                                 <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=add&duplicate_from={$unit->id}")) ?>" class="button button-small">Duplicate</a>
                                 <?php if ($unit->status !== 'sold'): ?>
                                     <button class="button button-small button-link-delete items-delete-btn" data-id="<?= esc_attr($unit->id) ?>" data-sku="<?= esc_attr($unit->sku) ?>">Delete</button>
@@ -244,6 +249,11 @@ function items_edit_form(): void
         wp_die('Unit not found.');
     }
 
+    if ($unit->status === 'sold') {
+        wp_redirect(admin_url("admin.php?page=items-management&action=view&id={$id}"));
+        exit;
+    }
+
     // Handle POST
     if (isset($_POST['items_edit'])) {
         check_admin_referer('items_edit', 'items_nonce');
@@ -350,8 +360,93 @@ function items_edit_form(): void
 <?php
 }
 
+// ─── View form (read-only, all statuses) ─────────────────────────────────────
+function items_view_form(): void
+{
+    global $wpdb;
+
+    $id   = absint($_GET['id'] ?? 0);
+    $unit = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
+        $id
+    ));
+
+    if (!$unit) {
+        wp_die('Unit not found.');
+    }
+
+    $history = $wpdb->get_results($wpdb->prepare(
+        "SELECT ish.*, u.display_name AS changed_by
+         FROM {$wpdb->prefix}mji_inventory_status_history ish
+         LEFT JOIN {$wpdb->users} u ON u.ID = ish.changed_by_user_id
+         WHERE ish.inventory_unit_id = %d
+         ORDER BY ish.created_at ASC",
+        $id
+    ));
+
+    $wc_product_name = '';
+    if ($unit->wc_product_id) {
+        $product = wc_get_product($unit->wc_product_id);
+        if ($product) {
+            $wc_product_name = $product->get_name();
+        }
+    }
+
+    $back_url = esc_url(admin_url('admin.php?page=items-management'));
+?>
+    <div class="wrap items-management">
+        <h1>View Unit — <?= esc_html($unit->sku) ?></h1>
+        <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
+
+        <div class="items-form">
+            <?php items_render_form_fields($unit, false, $wc_product_name, true) ?>
+        </div>
+
+        <?php if (!empty($history)): ?>
+            <h2>Status History</h2>
+            <table class="wp-list-table widefat fixed striped items-history-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Notes</th>
+                        <th>Reference</th>
+                        <th>Changed by</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($history as $h): ?>
+                        <tr>
+                            <td><?= esc_html(date('Y-m-d H:i', strtotime($h->created_at))) ?></td>
+                            <td><?= esc_html($h->from_status ?? '—') ?></td>
+                            <td><?= esc_html($h->to_status) ?></td>
+                            <td><?= esc_html($h->notes ?? '—') ?></td>
+                            <td>
+                                <?php if ($h->reference_num): ?>
+                                    <a href="<?= esc_url(admin_url("admin.php?page=invoice-management&reference_num={$h->reference_num}")) ?>">
+                                        <?= esc_html($h->reference_num) ?>
+                                    </a>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
+                            <td><?= esc_html($h->changed_by ?? '—') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </div>
+<?php
+}
+
 function items_handle_update(int $id, string $old_status): void
 {
+    if ($old_status === 'sold') {
+        wp_die('Sold units cannot be edited.');
+    }
+
     global $wpdb;
 
     $data            = items_sanitize_form();
@@ -391,7 +486,7 @@ function items_handle_update(int $id, string $old_status): void
 }
 
 // ─── Shared form rendering ───────────────────────────────────────────────────
-function items_render_form_fields(?object $unit, bool $is_new, string $wc_product_name = ''): void
+function items_render_form_fields(?object $unit, bool $is_new, string $wc_product_name = '', bool $readonly = false): void
 {
     $sku            = $is_new ? '' : esc_attr($unit->sku ?? '');
     $serial         = $is_new ? '' : esc_attr($unit->serial ?? '');
@@ -418,6 +513,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
     $models    = mji_get_models();
     $suppliers = mji_get_suppliers();
 ?>
+    <?php if ($readonly): ?><fieldset disabled style="border:none;padding:0;margin:0;"><?php endif; ?>
     <div class="items-form-grid">
 
         <div class="items-form-section">
@@ -528,11 +624,15 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
             <div class="form-field">
                 <label for="description">Description</label>
-                <?php wp_editor($description, 'description', [
-                    'textarea_name' => 'description',
-                    'textarea_rows' => 10,
-                    'media_buttons' => false,
-                ]); ?>
+                <?php if ($readonly): ?>
+                    <div class="items-readonly-editor"><?= wp_kses_post(wpautop($description)) ?></div>
+                <?php else: ?>
+                    <?php wp_editor($description, 'description', [
+                        'textarea_name' => 'description',
+                        'textarea_rows' => 10,
+                        'media_buttons' => false,
+                    ]); ?>
+                <?php endif; ?>
             </div>
 
             <div class="form-field">
@@ -544,8 +644,10 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
                     <?php else: ?>
                         <img id="items-image-preview" src="" alt="" style="display:none;">
                     <?php endif; ?>
+                    <?php if (!$readonly): ?>
                     <button type="button" id="items-pick-image" class="button">Select Image</button>
                     <button type="button" id="items-remove-image" class="button" <?= $image_id ? '' : 'style="display:none;"' ?>>Remove</button>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -556,11 +658,15 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
             <div class="form-field">
                 <label for="wc_product_search">Product</label>
+                <?php if ($readonly): ?>
+                    <span><?= $wc_product_name ? esc_html($wc_product_name) : '—' ?></span>
+                <?php else: ?>
                 <input type="hidden" id="wc_product_id" name="wc_product_id" value="<?= $wc_product_id ?>">
                 <input type="text" id="wc_product_search" placeholder="Type to search products…" value="<?= esc_attr($wc_product_name) ?>" class="regular-text" autocomplete="off">
                 <div id="wc-product-results" class="items-wc-results" style="display:none;"></div>
                 <?php if ($wc_product_id): ?>
                     <button type="button" id="items-clear-wc" class="button">Unlink</button>
+                <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
@@ -597,6 +703,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
         </div>
 
     </div>
+    <?php if ($readonly): ?></fieldset><?php endif; ?>
 
 <?php
 }
