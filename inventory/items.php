@@ -407,6 +407,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
     $invoice_date   = esc_attr($unit->created_date ? date('Y-m-d', strtotime($unit->created_date)) : date('Y-m-d'));
     $name           = esc_attr($unit->name ?? '');
     $description    = $unit->description ?? '';
+    $notes          = $unit->notes ?? '';
     $image_id       = absint($unit->image_id ?? 0);
     $wc_product_id  = absint($unit->wc_product_id ?? 0);
 
@@ -509,6 +510,11 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
             <div class="form-field">
                 <label for="retail_price">Retail Price <span class="required">*</span></label>
                 <input type="number" id="retail_price" name="retail_price" value="<?= $retail_price ?>" step="0.01" min="0" class="regular-text" required>
+            </div>
+
+            <div class="form-field">
+                <label for="item_notes">Notes</label>
+                <textarea id="item_notes" name="item_notes" rows="3" class="regular-text"><?= esc_textarea($notes) ?></textarea>
             </div>
         </div>
 
@@ -832,6 +838,7 @@ function items_sanitize_form(): array
         'created_date'   => $created_date,
         'name'           => sanitize_text_field(wp_unslash($_POST['item_name'] ?? '')) ?: null,
         'description'    => wp_kses_post(wp_unslash($_POST['description'] ?? '')) ?: null,
+        'notes'          => sanitize_textarea_field(wp_unslash($_POST['item_notes'] ?? '')) ?: null,
         'image_id'       => $image_id ?: null,
         'wc_product_id'  => $wc_product_id ?: null,
     ];
@@ -854,6 +861,7 @@ function items_formats(array $data): array
         '%s', // created_date
         '%s', // name
         '%s', // description
+        '%s', // notes
         '%d', // image_id
         '%d', // wc_product_id
     ];
