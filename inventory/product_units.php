@@ -353,10 +353,12 @@ function render_inventory_units_meta_box(object $post)
     <?php
 }
 
-function generate_variation_dropdown($product, &$variation_name_by_id)
+function generate_variation_dropdown(WC_Product_Variable $product, array &$variation_name_by_id): array
 {
 
     $available_variations = $product->get_available_variations();
+    $first_retail_price   = 0;
+    $first_cost_price     = 0;
 
     $html = '<select id="variationID" name="new_variation_id" required>';
 
