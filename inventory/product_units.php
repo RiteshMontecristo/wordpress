@@ -198,8 +198,8 @@ function render_inventory_units_meta_box(object $post)
                     <td data-field="location" data-value="<?= esc_html($unit['location_id']) ?>" class="editable-cell">
                         <?= esc_html($location_name_by_id[$unit['location_id']]) ?></td>
                     <td>
-                        <button class="edit-unit button">Edit</button>
-                        <?= $unit['status'] != "sold" ? '<button class="edit-status button">Change Status</button>' : '' ?>
+                        <?= $unit['status'] !== 'sold' ? '<button class="edit-unit button">Edit</button>' : '' ?>
+                        <?= $unit['status'] !== 'sold' ? '<button class="edit-status button">Change Status</button>' : '' ?>
                         <button class="view-history button">View History</button>
                         <button class="delete-unit button">Delete</button>
                     </td>
@@ -588,6 +588,13 @@ function create_inventory_units()
         $wpdb->query('START TRANSACTION');
         // If unit id present then update else need to create product unit
         if ($unit_id) {
+            $current_status = $wpdb->get_var($wpdb->prepare(
+                "SELECT status FROM $table_name WHERE id = %d", $unit_id
+            ));
+            if ($current_status === 'sold') {
+                wp_send_json_error(['message' => 'Sold units cannot be edited.']);
+            }
+
             update_unit_sku($unit_id, $sku);
 
             $old_variant_id = $wpdb->get_var(
