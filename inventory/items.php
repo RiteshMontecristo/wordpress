@@ -380,7 +380,7 @@ function items_handle_update(int $id, string $old_status): void
     sync_product_collections($id, $collection_names);
     items_sync_wc_taxonomy((int) ($data['wc_product_id'] ?? 0), $collection_names);
     items_sync_wc_product((int) ($data['wc_product_id'] ?? 0), $data['name'], $data['description'], $data['retail_price'] ?? null, $data['model_id'] ?? null, $data['brand_id'] ?? null, $wc_variant_id);
-    items_sync_sibling_units($id, (int) ($data['wc_product_id'] ?? 0), $data, $collection_names);
+    items_sync_sibling_units($id, (int) ($data['wc_product_id'] ?? 0), $data, $collection_names, $wc_variant_id);
 
     if (!empty($data['wc_product_id']) && !empty($data['image_id'])) {
         update_post_meta((int) $data['wc_product_id'], '_thumbnail_id', (int) $data['image_id']);
@@ -597,7 +597,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
 // ─── Sibling unit sync ───────────────────────────────────────────────────────
 
-function items_sync_sibling_units(int $unit_id, int $wc_product_id, array $data, array $collection_names): void
+function items_sync_sibling_units(int $unit_id, int $wc_product_id, array $data, array $collection_names, ?int $wc_variant_id = null): void
 {
     if (!$wc_product_id) return;
 
@@ -605,14 +605,25 @@ function items_sync_sibling_units(int $unit_id, int $wc_product_id, array $data,
 
     $table = $wpdb->prefix . 'mji_product_inventory_units';
 
-    // Only sync active units — sold/rtv are frozen records
-    $sibling_ids = $wpdb->get_col($wpdb->prepare(
-        "SELECT id FROM {$table}
-         WHERE wc_product_id = %d AND id != %d
-           AND status NOT IN ('sold', 'rtv')",
-        $wc_product_id,
-        $unit_id
-    ));
+    // Only sync active units — sold/rtv are frozen records.
+    // For variant units, scope to the same variation so other variants' prices are not overwritten.
+    if ($wc_variant_id) {
+        $sibling_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM {$table}
+             WHERE wc_product_variant_id = %d AND id != %d
+               AND status NOT IN ('sold', 'rtv')",
+            $wc_variant_id,
+            $unit_id
+        ));
+    } else {
+        $sibling_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM {$table}
+             WHERE wc_product_id = %d AND id != %d
+               AND status NOT IN ('sold', 'rtv')",
+            $wc_product_id,
+            $unit_id
+        ));
+    }
 
     if (!$sibling_ids) return;
 
@@ -748,8 +759,9 @@ function items_sync_wc_product(
             }
             if ($retail_price !== null) $product->set_regular_price((string) $retail_price);
             $product->save();
-            // Write after save so WC doesn't overwrite it during the save lifecycle
-            update_post_meta($wc_product_id, '_variation_description', $description ?? '');
+            // Write after save so WC doesn't overwrite it during the save lifecycle.
+            // Must use $effective_id (the variation post), not the parent $wc_product_id.
+            update_post_meta($effective_id, '_variation_description', $description ?? '');
 
             // Brand lives on the parent product, not the variation
             $parent_id = $product->get_parent_id();
