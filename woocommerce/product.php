@@ -207,36 +207,26 @@ function change_sku_number_for_variant()
 <?php }
 }
 
-// Remove Add to cart from the list created here
-function my_blocked_products_list()
-{
-    return array(
-        'categories' => array('cammillifirenze', 'faberge', 'fullord', 'messika', 'mikimoto', 'montecristo', 'pomellato', 'roberto-coin', 'bellross', 'blancpain', 'breguet', 'corum', 'faberge-watches', 'girard-perregaux', 'glashutte-original', 'longines', 'mido', 'omega'), // change slugs
-        'product_ids' => array(),          // change IDs
-    );
-}
-
-/* ------------------------
- * SINGLE PRODUCT: buffer form output and strip the <button>
- * ------------------------ */
-add_action('woocommerce_before_add_to_cart_form', function () {
-    $blocked = my_blocked_products_list();
+// When a product is not purchasable, WooCommerce skips its stock HTML entirely.
+// Re-attach it just before the add-to-cart action so it always shows.
+add_action('woocommerce_single_product_summary', function () {
     global $product;
-    if (! $product) return;
-
-    if (has_term($blocked['categories'], 'product_cat', $product->get_id()) || in_array($product->get_id(), $blocked['product_ids'])) {
-        ob_start(); // start buffering the form output
-
-        add_action('woocommerce_after_add_to_cart_form', function () {
-            $buffer = ob_get_clean();
-
-            if (! $buffer) return;
-
-            // remove button elements that have class "add_to_cart" or "single_add_to_cart_button"
-            $buffer = preg_replace('#<button\b[^>]*(?:add_to_cart|single_add_to_cart_button)[^>]*>.*?</button>#is', '', $buffer);
-
-            // echo the cleaned form HTML back out
-            echo $buffer;
-        }, 999);
+    if ($product && !$product->is_purchasable()) {
+        echo wp_kses_post(wc_get_stock_html($product));
     }
-}, 1);
+}, 29);
+
+// Single product purchasability is controlled by the brand's "sellable online" flag.
+// Managed under Products > Brands in WP admin. No brand assigned = not purchasable.
+add_filter('woocommerce_is_purchasable', function (bool $purchasable, WC_Product $product): bool {
+    if (!$purchasable) {
+        return false;
+    }
+    $product_id    = $product->get_parent_id() ?: $product->get_id();
+    $brand_term_id = (int) get_post_meta($product_id, 'rank_math_primary_product_brand', true);
+    if (!$brand_term_id) {
+        return false;
+    }
+    $sellable = get_term_meta($brand_term_id, 'mji_sellable_online', true);
+    return $sellable === '1';
+}, 10, 2);

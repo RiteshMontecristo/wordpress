@@ -1079,3 +1079,41 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
 
     return $pre;
 }, 9, 3);
+
+// ─── Brand online-selling control ─────────────────────────────────────────────
+// Checkbox on Products > Brands term page.
+// Unchecking makes all products of that brand visible in the catalogue but not purchasable.
+
+add_action('product_brand_add_form_fields', function () {
+    ?>
+    <div class="form-field">
+        <label for="mji_sellable_online">Sellable online</label>
+        <input type="checkbox" id="mji_sellable_online" name="mji_sellable_online" value="1">
+        <p>Uncheck to hide the Add to Cart button for all products under this brand.</p>
+    </div>
+    <?php
+});
+
+add_action('product_brand_edit_form_fields', function (WP_Term $term) {
+    $meta    = get_term_meta($term->term_id, 'mji_sellable_online', true);
+    $checked = ($meta === '1') ? 'checked' : '';
+    ?>
+    <tr class="form-field">
+        <th scope="row"><label for="mji_sellable_online">Sellable online</label></th>
+        <td>
+            <input type="checkbox" id="mji_sellable_online" name="mji_sellable_online" value="1" <?= $checked ?>>
+            <p class="description">Uncheck to hide the Add to Cart button for all products under this brand.</p>
+        </td>
+    </tr>
+    <?php
+});
+
+function mji_save_brand_sellable(int $term_id): void {
+    if (!current_user_can('manage_woocommerce')) {
+        return;
+    }
+    update_term_meta($term_id, 'mji_sellable_online', isset($_POST['mji_sellable_online']) ? '1' : '0');
+}
+add_action('created_product_brand', 'mji_save_brand_sellable');
+add_action('edited_product_brand',  'mji_save_brand_sellable');
+
