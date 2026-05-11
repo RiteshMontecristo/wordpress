@@ -318,6 +318,8 @@
                                 </li>
                                 <li><a href="/our-story"><span>About Us</span></a></li>
                                 <li><a href="/contact"><span>Contact Us</span></a></li>
+                                <li><a href="/services"><span>Services</span></a></li>
+                                <li><a href="/blog"><span>Blogs</span></a></li>
                             </ul>
                         </div>
 
