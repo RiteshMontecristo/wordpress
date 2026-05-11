@@ -2,94 +2,6 @@
    Customer Management — page layout & components
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Store selection modal ───────────────────────────────────────────────── */
-
-.customer-store-modal {
-  text-align: center;
-  padding: 32px 28px;
-  min-width: 320px;
-}
-
-.customer-store-modal h2 {
-  margin: 0 0 6px;
-  font-size: 20px;
-}
-
-.customer-store-modal p {
-  color: #666;
-  margin: 0 0 24px;
-  font-size: 13px;
-}
-
-.store-btn-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.store-btn-group .store-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 15px;
-  padding: 12px 20px;
-  height: auto;
-  width: 100%;
-}
-
-.store-btn-group .store-btn .dashicons {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
-}
-
-/* ── Active store bar (top of page) ─────────────────────────────────────── */
-
-.customer-store-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #1d2327;
-  color: #fff;
-  padding: 10px 16px;
-  border-radius: 4px;
-  margin-bottom: 16px;
-}
-
-.store-bar-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-}
-
-.store-bar-info .dashicons {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
-  color: #7dc2f4;
-}
-
-.store-bar-label {
-  color: #aaa;
-}
-
-.customer-store-bar strong {
-  font-size: 15px;
-  color: #fff;
-}
-
-.customer-store-bar .button {
-  background: transparent;
-  border-color: #555;
-  color: #ddd;
-}
-
-.customer-store-bar .button:hover {
-  border-color: #999;
-}
-
 /* ── Page header (title + add button) ───────────────────────────────────── */
 
 .customer-page-header {
@@ -103,42 +15,6 @@
   margin: 0;
 }
 
-/* ── Search toolbar ──────────────────────────────────────────────────────── */
-
-.customer-toolbar {
-  margin-bottom: 16px;
-}
-
-.customer-search-form {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.search-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-input-wrap .dashicons {
-  position: absolute;
-  left: 9px;
-  color: #999;
-  font-size: 16px;
-  width: 16px;
-  height: 16px;
-  pointer-events: none;
-}
-
-.customer-search-input {
-  padding-left: 30px !important;
-  min-width: 260px;
-  height: 32px;
-  line-height: 1.4;
-}
-
 /* ── Customer table ─────────────────────────────────────────────────────── */
 
 .customer-management .wp-list-table th {
@@ -150,61 +26,6 @@
 
 .customer-management .wp-list-table td {
   vertical-align: middle;
-}
-
-/* ── Pagination ─────────────────────────────────────────────────────────── */
-
-.tablenav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.tablenav-pages {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.tablenav-pages .page-numbers {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  height: 30px;
-  padding: 0 6px;
-  border: 1px solid #c3c4c7;
-  border-radius: 3px;
-  background: #fff;
-  color: #2271b1;
-  text-decoration: none;
-  font-size: 13px;
-  line-height: 1;
-}
-
-.tablenav-pages .page-numbers:hover {
-  background: #f0f6fc;
-  border-color: #2271b1;
-}
-
-.tablenav-pages .page-numbers.current {
-  background: #2271b1;
-  border-color: #2271b1;
-  color: #fff;
-  font-weight: 600;
-  pointer-events: none;
-}
-
-.tablenav-pages .page-numbers.dots {
-  border: none;
-  background: none;
-  color: #888;
-  pointer-events: none;
-  min-width: 16px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

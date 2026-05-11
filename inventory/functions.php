@@ -1403,6 +1403,69 @@ function mji_insert_unit_history(
     ) !== false;
 }
 
+function mji_enqueue_admin_scripts(string $hook): void {
+    $dir  = get_stylesheet_directory_uri();
+    $path = get_stylesheet_directory();
+
+    // WC product edit page — only needs admin.css + inventory_unit.css
+    if (in_array($hook, ['post.php', 'post-new.php'], true)) {
+        $screen = get_current_screen();
+        if ($screen && $screen->post_type === 'product') {
+            wp_enqueue_script('admin-script', $dir . '/inventory/scripts/index.js', [], filemtime($path . '/inventory/scripts/index.js'), true);
+            wp_localize_script('admin-script', 'ajax_inventory', [
+                'ajax_url'            => admin_url('admin-ajax.php'),
+                'nonce'               => wp_create_nonce('mji_inventory_nonce'),
+                'placeholder_img_url' => wc_placeholder_img_src('thumbnail'),
+            ]);
+            wp_enqueue_style('admin-style',          $dir . '/inventory/styles/admin.css',          [], filemtime($path . '/inventory/styles/admin.css'));
+            wp_enqueue_style('inventory-unit-style', $dir . '/inventory/styles/inventory_unit.css', [], filemtime($path . '/inventory/styles/inventory_unit.css'));
+        }
+        return;
+    }
+
+    $inventory_hooks = [
+        'toplevel_page_inventory-management',
+        'sales_page_items-management',
+        'sales_page_customer-management',
+        'sales_page_salespeople-management',
+        'sales_page_invoice-management',
+        'sales_page_reports-management',
+    ];
+
+    if (!in_array($hook, $inventory_hooks, true)) return;
+
+    // JS — all inventory pages
+    wp_enqueue_script('zebra-printer',   $dir . '/inventory/scripts/printer/BrowserPrint-3.1.250.min.js',       [], '3.7',    true);
+    wp_enqueue_script('zebra-printer-2', $dir . '/inventory/scripts/printer/BrowserPrint-Zebra-1.1.250.min.js', [], '3.7',    true);
+    wp_enqueue_script('sheetjs',         'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js',   [], '0.18.7', true);
+    wp_enqueue_script('admin-script',    $dir . '/inventory/scripts/index.js', ['zebra-printer', 'zebra-printer-2', 'sheetjs'], filemtime($path . '/inventory/scripts/index.js'), true);
+    wp_localize_script('admin-script', 'ajax_inventory', [
+        'ajax_url'             => admin_url('admin-ajax.php'),
+        'nonce'                => wp_create_nonce('mji_inventory_nonce'),
+        'sales_css_url'        => $dir . '/inventory/styles/sales.css',
+        'find_invoice_css_url' => $dir . '/inventory/styles/find_invoice.css',
+        'placeholder_img_url'  => wc_placeholder_img_src('thumbnail'),
+    ]);
+
+    // Shared CSS — all inventory pages
+    wp_enqueue_style('admin-style', $dir . '/inventory/styles/admin.css', [], filemtime($path . '/inventory/styles/admin.css'));
+
+    // Page-specific CSS
+    $page_styles = [
+        'toplevel_page_inventory-management' => ['sales-style',    'sales.css'],
+        'sales_page_items-management'        => ['items-style',    'items.css'],
+        'sales_page_customer-management'     => ['customer-style', 'customer.css'],
+        'sales_page_invoice-management'      => ['find-style',     'find_invoice.css'],
+        'sales_page_reports-management'      => ['reports-style',  'reports.css'],
+    ];
+
+    if (isset($page_styles[$hook])) {
+        [$handle, $file] = $page_styles[$hook];
+        wp_enqueue_style($handle, $dir . '/inventory/styles/' . $file, ['admin-style'], filemtime($path . '/inventory/styles/' . $file));
+    }
+}
+add_action('admin_enqueue_scripts', 'mji_enqueue_admin_scripts');
+
 function format_label($input)
 {
     // Split by any non-alphanumeric characters

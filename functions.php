@@ -57,58 +57,6 @@ function my_load_scripts()
 }
 add_action('wp_enqueue_scripts', 'my_load_scripts');
 
-function enqueue_admin_scripts()
-{
-    // Zebra Browser Print
-    wp_enqueue_script(
-        'zebra-printer',
-        get_stylesheet_directory_uri() . '/inventory/scripts/printer/BrowserPrint-3.1.250.min.js',
-        array(),
-        '3.7',
-        true
-    );
-
-    wp_enqueue_script(
-        'zebra-printer-2',
-        get_stylesheet_directory_uri() . '/inventory/scripts/printer/BrowserPrint-Zebra-1.1.250.min.js',
-        array(),
-        '3.7',
-        true
-    );
-
-    // SheetJS library from CDN
-    wp_enqueue_script(
-        'sheetjs',
-        'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js',
-        array(),
-        '0.18.7',
-        true
-    );
-
-    wp_enqueue_script(
-        'admin-script',
-        get_stylesheet_directory_uri() . '/inventory/scripts/index.js',
-        array('zebra-printer', 'zebra-printer-2', 'sheetjs'),
-        '1.0.0',
-        true
-    );
-
-    wp_localize_script('admin-script', 'ajax_inventory', array(
-        'ajax_url'             => admin_url('admin-ajax.php'),
-        'nonce'                => wp_create_nonce('mji_inventory_nonce'),
-        'sales_css_url'        => get_stylesheet_directory_uri() . '/inventory/styles/sales.css',
-        'find_invoice_css_url' => get_stylesheet_directory_uri() . '/inventory/styles/find_invoice.css',
-        'placeholder_img_url'  => wc_placeholder_img_src('thumbnail'),
-    ));
-
-    wp_enqueue_style(
-        'admin-style',
-        get_stylesheet_directory_uri() . '/inventory/styles/admin.css',
-        array(),
-        '1.0.0'
-    );
-}
-add_action('admin_enqueue_scripts', 'enqueue_admin_scripts');
 
 // making the index.js to be a module type js
 function add_module_attribute($tag, $handle, $src)
