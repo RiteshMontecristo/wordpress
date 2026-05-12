@@ -24,6 +24,8 @@ function render_inventory_units_meta_box(object $post)
     $payments_table = $wpdb->prefix . 'mji_payments';
     $customers_table = $wpdb->prefix . 'mji_customers';
     $salespeople_table = $wpdb->prefix . 'mji_salespeople';
+    $models_table = $wpdb->prefix . 'mji_models';
+    $brands_table = $wpdb->prefix . 'mji_brands';
     $product_id = $post->ID;
     $is_variation = false;
     $location_name_by_id = [];
@@ -34,7 +36,11 @@ function render_inventory_units_meta_box(object $post)
 
     $units = $wpdb->get_results(
         $wpdb->prepare(
-            "SELECT * FROM $table_name WHERE wc_product_id = %d",
+            "SELECT u.*, m.name AS model_name, b.name AS brand_name
+             FROM $table_name u
+             LEFT JOIN $models_table m ON m.id = u.model_id
+             LEFT JOIN $brands_table b ON b.id = u.brand_id
+             WHERE u.wc_product_id = %d",
             $product_id
         ),
         ARRAY_A
@@ -161,10 +167,11 @@ function render_inventory_units_meta_box(object $post)
                         $old_sku_el .= $history["old_sku"] . "->";
                     }
                 }
-                // Convert to JSON string
                 $jsonHistory = json_encode($unit["status_history"]);
-                // Escape special HTML characters so quotes don't break the attribute
                 $escapedJson = htmlspecialchars($jsonHistory, ENT_QUOTES, 'UTF-8');
+
+                $unit_image_url = mji_get_unit_image_url($unit, 'medium');
+                $unit_desc = $unit['description'] ? str_replace('•', '<br />', $unit['description']) : '';
             ?>
                 <tr class="unit-row"
                     data-product-id="<?= esc_attr($product_id) ?>"
@@ -181,7 +188,13 @@ function render_inventory_units_meta_box(object $post)
                     data-true-cost="<?= esc_attr($unit['true_cost']) ?>"
                     data-retail-price="<?= esc_attr($unit['retail_price']) ?>"
                     data-notes="<?= esc_attr($unit['notes'] ?? '') ?>"
-                    data-history="<?= $escapedJson ?>">
+                    data-history="<?= $escapedJson ?>"
+                    data-model-name="<?= esc_attr($unit['model_name'] ?? '') ?>"
+                    data-brand-name="<?= esc_attr($unit['brand_name'] ?? '') ?>"
+                    data-spec-1="<?= esc_attr($unit['spec_1'] ?? '') ?>"
+                    data-spec-2="<?= esc_attr($unit['spec_2'] ?? '') ?>"
+                    data-image-url="<?= esc_attr($unit_image_url) ?>"
+                    data-description="<?= esc_attr($unit_desc) ?>">
 
                     <td data-field="sku" data-value="<?= esc_html($unit['sku']) ?>" class="editable-cell">
                         <?= $old_sku_el ?><?= esc_html($unit['sku']) ?></td>
@@ -201,6 +214,13 @@ function render_inventory_units_meta_box(object $post)
                         <?= $unit['status'] !== 'sold' ? '<button class="edit-unit button">Edit</button>' : '' ?>
                         <?= $unit['status'] !== 'sold' ? '<button class="edit-status button">Change Status</button>' : '' ?>
                         <button class="view-history button">View History</button>
+                        <div class="print-dropdown" style="display:inline-block;position:relative;">
+                            <button type="button" class="button print-dropdown-toggle">Print &#9660;</button>
+                            <div class="print-dropdown-menu" hidden style="position:absolute;z-index:100;background:#fff;border:1px solid #ccc;min-width:110px;">
+                                <button type="button" class="button print-zebra-tag" style="display:block;width:100%;text-align:left;">Zebra Tag</button>
+                                <button type="button" class="button print-card" style="display:block;width:100%;text-align:left;">Card</button>
+                            </div>
+                        </div>
                         <button class="delete-unit button">Delete</button>
                     </td>
                 </tr>
@@ -271,6 +291,16 @@ function render_inventory_units_meta_box(object $post)
                 <tr>
                     <th><label for="modal_retail_price">Retail Price</label></th>
                     <td><input type="number" step="0.01" id="modal_retail_price" name="retail_price" value="<?= $retail_price ?>" /></td>
+                </tr>
+
+                <tr>
+                    <th><label for="modal_spec_1">Spec 1</label></th>
+                    <td><input type="text" id="modal_spec_1" name="spec_1" /></td>
+                </tr>
+
+                <tr>
+                    <th><label for="modal_spec_2">Spec 2</label></th>
+                    <td><input type="text" id="modal_spec_2" name="spec_2" /></td>
                 </tr>
 
                 <tr>
@@ -512,7 +542,9 @@ function create_inventory_units()
     $true_cost = isset($_POST['true_cost']) ? floatval($_POST['true_cost']) : null;
     $cost_price = isset($_POST['cost_price']) ? floatval($_POST['cost_price']) : null;
     $retail_price = isset($_POST['retail_price']) ? floatval($_POST['retail_price']) : null;
-    $notes = isset($_POST['notes']) ? sanitize_textarea_field($_POST['notes']) : null; // nl2br(esc_html()) when outputting notes in HTML.
+    $notes   = isset($_POST['notes'])  ? sanitize_textarea_field($_POST['notes'])  : null;
+    $spec_1  = isset($_POST['spec_1']) ? sanitize_text_field($_POST['spec_1'])    : null;
+    $spec_2  = isset($_POST['spec_2']) ? sanitize_text_field($_POST['spec_2'])    : null;
     $supplier = isset($_POST['supplier']) ? sanitize_text_field($_POST['supplier']) : null;
 
     if (!$product_id)
@@ -586,6 +618,15 @@ function create_inventory_units()
         delete_transient('mji_suppliers');
     }
 
+    // Resolve image: variant thumbnail → product thumbnail → null
+    $image_id = null;
+    if ($variation_id) {
+        $image_id = (int) get_post_thumbnail_id($variation_id) ?: null;
+    }
+    if (!$image_id) {
+        $image_id = (int) get_post_thumbnail_id($product_id) ?: null;
+    }
+
     try {
         $wpdb->query('START TRANSACTION');
         // If unit id present then update else need to create product unit
@@ -606,20 +647,23 @@ function create_inventory_units()
             $result = $wpdb->update(
                 $table_name,
                 [
-                    'wc_product_id' => $product_id,
+                    'wc_product_id'        => $product_id,
                     'wc_product_variant_id' => $variation_id,
-                    'sku' => $sku,
-                    'serial' => $serial_number,
-                    'location_id' => $location_id,
-                    'invoice_number' => $invoice_number,
-                    'created_date' => $invoice_date,
-                    'true_cost' => $true_cost,
-                    'cost_price' => $cost_price,
-                    'retail_price' => $retail_price,
-                    'model_id' => $model_id,
-                    'brand_id' => $brand_id,
-                    'supplier_id' => $supplier_id,
-                    'notes' => $notes
+                    'sku'                  => $sku,
+                    'serial'               => $serial_number,
+                    'location_id'          => $location_id,
+                    'invoice_number'       => $invoice_number,
+                    'created_date'         => $invoice_date,
+                    'true_cost'            => $true_cost,
+                    'cost_price'           => $cost_price,
+                    'retail_price'         => $retail_price,
+                    'model_id'             => $model_id,
+                    'brand_id'             => $brand_id,
+                    'supplier_id'          => $supplier_id,
+                    'notes'                => $notes,
+                    'spec_1'               => $spec_1 ?: null,
+                    'spec_2'               => $spec_2 ?: null,
+                    'image_id'             => $image_id,
                 ],
                 ['id' => $unit_id],
             );
@@ -681,21 +725,24 @@ function create_inventory_units()
             $result = $wpdb->insert(
                 $table_name,
                 [
-                    'wc_product_id' => $product_id,
+                    'wc_product_id'        => $product_id,
                     'wc_product_variant_id' => $variation_id,
-                    'sku' => $sku,
-                    'serial' => $serial_number,
-                    'status' => "in_stock",
-                    'location_id' => $location_id,
-                    'invoice_number' => $invoice_number,
-                    'created_date' => $invoice_date,
-                    'true_cost' => $true_cost,
-                    'cost_price' => $cost_price,
-                    'retail_price' => $retail_price,
-                    'model_id' => $model_id,
-                    'brand_id' => $brand_id,
-                    'supplier_id' => $supplier_id,
-                    'notes' => $notes
+                    'sku'                  => $sku,
+                    'serial'               => $serial_number,
+                    'status'               => 'in_stock',
+                    'location_id'          => $location_id,
+                    'invoice_number'       => $invoice_number,
+                    'created_date'         => $invoice_date,
+                    'true_cost'            => $true_cost,
+                    'cost_price'           => $cost_price,
+                    'retail_price'         => $retail_price,
+                    'model_id'             => $model_id,
+                    'brand_id'             => $brand_id,
+                    'supplier_id'          => $supplier_id,
+                    'notes'                => $notes,
+                    'spec_1'               => $spec_1 ?: null,
+                    'spec_2'               => $spec_2 ?: null,
+                    'image_id'             => $image_id,
                 ]
             );
 

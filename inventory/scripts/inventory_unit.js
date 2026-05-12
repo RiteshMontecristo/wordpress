@@ -27,6 +27,8 @@ const retailPriceModal = inventoryUnitModal?.querySelector(
   "#modal_retail_price",
 );
 const notesModal = inventoryUnitModal?.querySelector("#modal_notes");
+const spec1Modal = inventoryUnitModal?.querySelector("#modal_spec_1");
+const spec2Modal = inventoryUnitModal?.querySelector("#modal_spec_2");
 
 // Status History Selectors
 const viewHistoryBtns = inventoryTable?.querySelectorAll("button.view-history");
@@ -82,6 +84,8 @@ saveModal?.addEventListener("click", (e) => {
   const costPrice = costPriceModal?.value || "";
   const retailPrice = retailPriceModal?.value || "";
   const notes = notesModal?.value || "";
+  const spec1 = spec1Modal.value || "";
+  const spec2 = spec2Modal.value || "";
 
   let errors = [];
   if (!productId) errors.push("Product ID is required.");
@@ -111,6 +115,8 @@ saveModal?.addEventListener("click", (e) => {
   formData.append("true_cost", trueCost);
   formData.append("cost_price", costPrice);
   formData.append("retail_price", retailPrice);
+  formData.append("spec_1", spec1);
+  formData.append("spec_2", spec2);
   serial && formData.append("serial", serial);
   notes && formData.append("notes", notes);
   variant && formData.append("variationID", variant);
@@ -235,6 +241,8 @@ editUnitBtn?.forEach((button) => {
       trueCost: tr.dataset.trueCost,
       retailPrice: tr.dataset.retailPrice,
       notes: tr.dataset.notes,
+      spec1: tr.dataset["spec-1"],
+      spec2: tr.dataset["spec-2"],
     };
 
     // Populate modal inputs
@@ -254,6 +262,8 @@ editUnitBtn?.forEach((button) => {
     trueCostModal.value = unitData.trueCost || "";
     retailPriceModal.value = unitData.retailPrice || "";
     notesModal.value = unitData.notes || "";
+    spec1Modal.value = unitData.spec1 || "";
+    spec2Modal.value = unitData.spec2 || "";
   });
 });
 
@@ -265,6 +275,8 @@ function resetModal() {
   supplierModal.value = "";
   invoiceNumberModal.value = "";
   notesModal.value = "";
+  spec1Modal.value = "";
+  spec2Modal.value = "";
 }
 
 // Edit status

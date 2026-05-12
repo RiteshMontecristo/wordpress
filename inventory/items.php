@@ -45,6 +45,8 @@ function items_list_view(): void
 
     $base_select = "
         SELECT DISTINCT piu.id, piu.sku, piu.name, piu.serial, piu.status, piu.created_date,
+            piu.retail_price, piu.spec_1, piu.spec_2, piu.image_id,
+            piu.wc_product_id, piu.wc_product_variant_id, piu.description,
             b.name AS brand_name, m.name AS model_name, l.name AS location_name
         FROM {$units_table} piu
         LEFT JOIN {$brands_table}      b  ON b.id  = piu.brand_id
@@ -110,7 +112,7 @@ function items_list_view(): void
         <?php if (empty($units)): ?>
             <p><?= $search ? 'No units found for that search.' : 'No units yet. Add your first unit above.' ?></p>
         <?php else: ?>
-            <table class="wp-list-table widefat fixed striped items-table">
+            <table id="items-list-table" class="wp-list-table widefat fixed striped items-table">
                 <thead>
                     <tr>
                         <th>SKU</th>
@@ -124,8 +126,18 @@ function items_list_view(): void
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($units as $unit): ?>
-                        <tr>
+                    <?php foreach ($units as $unit):
+                        $row_image_url = mji_get_unit_image_url($unit, 'medium');
+                    ?>
+                        <tr data-sku="<?= esc_attr($unit->sku) ?>"
+                            data-serial="<?= esc_attr($unit->serial ?? '') ?>"
+                            data-brand-name="<?= esc_attr($unit->brand_name ?? '') ?>"
+                            data-model-name="<?= esc_attr($unit->model_name ?? '') ?>"
+                            data-retail-price="<?= esc_attr($unit->retail_price ?? '0') ?>"
+                            data-spec-1="<?= esc_attr($unit->spec_1 ?? '') ?>"
+                            data-spec-2="<?= esc_attr($unit->spec_2 ?? '') ?>"
+                            data-image-url="<?= esc_attr($row_image_url) ?>"
+                            data-description="<?= esc_attr($unit->description ?? '') ?>">
                             <td><?= esc_html($unit->sku) ?></td>
                             <td><?= esc_html($unit->name ?? '—') ?></td>
                             <td><?= esc_html($unit->brand_name ?? '—') ?></td>
@@ -139,6 +151,13 @@ function items_list_view(): void
                                 <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=edit&id={$unit->id}")) ?>" class="button button-small">Edit</a>
                                 <?php endif; ?>
                                 <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=add&duplicate_from={$unit->id}")) ?>" class="button button-small">Duplicate</a>
+                                <div class="print-dropdown" style="display:inline-block;position:relative;">
+                                    <button type="button" class="button button-small print-dropdown-toggle">Print &#9660;</button>
+                                    <div class="print-dropdown-menu" hidden style="position:absolute;z-index:100;background:#fff;border:1px solid #ccc;min-width:110px;">
+                                        <button type="button" class="button print-zebra-tag" style="display:block;width:100%;text-align:left;">Zebra Tag</button>
+                                        <button type="button" class="button print-card" style="display:block;width:100%;text-align:left;">Card</button>
+                                    </div>
+                                </div>
                                 <?php if ($unit->status !== 'sold'): ?>
                                     <button class="button button-small button-link-delete items-delete-btn" data-id="<?= esc_attr($unit->id) ?>" data-sku="<?= esc_attr($unit->sku) ?>">Delete</button>
                                 <?php endif; ?>
@@ -241,7 +260,11 @@ function items_edit_form(): void
 
     $id   = absint($_GET['id'] ?? 0);
     $unit = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
+        "SELECT piu.*, b.name AS brand_name, m.name AS model_name
+         FROM {$wpdb->prefix}mji_product_inventory_units piu
+         LEFT JOIN {$wpdb->prefix}mji_brands b ON b.id = piu.brand_id
+         LEFT JOIN {$wpdb->prefix}mji_models m ON m.id = piu.model_id
+         WHERE piu.id = %d",
         $id
     ));
 
@@ -281,10 +304,30 @@ function items_edit_form(): void
     }
 
     $back_url = esc_url(admin_url('admin.php?page=items-management'));
+
+    $print_image_url = mji_get_unit_image_url($unit, 'medium');
 ?>
     <div class="wrap items-management">
         <h1>Edit Unit — <?= esc_html($unit->sku) ?></h1>
         <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
+        <div id="items-unit-print" style="display:inline-block;margin-left:8px;"
+             data-sku="<?= esc_attr($unit->sku) ?>"
+             data-serial="<?= esc_attr($unit->serial ?? '') ?>"
+             data-brand-name="<?= esc_attr($unit->brand_name ?? '') ?>"
+             data-model-name="<?= esc_attr($unit->model_name ?? '') ?>"
+             data-retail-price="<?= esc_attr($unit->retail_price ?? '0') ?>"
+             data-spec-1="<?= esc_attr($unit->spec_1 ?? '') ?>"
+             data-spec-2="<?= esc_attr($unit->spec_2 ?? '') ?>"
+             data-image-url="<?= esc_attr($print_image_url) ?>"
+             data-description="<?= esc_attr($unit->description ?? '') ?>">
+            <div class="print-dropdown" style="display:inline-block;position:relative;">
+                <button type="button" class="button print-dropdown-toggle">Print &#9660;</button>
+                <div class="print-dropdown-menu" hidden style="position:absolute;z-index:100;background:#fff;border:1px solid #ccc;min-width:110px;">
+                    <button type="button" class="button print-zebra-tag" style="display:block;width:100%;text-align:left;">Zebra Tag</button>
+                    <button type="button" class="button print-card" style="display:block;width:100%;text-align:left;">Card</button>
+                </div>
+            </div>
+        </div>
 
         <form method="post" class="items-form">
             <?php wp_nonce_field('items_edit', 'items_nonce') ?>
@@ -367,7 +410,11 @@ function items_view_form(): void
 
     $id   = absint($_GET['id'] ?? 0);
     $unit = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
+        "SELECT piu.*, b.name AS brand_name, m.name AS model_name
+         FROM {$wpdb->prefix}mji_product_inventory_units piu
+         LEFT JOIN {$wpdb->prefix}mji_brands b ON b.id = piu.brand_id
+         LEFT JOIN {$wpdb->prefix}mji_models m ON m.id = piu.model_id
+         WHERE piu.id = %d",
         $id
     ));
 
@@ -393,10 +440,30 @@ function items_view_form(): void
     }
 
     $back_url = esc_url(admin_url('admin.php?page=items-management'));
+
+    $print_image_url = mji_get_unit_image_url($unit, 'medium');
 ?>
     <div class="wrap items-management">
         <h1>View Unit — <?= esc_html($unit->sku) ?></h1>
         <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
+        <div id="items-unit-print" style="display:inline-block;margin-left:8px;"
+             data-sku="<?= esc_attr($unit->sku) ?>"
+             data-serial="<?= esc_attr($unit->serial ?? '') ?>"
+             data-brand-name="<?= esc_attr($unit->brand_name ?? '') ?>"
+             data-model-name="<?= esc_attr($unit->model_name ?? '') ?>"
+             data-retail-price="<?= esc_attr($unit->retail_price ?? '0') ?>"
+             data-spec-1="<?= esc_attr($unit->spec_1 ?? '') ?>"
+             data-spec-2="<?= esc_attr($unit->spec_2 ?? '') ?>"
+             data-image-url="<?= esc_attr($print_image_url) ?>"
+             data-description="<?= esc_attr($unit->description ?? '') ?>">
+            <div class="print-dropdown" style="display:inline-block;position:relative;">
+                <button type="button" class="button print-dropdown-toggle">Print &#9660;</button>
+                <div class="print-dropdown-menu" hidden style="position:absolute;z-index:100;background:#fff;border:1px solid #ccc;min-width:110px;">
+                    <button type="button" class="button print-zebra-tag" style="display:block;width:100%;text-align:left;">Zebra Tag</button>
+                    <button type="button" class="button print-card" style="display:block;width:100%;text-align:left;">Card</button>
+                </div>
+            </div>
+        </div>
 
         <div class="items-form">
             <?php items_render_form_fields($unit, false, $wc_product_name, true) ?>
@@ -503,6 +570,8 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
     $name           = esc_attr($unit->name ?? '');
     $description    = $unit->description ?? '';
     $notes          = $unit->notes ?? '';
+    $spec_1         = esc_attr($unit->spec_1 ?? '');
+    $spec_2         = esc_attr($unit->spec_2 ?? '');
     $image_id       = absint($unit->image_id ?? 0);
     $wc_product_id  = absint($unit->wc_product_id ?? 0);
 
@@ -611,6 +680,16 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
             <div class="form-field">
                 <label for="item_notes">Notes</label>
                 <textarea id="item_notes" name="item_notes" rows="3" class="regular-text"><?= esc_textarea($notes) ?></textarea>
+            </div>
+
+            <div class="form-field">
+                <label for="spec_1">Spec 1</label>
+                <input type="text" id="spec_1" name="spec_1" value="<?= $spec_1 ?>" class="regular-text">
+            </div>
+
+            <div class="form-field">
+                <label for="spec_2">Spec 2</label>
+                <input type="text" id="spec_2" name="spec_2" value="<?= $spec_2 ?>" class="regular-text">
             </div>
         </div>
 
@@ -946,6 +1025,8 @@ function items_sanitize_form(): array
         'name'           => sanitize_text_field(wp_unslash($_POST['item_name'] ?? '')) ?: null,
         'description'    => wp_kses_post(wp_unslash($_POST['description'] ?? '')) ?: null,
         'notes'          => sanitize_textarea_field(wp_unslash($_POST['item_notes'] ?? '')) ?: null,
+        'spec_1'         => sanitize_text_field(wp_unslash($_POST['spec_1'] ?? '')) ?: null,
+        'spec_2'         => sanitize_text_field(wp_unslash($_POST['spec_2'] ?? '')) ?: null,
         'image_id'       => $image_id ?: null,
         'wc_product_id'  => $wc_product_id ?: null,
     ];
@@ -969,6 +1050,8 @@ function items_formats(array $data): array
         '%s', // name
         '%s', // description
         '%s', // notes
+        '%s', // spec_1
+        '%s', // spec_2
         '%d', // image_id
         '%d', // wc_product_id
     ];
