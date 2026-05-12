@@ -28,6 +28,7 @@ function buildZpl(data) {
   const step = 26;
 
   lines.push("^LH60,22");
+  lines.push("^MD-8");
 
   // Left column
   let yL = 0;
