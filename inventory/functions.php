@@ -1,7 +1,7 @@
 <?php
 const GST_RATE = 0.05;
 const PST_RATE = 0.07;
-define('MJI_DB_VERSION', '1.1');
+define('MJI_DB_VERSION', '1.2');
 
 require_once get_stylesheet_directory() . '/inventory/print.php';
 require_once get_stylesheet_directory() . '/inventory/sales.php';
@@ -72,6 +72,10 @@ function mji_run_migrations()
 
     if (version_compare($installed, '1.1', '<')) {
         mji_migrate_1_1($wpdb);
+    }
+
+    if (version_compare($installed, '1.2', '<')) {
+        mji_migrate_1_2($wpdb);
     }
 
     update_option('mji_db_version', MJI_DB_VERSION);
@@ -235,6 +239,22 @@ function mji_migrate_1_1($wpdb)
     }
 
     custom_log('✅ Migration 1.1 completed.');
+}
+
+function mji_migrate_1_2($wpdb)
+{
+    $units_table = $wpdb->prefix . 'mji_product_inventory_units';
+
+    $wpdb->query("ALTER TABLE `{$units_table}`
+        ADD COLUMN IF NOT EXISTS `spec_1` VARCHAR(255) DEFAULT NULL,
+        ADD COLUMN IF NOT EXISTS `spec_2` VARCHAR(255) DEFAULT NULL");
+
+    if ($wpdb->last_error) {
+        custom_log('❌ Migration 1.2 failed: ' . $wpdb->last_error);
+        return;
+    }
+
+    custom_log('✅ Migration 1.2 completed.');
 }
 
 function create_customers_table()
@@ -1212,6 +1232,24 @@ function mji_get_suppliers()
     return $brands;
 }
 
+function mji_get_unit_image_url(object|array $unit, string $size = 'medium'): string {
+    $image_id      = is_array($unit) ? (int) ($unit['image_id'] ?? 0)      : (int) ($unit->image_id ?? 0);
+    $wc_product_id = is_array($unit) ? (int) ($unit['wc_product_id'] ?? 0) : (int) ($unit->wc_product_id ?? 0);
+
+    if ($image_id) {
+        $url = wp_get_attachment_image_url($image_id, $size);
+        if ($url) return $url;
+    }
+    if ($wc_product_id) {
+        $thumb_id = (int) get_post_thumbnail_id($wc_product_id);
+        if ($thumb_id) {
+            $url = wp_get_attachment_image_url($thumb_id, $size);
+            if ($url) return $url;
+        }
+    }
+    return '';
+}
+
 function mji_suppliers_dropdown(bool $required = true, int $selected = 0)
 {
     $suppliers = mji_get_suppliers();
@@ -1411,7 +1449,9 @@ function mji_enqueue_admin_scripts(string $hook): void {
     if (in_array($hook, ['post.php', 'post-new.php'], true)) {
         $screen = get_current_screen();
         if ($screen && $screen->post_type === 'product') {
-            wp_enqueue_script('admin-script', $dir . '/inventory/scripts/index.js', [], filemtime($path . '/inventory/scripts/index.js'), true);
+            wp_enqueue_script('zebra-printer',   $dir . '/inventory/scripts/printer/BrowserPrint-3.1.250.min.js',       [], '3.7', true);
+            wp_enqueue_script('zebra-printer-2', $dir . '/inventory/scripts/printer/BrowserPrint-Zebra-1.1.250.min.js', [], '3.7', true);
+            wp_enqueue_script('admin-script', $dir . '/inventory/scripts/index.js', ['zebra-printer', 'zebra-printer-2'], filemtime($path . '/inventory/scripts/index.js'), true);
             wp_localize_script('admin-script', 'ajax_inventory', [
                 'ajax_url'            => admin_url('admin-ajax.php'),
                 'nonce'               => wp_create_nonce('mji_inventory_nonce'),
