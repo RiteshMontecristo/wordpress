@@ -73,6 +73,7 @@ const searchInput = document.getElementById("wc_product_search");
 const hiddenInput = document.getElementById("wc_product_id");
 const resultsBox = document.getElementById("wc-product-results");
 const clearBtn = document.getElementById("items-clear-wc");
+const isAddForm = !!document.querySelector('[name="items_add"]');
 let debounceTimer;
 
 if (searchInput) {
@@ -120,8 +121,81 @@ async function fetchProducts(term) {
       searchInput.value = row.dataset.text;
       resultsBox.style.display = "none";
       if (clearBtn) clearBtn.style.display = "inline-block";
+      if (isAddForm) fetchWcFields(row.dataset.id);
     });
   });
+}
+
+async function fetchWcFields(productId) {
+  const body = new URLSearchParams({
+    action: "mji_get_wc_product_fields",
+    nonce,
+    product_id: productId,
+  });
+  const res = await fetch(ajax_url, { method: "POST", body });
+  const json = await res.json();
+  if (!json.success) return;
+  populateWcFields(json.data);
+}
+
+function populateWcFields(data) {
+  // Name
+  const nameInput = document.getElementById("item_name");
+  if (nameInput) {
+    nameInput.value = data.name ?? "";
+    nameInput.readOnly = true;
+    nameInput.style.background = "#f6f7f7";
+    nameInput.title = "Managed by WooCommerce — edit product in WC to change";
+  }
+
+  // Retail price
+  const priceInput = document.getElementById("retail_price");
+  if (priceInput) {
+    priceInput.value = data.price ?? "";
+    priceInput.readOnly = true;
+    priceInput.style.background = "#f6f7f7";
+    priceInput.title = "Managed by WooCommerce";
+  }
+
+  // Image preview (display only — image_id stays empty for add; set by items_sync_wc_to_units on save)
+  if (data.image_url) {
+    const preview = document.getElementById("items-image-preview");
+    if (preview) {
+      preview.src = data.image_url;
+      preview.style.display = "block";
+    }
+  }
+
+  // Brand and model — Select2 selects with tags:true.
+  // Find an existing option whose text matches, or add it as a new tag.
+  const $ = window.jQuery;
+  if ($) {
+    setSelect2Value("#brand_id", data.brand_name, $);
+    setSelect2Value("#model_id", data.model_name, $);
+  }
+}
+
+function setSelect2Value(selector, value, $) {
+  if (!value) return;
+  const $select = $(selector);
+  if (!$select.length) return;
+
+  // Check if an existing option already has this text
+  let matched = null;
+  $select.find("option").each(function () {
+    if ($(this).text().trim() === value.trim()) {
+      matched = $(this).val();
+      return false; // break
+    }
+  });
+
+  if (matched !== null) {
+    $select.val(matched).trigger("change");
+  } else {
+    // Add as a new tag (will be created on save via items_resolve_or_create)
+    const newOption = new Option(value, value, true, true);
+    $select.append(newOption).trigger("change");
+  }
 }
 
 if (clearBtn) {

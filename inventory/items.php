@@ -241,12 +241,10 @@ function items_handle_insert(): void
 
     $collection_names = array_map('sanitize_text_field', (array) ($_POST['collections'] ?? []));
     sync_product_collections($unit_id, $collection_names);
-    items_sync_wc_taxonomy($wc_product_id, $collection_names);
-    items_sync_wc_product($wc_product_id, $data['name'], $data['description'], $data['retail_price'] ?? null, $data['model_id'] ?? null, $data['brand_id'] ?? null);
-    items_sync_sibling_units($unit_id, $wc_product_id, $data, $collection_names);
 
     if ($wc_product_id) {
         wc_update_product_stock($wc_product_id, 1, 'increase');
+        items_sync_wc_to_units($wc_product_id);
     }
 
     wp_redirect(admin_url('admin.php?page=items-management&added=1'));
@@ -516,9 +514,29 @@ function items_handle_update(int $id, string $old_status): void
 
     global $wpdb;
 
-    $data            = items_sanitize_form();
-    $data['status']  = $old_status; // status only changes via the Change Status modal
-    $formats         = items_formats($data);
+    $old_unit = $wpdb->get_row($wpdb->prepare(
+        "SELECT wc_product_id, name, description, retail_price, brand_id, model_id, image_id
+         FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
+        $id
+    ));
+    $old_wc_product_id = (int) ($old_unit->wc_product_id ?? 0);
+
+    $data           = items_sanitize_form();
+    $data['status'] = $old_status; // status only changes via the Change Status modal
+
+    // The form renders WC-managed fields as read-only whenever the unit WAS linked,
+    // so those fields have no POST values. Restore from DB to prevent nulling them out.
+    // This covers: staying linked, and unlinking (next load shows editable fields with preserved values).
+    if ($old_wc_product_id && $old_unit) {
+        $data['name']         = $old_unit->name;
+        $data['description']  = $old_unit->description;
+        $data['retail_price'] = (float) $old_unit->retail_price;
+        $data['brand_id']     = $old_unit->brand_id;
+        $data['model_id']     = $old_unit->model_id;
+        $data['image_id']     = $old_unit->image_id;
+    }
+
+    $formats = items_formats($data);
 
     $result = $wpdb->update(
         "{$wpdb->prefix}mji_product_inventory_units",
@@ -533,20 +551,23 @@ function items_handle_update(int $id, string $old_status): void
         wp_die('Failed to update unit. Please go back and try again.');
     }
 
-    $wc_variant_id = (int) $wpdb->get_var($wpdb->prepare(
-        "SELECT wc_product_variant_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d",
-        $id
-    )) ?: null;
+    $new_wc_product_id = (int) ($data['wc_product_id'] ?? 0);
+
+    if ($old_status === 'in_stock' && $old_wc_product_id !== $new_wc_product_id) {
+        if ($old_wc_product_id) {
+            wc_update_product_stock($old_wc_product_id, 1, 'decrease');
+        }
+        if ($new_wc_product_id) {
+            wc_update_product_stock($new_wc_product_id, 1, 'increase');
+        }
+    }
+
+    if ($new_wc_product_id && $new_wc_product_id !== $old_wc_product_id) {
+        items_sync_wc_to_units($new_wc_product_id);
+    }
 
     $collection_names = array_map('sanitize_text_field', (array) ($_POST['collections'] ?? []));
     sync_product_collections($id, $collection_names);
-    items_sync_wc_taxonomy((int) ($data['wc_product_id'] ?? 0), $collection_names);
-    items_sync_wc_product((int) ($data['wc_product_id'] ?? 0), $data['name'], $data['description'], $data['retail_price'] ?? null, $data['model_id'] ?? null, $data['brand_id'] ?? null, $wc_variant_id);
-    items_sync_sibling_units($id, (int) ($data['wc_product_id'] ?? 0), $data, $collection_names, $wc_variant_id);
-
-    if (!empty($data['wc_product_id']) && !empty($data['image_id'])) {
-        update_post_meta((int) $data['wc_product_id'], '_thumbnail_id', (int) $data['image_id']);
-    }
 
     wp_redirect(admin_url("admin.php?page=items-management&action=edit&id={$id}&updated=1"));
     exit;
@@ -575,7 +596,13 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
     $image_id       = absint($unit->image_id ?? 0);
     $wc_product_id  = absint($unit->wc_product_id ?? 0);
 
-    $image_url = $image_id ? wp_get_attachment_image_url($image_id, 'thumbnail') : '';
+    $image_url  = $image_id ? wp_get_attachment_image_url($image_id, 'thumbnail') : '';
+    $brand_name = $is_new ? '' : esc_html($unit->brand_name ?? '');
+    $model_name = $is_new ? '' : esc_html($unit->model_name ?? '');
+
+    // When a unit is linked to a WC product, WC owns the presentation fields.
+    // Show them read-only so edits go through WC admin instead.
+    $wc_locked = !$is_new && $wc_product_id > 0;
 
     $locations = mji_get_locations();
     $brands    = mji_get_brands();
@@ -629,23 +656,31 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
             </div>
 
             <div class="form-field">
-                <label for="brand_id">Brand</label>
+                <label>Brand</label>
+                <?php if ($wc_locked): ?>
+                    <p class="description"><?= $brand_name ?: '—' ?></p>
+                <?php else: ?>
                 <select id="brand_id" name="brand_id" class="brand-select">
                     <option value="">— select or type to create —</option>
                     <?php foreach ($brands as $b): ?>
                         <option value="<?= esc_attr($b->id) ?>" <?= selected($b->id, $brand_id, false) ?>><?= esc_html($b->name) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <?php endif; ?>
             </div>
 
             <div class="form-field">
-                <label for="model_id">Model</label>
+                <label>Model</label>
+                <?php if ($wc_locked): ?>
+                    <p class="description"><?= $model_name ?: '—' ?></p>
+                <?php else: ?>
                 <select id="model_id" name="model_id" class="model-select">
                     <option value="">— select or type to create —</option>
                     <?php foreach ($models as $m): ?>
                         <option value="<?= esc_attr($m->id) ?>" <?= selected($m->id, $model_id, false) ?>><?= esc_html($m->name) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <?php endif; ?>
             </div>
 
             <div class="form-field">
@@ -673,8 +708,12 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
             </div>
 
             <div class="form-field">
-                <label for="retail_price">Retail Price <span class="required">*</span></label>
+                <label for="retail_price">Retail Price <?= $wc_locked ? '' : '<span class="required">*</span>' ?></label>
+                <?php if ($wc_locked): ?>
+                    <p class="description">$<?= number_format((float) $retail_price, 2) ?> <em>(set in WooCommerce)</em></p>
+                <?php else: ?>
                 <input type="number" id="retail_price" name="retail_price" value="<?= $retail_price ?>" step="0.01" min="0" class="regular-text" required>
+                <?php endif; ?>
             </div>
 
             <div class="form-field">
@@ -698,12 +737,16 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
             <div class="form-field">
                 <label for="item_name">Name</label>
+                <?php if ($wc_locked): ?>
+                    <p class="description"><?= esc_html($unit->name ?? '') ?: '—' ?></p>
+                <?php else: ?>
                 <input type="text" id="item_name" name="item_name" value="<?= $name ?>" class="regular-text">
+                <?php endif; ?>
             </div>
 
             <div class="form-field">
                 <label for="description">Description</label>
-                <?php if ($readonly): ?>
+                <?php if ($readonly || $wc_locked): ?>
                     <div class="items-readonly-editor"><?= wp_kses_post(wpautop($description)) ?></div>
                 <?php else: ?>
                     <?php wp_editor($description, 'description', [
@@ -723,7 +766,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
                     <?php else: ?>
                         <img id="items-image-preview" src="" alt="" style="display:none;">
                     <?php endif; ?>
-                    <?php if (!$readonly): ?>
+                    <?php if (!$readonly && !$wc_locked): ?>
                     <button type="button" id="items-pick-image" class="button">Select Image</button>
                     <button type="button" id="items-remove-image" class="button" <?= $image_id ? '' : 'style="display:none;"' ?>>Remove</button>
                     <?php endif; ?>
@@ -733,7 +776,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 
         <div class="items-form-section items-form-section--full">
             <h3>WooCommerce Product Link</h3>
-            <p class="description">Optional. Link this unit to a WooCommerce product for storefront display.</p>
+            <p class="description">Optional. Link this unit to a WooCommerce product for storefront display. When linked, name / price / description / image / brand / model are managed in WooCommerce.</p>
 
             <div class="form-field">
                 <label for="wc_product_search">Product</label>
@@ -745,6 +788,8 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
                 <div id="wc-product-results" class="items-wc-results" style="display:none;"></div>
                 <?php if ($wc_product_id): ?>
                     <button type="button" id="items-clear-wc" class="button">Unlink</button>
+                    <a href="<?= esc_url(admin_url('post.php?post=' . $wc_product_id . '&action=edit')) ?>"
+                       class="button" target="_blank">Edit in WooCommerce &rarr;</a>
                 <?php endif; ?>
                 <?php endif; ?>
             </div>
@@ -787,85 +832,9 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
 <?php
 }
 
-// ─── Sibling unit sync ───────────────────────────────────────────────────────
-
-function items_sync_sibling_units(int $unit_id, int $wc_product_id, array $data, array $collection_names, ?int $wc_variant_id = null): void
-{
-    if (!$wc_product_id) return;
-
-    global $wpdb;
-
-    $table = $wpdb->prefix . 'mji_product_inventory_units';
-
-    // Only sync active units — sold/rtv are frozen records.
-    // For variant units, scope to the same variation so other variants' prices are not overwritten.
-    if ($wc_variant_id) {
-        $sibling_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT id FROM {$table}
-             WHERE wc_product_variant_id = %d AND id != %d
-               AND status NOT IN ('sold', 'rtv')",
-            $wc_variant_id,
-            $unit_id
-        ));
-    } else {
-        $sibling_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT id FROM {$table}
-             WHERE wc_product_id = %d AND id != %d
-               AND status NOT IN ('sold', 'rtv')",
-            $wc_product_id,
-            $unit_id
-        ));
-    }
-
-    if (!$sibling_ids) return;
-
-    // ── Field update ─────────────────────────────────────────────────────────
-    $shared = [
-        'name'         => $data['name'],
-        'description'  => $data['description'],
-        'retail_price' => $data['retail_price'],
-        'brand_id'     => $data['brand_id'],
-        'model_id'     => $data['model_id'],
-        'image_id'     => $data['image_id'],
-    ];
-
-    $set_parts = [];
-    $values    = [];
-
-    foreach ($shared as $col => $val) {
-        if ($val === null) {
-            $set_parts[] = "`{$col}` = NULL";
-        } elseif ($col === 'retail_price') {
-            $set_parts[] = "`{$col}` = %f";
-            $values[]    = $val;
-        } elseif (in_array($col, ['brand_id', 'model_id', 'image_id'], true)) {
-            $set_parts[] = "`{$col}` = %d";
-            $values[]    = $val;
-        } else {
-            $set_parts[] = "`{$col}` = %s";
-            $values[]    = $val;
-        }
-    }
-
-    if ($set_parts) {
-        $id_placeholders = implode(',', array_fill(0, count($sibling_ids), '%d'));
-        $wpdb->query(
-            $wpdb->prepare(
-                "UPDATE {$table}
-                 SET " . implode(', ', $set_parts) . "
-                 WHERE id IN ({$id_placeholders})",
-                array_merge($values, $sibling_ids)
-            )
-        );
-    }
-
-    // ── Collection sync ───────────────────────────────────────────────────────
-    foreach ($sibling_ids as $sibling_id) {
-        sync_product_collections((int) $sibling_id, $collection_names);
-    }
-}
-
-// ─── WC product sync (items → WC) ────────────────────────────────────────────
+// ─── WC collection taxonomy sync ─────────────────────────────────────────────
+// items_sync_sibling_units() and items_sync_wc_product() have been removed.
+// WooCommerce is now the source of truth for name/price/description/image on linked units.
 
 function items_sync_wc_taxonomy(int $wc_product_id, array $collection_names): void
 {
@@ -891,95 +860,6 @@ function items_sync_wc_taxonomy(int $wc_product_id, array $collection_names): vo
     // Always call — passing [] clears all terms when every collection is removed
     wp_set_object_terms($wc_product_id, $term_ids, 'collection');
     wc_delete_product_transients($wc_product_id);
-}
-
-function items_sync_wc_product(
-    int $wc_product_id,
-    ?string $name,
-    ?string $description,
-    ?float $retail_price,
-    ?int $model_id,
-    ?int $brand_id,
-    ?int $wc_variant_id = null
-): void {
-    if (!$wc_product_id) return;
-
-    $effective_id = ($wc_variant_id && $wc_variant_id > 0) ? $wc_variant_id : $wc_product_id;
-    $product = wc_get_product($effective_id);
-    if (!$product) return;
-
-    $is_variation = $product->get_type() === 'variation';
-
-    global $wpdb;
-
-    // Model name becomes the WC SKU
-    $model_name = $model_id
-        ? $wpdb->get_var($wpdb->prepare("SELECT name FROM {$wpdb->prefix}mji_models WHERE id = %d", $model_id))
-        : null;
-
-    // Resolve brand to a product_brand term ID
-    $brand_term_id = null;
-    if ($brand_id) {
-        $brand_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM {$wpdb->prefix}mji_brands WHERE id = %d", $brand_id));
-        if ($brand_name) {
-            $existing = term_exists($brand_name, 'product_brand');
-            if ($existing) {
-                $brand_term_id = (int) $existing['term_id'];
-            } else {
-                $result = wp_insert_term($brand_name, 'product_brand');
-                if (!is_wp_error($result)) {
-                    $brand_term_id = (int) $result['term_id'];
-                }
-            }
-        }
-    }
-
-    // Unhook everything that could corrupt data on a programmatic save
-    remove_action('woocommerce_update_product',           'items_sync_wc_to_units');
-    remove_action('woocommerce_update_product_variation', 'items_sync_wc_to_units');
-    remove_action('save_post_product',                    'watch_simple_product_changes', 20);
-
-    try {
-        if ($is_variation) {
-            if ($model_name !== null) {
-                $parent_id  = $product->get_parent_id();
-                $parent     = $parent_id ? wc_get_product($parent_id) : null;
-                $parent_sku = $parent ? $parent->get_sku() : '';
-                if ($model_name !== $parent_sku) {
-                    $product->set_sku($model_name);
-                }
-            }
-            if ($retail_price !== null) $product->set_regular_price((string) $retail_price);
-            $product->save();
-            // Write after save so WC doesn't overwrite it during the save lifecycle.
-            // Must use $effective_id (the variation post), not the parent $wc_product_id.
-            update_post_meta($effective_id, '_variation_description', $description ?? '');
-
-            // Brand lives on the parent product, not the variation
-            $parent_id = $product->get_parent_id();
-            if ($parent_id && $brand_term_id) {
-                wp_set_object_terms($parent_id, [$brand_term_id], 'product_brand');
-                update_post_meta($parent_id, 'rank_math_primary_product_brand', $brand_term_id);
-                wc_delete_product_transients($parent_id);
-            }
-        } else {
-            if ($name !== null) $product->set_name($name);
-            if ($description !== null) $product->set_short_description($description);
-            if ($retail_price !== null) $product->set_regular_price((string) $retail_price);
-            if ($model_name !== null) $product->set_sku($model_name);
-            $product->save();
-
-            if ($brand_term_id) {
-                wp_set_object_terms($wc_product_id, [$brand_term_id], 'product_brand');
-                update_post_meta($wc_product_id, 'rank_math_primary_product_brand', $brand_term_id);
-                wc_delete_product_transients($wc_product_id);
-            }
-        }
-    } finally {
-        add_action('woocommerce_update_product',           'items_sync_wc_to_units');
-        add_action('woocommerce_update_product_variation', 'items_sync_wc_to_units');
-        add_action('save_post_product',                    'watch_simple_product_changes', 20, 3);
-    }
 }
 
 // ─── Sanitize / format helpers ───────────────────────────────────────────────
@@ -1126,6 +1006,37 @@ function items_ajax_search_wc_products(): void
 }
 add_action('wp_ajax_mji_search_wc_products', 'items_ajax_search_wc_products');
 
+// ─── Fetch WC product fields for add-form auto-populate ──────────────────────
+function items_ajax_get_wc_product_fields(): void
+{
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Unauthorized');
+    }
+
+    $product_id = absint($_POST['product_id'] ?? 0);
+    $product    = wc_get_product($product_id);
+    if (!$product) {
+        wp_send_json_error('Product not found');
+    }
+
+    $brand_name = '';
+    $terms = get_the_terms($product_id, 'product_brand');
+    if ($terms && !is_wp_error($terms)) {
+        $brand_name = $terms[0]->name;
+    }
+
+    wp_send_json_success([
+        'name'        => $product->get_name(),
+        'description' => $product->get_short_description(),
+        'price'       => $product->get_regular_price(),
+        'image_url'   => get_the_post_thumbnail_url($product_id, 'thumbnail') ?: '',
+        'brand_name'  => $brand_name,
+        'model_name'  => $product->get_sku(), // model name is stored as WC SKU
+    ]);
+}
+add_action('wp_ajax_mji_get_wc_product_fields', 'items_ajax_get_wc_product_fields');
+
 // ─── WC → units sync ─────────────────────────────────────────────────────────
 function items_sync_wc_to_units(int $product_id): void
 {
@@ -1167,6 +1078,47 @@ function items_sync_wc_to_units(int $product_id): void
         $values[]    = $image_id;
     } else {
         $set_parts[] = '`image_id` = NULL';
+    }
+
+    // Resolve brand_id from product_brand taxonomy.
+    // For variations, brand lives on the parent product.
+    $brand_post_id = $is_variation ? $product->get_parent_id() : $product_id;
+    $brand_terms   = get_the_terms($brand_post_id, 'product_brand');
+    if ($brand_terms && !is_wp_error($brand_terms)) {
+        $brand_name = sanitize_text_field($brand_terms[0]->name);
+        if ($brand_name !== '') {
+            $brand_id = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}mji_brands WHERE name = %s LIMIT 1",
+                $brand_name
+            ));
+            if (!$brand_id) {
+                $wpdb->insert("{$wpdb->prefix}mji_brands", ['name' => $brand_name], ['%s']);
+                $brand_id = (int) $wpdb->insert_id;
+                delete_transient('mji_brands');
+            }
+            if ($brand_id) {
+                $set_parts[] = '`brand_id` = %d';
+                $values[]    = $brand_id;
+            }
+        }
+    }
+
+    // Resolve model_id from WC SKU (model name is stored as the WC product SKU).
+    $sku = sanitize_text_field($product->get_sku());
+    if ($sku !== '') {
+        $model_id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}mji_models WHERE name = %s LIMIT 1",
+            $sku
+        ));
+        if (!$model_id) {
+            $wpdb->insert("{$wpdb->prefix}mji_models", ['name' => $sku], ['%s']);
+            $model_id = (int) $wpdb->insert_id;
+            delete_transient('mji_models');
+        }
+        if ($model_id) {
+            $set_parts[] = '`model_id` = %d';
+            $values[]    = $model_id;
+        }
     }
 
     if (!$set_parts) return;
