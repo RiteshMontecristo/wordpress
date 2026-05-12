@@ -3,7 +3,6 @@ const GST_RATE = 0.05;
 const PST_RATE = 0.07;
 define('MJI_DB_VERSION', '1.2');
 
-require_once get_stylesheet_directory() . '/inventory/print.php';
 require_once get_stylesheet_directory() . '/inventory/sales.php';
 require_once get_stylesheet_directory() . '/inventory/customer.php';
 require_once get_stylesheet_directory() . '/inventory/salespeople.php';
