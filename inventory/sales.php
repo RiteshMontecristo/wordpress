@@ -794,7 +794,7 @@ function searchProducts()
     $sku_history_table = $wpdb->prefix . 'mji_product_sku_history';
 
     $query = $wpdb->prepare("
-            SELECT u.id, u.wc_product_id, u.wc_product_variant_id, u.sku, u.retail_price, u.location_id, u.status, u.serial
+            SELECT u.id, u.wc_product_id, u.wc_product_variant_id, u.sku, u.retail_price, u.location_id, u.status, u.serial, u.name, u.image_id
             FROM {$table_name} AS u
             LEFT JOIN {$sku_history_table} AS h
             ON h.unit_id = u.id
@@ -810,13 +810,29 @@ function searchProducts()
         $sku = $result->sku;
         $status = $result->status;
         $serial = $result->serial;
+        $name = $result->name;
+        $image_url = mji_get_unit_image_url($result, "thumbnail");
         $variation_detail = "";
 
         $product = wc_get_product($product_id);
         $price = $result->retail_price;
 
         if (!$product) {
-            wp_send_json_error(array("message" => "Product not found"));
+            $response_data = array(
+                'unit_id' => $unit_id,
+                'product_id' => $product_id,
+                'product_variant_id' => $product_variant_id,
+                'location_id' => $location_id,
+                'title' => $name,
+                'image_url' => esc_url($image_url),
+                'sku' => $sku,
+                'status' => $status,
+                'serial' => $serial,
+                'variation_detail' => $variation_detail,
+                'price' => $price
+            );
+
+            wp_send_json_success($response_data);
         }
 
         if ($product->is_type('variable')) {
@@ -833,7 +849,7 @@ function searchProducts()
             'product_variant_id' => $product_variant_id,
             'location_id' => $location_id,
             'title' => get_the_title($product_id),
-            'image_url' => esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($product_id), 'thumbnail')),
+            'image_url' => esc_url($image_url),
             'sku' => $sku,
             'status' => $status,
             'serial' => $serial,
@@ -1192,30 +1208,22 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                     throw new RuntimeException("Failed to update inventory for {$item->title}: " . $wpdb->last_error);
                 }
 
-                // UPDATE WOOCOMMERCE STOCK 
+                // UPDATE WOOCOMMERCE STOCK
                 $product_id = $item->product_variant_id ?: $item->product_id;
-                $product = wc_get_product($product_id);
-
-                if (!$product) {
-                    throw new RuntimeException("WooCommerce product not found for {$item->title}");
+                if ($product_id) {
+                    $product = wc_get_product($product_id);
+                    if (!$product) {
+                        throw new RuntimeException("WooCommerce product not found for {$item->title}");
+                    }
+                    if ($product->get_stock_quantity() === null) {
+                        throw new RuntimeException("WooCommerce stock is not managed for {$item->title} — enable stock management in WooCommerce first.");
+                    }
+                    $result = wc_update_product_stock($product_id, 1, 'decrease');
+                    if ($result === false) {
+                        throw new RuntimeException("Failed to decrease WooCommerce stock for {$item->title} (ID: {$product_id}).");
+                    }
+                    $deducted_stock[] = $product_id;
                 }
-
-                $current_stock = $product->get_stock_quantity();
-
-                if ($current_stock === null) {
-                    throw new RuntimeException("WooCommerce stock is not managed for {$item->title}");
-                }
-
-                if ($current_stock <= 0) {
-                    throw new RuntimeException("WooCommerce stock is already 0 for {$item->title}");
-                }
-
-                $qty_to_deduct = 1;
-                $result = wc_update_product_stock($product_id, $qty_to_deduct, 'decrease');
-                if ($result === false) {
-                    throw new RuntimeException("Failed to decrease WooCommerce stock for {$item->title} (ID: {$product_id}).");
-                }
-                $deducted_stock[] = $product_id;
             } else {
                 throw new RuntimeException("Item {$item->title} is already sold or is reserved.");
             }
@@ -1239,15 +1247,6 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 
         $wpdb->query('COMMIT');
     } catch (Exception $e) {
-
-        // restore WooCommerce stock
-        foreach ($deducted_stock as $product_id) {
-            $product = wc_get_product($product_id);
-            if ($product) {
-                $product->set_stock_quantity($product->get_stock_quantity() + 1);
-                $product->save();
-            }
-        }
         custom_log($e->getMessage());
         $wpdb->query('ROLLBACK');
         wp_send_json_error(['message' => $e->getMessage()]);
@@ -1288,15 +1287,19 @@ function finalizeSale()
 
     insert_order_and_items($order_data, $items_data, $services_data, $payments, $location_id);
 
-    foreach ($items_data as $item) {
-
-        $wc_id = $item->product_id;
-        $product = wc_get_product($wc_id);
-
-        if ($item->product_variant_id) {
-            $item->description = $product->get_description();
-        } else {
-            $item->description = $product->get_short_description();
+    if (!empty($items_data)) {
+        global $wpdb;
+        $unit_ids     = array_map(fn($item) => (int) $item->unit_id, $items_data);
+        $placeholders = implode(',', array_fill(0, count($unit_ids), '%d'));
+        $rows         = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT id, description FROM {$wpdb->prefix}mji_product_inventory_units WHERE id IN ($placeholders)",
+                $unit_ids
+            )
+        );
+        $desc_map = array_column($rows, 'description', 'id');
+        foreach ($items_data as $item) {
+            $item->description = $desc_map[$item->unit_id] ?? '';
         }
     }
 

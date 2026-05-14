@@ -232,6 +232,8 @@ function reports_get_sales_results()
                     pi.wc_product_variant_id AS product_variant_id,
                     pi.sku AS sku,
                     pi.serial AS serial,
+                    pi.name AS unit_name,
+                    pi.image_id AS unit_image_id,
                     m.name AS model_name,
                     pi.location_id,
                     pi.brand_id,
@@ -298,6 +300,8 @@ function reports_get_sales_results()
                     NULL AS product_variant_id,
                     category AS sku,
                     NULL AS serial,
+                    NULL AS unit_name,
+                    NULL AS unit_image_id,
                     NULL AS model_name,
                     NULL AS location_id,
                     NULL AS brand_id,
@@ -492,15 +496,21 @@ function reports_render_sales_report($results)
 
             // Prefer variant over base product
             $product_id = $row->product_variant_id ?: $row->product_id;
-            $product = wc_get_product($product_id);
-            $image = $product->get_image([50, 50]);
-            $name = $product->get_name();
+            $product = $product_id ? wc_get_product($product_id) : null;
 
-            if ($product->is_type('variation')) {
-                $parent = wc_get_product($product->get_parent_id());
-                if ($parent) {
-                    $name = $parent->get_name() . ' - ' . wc_get_formatted_variation($product, true);
+            if ($product) {
+                $image = $product->get_image([50, 50]);
+                $name  = $product->get_name();
+                if ($product->is_type('variation')) {
+                    $parent = wc_get_product($product->get_parent_id());
+                    if ($parent) {
+                        $name = $parent->get_name() . ' - ' . wc_get_formatted_variation($product, true);
+                    }
                 }
+            } else {
+                $unit_img_url = mji_get_unit_image_url((object)['image_id' => $row->unit_image_id, 'wc_product_id' => $row->product_id], 'thumbnail');
+                $image        = '<img src="' . esc_url($unit_img_url) . '" width="50" height="50">';
+                $name         = esc_html($row->unit_name ?? $row->sku ?? '');
             }
 
             echo '<tr>';
@@ -713,6 +723,9 @@ function reports_get_inventory_result()
             i.wc_product_variant_id,
             i.sku,
             i.serial,
+            i.name,
+            i.description,
+            i.image_id,
             i.cost_price,
             i.retail_price,
             m.name AS model_name,
@@ -826,7 +839,6 @@ function reports_render_inventory_report($results)
         return;
     }
 
-    global $wpdb;
     $all_rows = $results['rows'];
     $start_date = $results['start_date'];
     $end_date = $results['end_date'];
@@ -834,7 +846,6 @@ function reports_render_inventory_report($results)
     $total_count = 0;
     $total_cost_price = 0;
     $total_retail_price = 0;
-    $missing_count = 0;
 
     if (!empty($results['location'])) {
         $store_locations = mji_get_locations();
@@ -869,69 +880,7 @@ function reports_render_inventory_report($results)
             </tr></thead>';
     echo '<tbody>';
 
-    $all_product_ids = [];
     foreach ($all_rows as $row) {
-        $all_product_ids[] = (int) $row->wc_product_id;
-        if (!empty($row->wc_product_variant_id)) {
-            $all_product_ids[] = (int) $row->wc_product_variant_id;
-        }
-    }
-    $all_product_ids = array_unique($all_product_ids);
-
-    // Batch fetch product title, description, excerpt, and thumbnail from wp_posts/wp_postmeta.
-    // One query for all products — avoids wc_get_product() object instantiation per row.
-    $product_data_map = [];
-    $image_id_map     = [];
-    if (!empty($all_product_ids)) {
-        $safe_ids     = implode(',', array_map('absint', $all_product_ids));
-        $product_rows = $wpdb->get_results(
-            "SELECT p.ID, p.post_title, p.post_content, p.post_excerpt,
-                    pm.meta_value AS thumbnail_id,
-                    pm2.meta_value AS variation_description
-             FROM {$wpdb->posts} p
-             LEFT JOIN {$wpdb->postmeta} pm
-                    ON pm.post_id = p.ID AND pm.meta_key = '_thumbnail_id'
-             LEFT JOIN {$wpdb->postmeta} pm2
-                    ON pm2.post_id = p.ID AND pm2.meta_key = '_variation_description'
-             WHERE p.ID IN ($safe_ids)"
-        );
-        foreach ($product_rows as $pr) {
-            $product_data_map[(int) $pr->ID] = $pr;
-            if ($pr->thumbnail_id) {
-                $image_id_map[(int) $pr->ID] = (int) $pr->thumbnail_id;
-            }
-        }
-    }
-
-    // Pre-build image URL map. Prime attachment caches for the (smaller) set of
-    // unique images only, then resolve URLs once outside the render loop.
-    $image_url_map   = [];
-    $placeholder_img = wc_placeholder_img([50, 50]);
-    $att_ids         = array_unique(array_values($image_id_map));
-    if (!empty($att_ids)) {
-        _prime_post_caches($att_ids, false, false);
-        update_meta_cache('post', $att_ids);
-        foreach ($att_ids as $aid) {
-            $url = wp_get_attachment_image_url($aid, 'woocommerce_gallery_thumbnail');
-            if ($url) {
-                $image_url_map[$aid] = $url;
-            }
-        }
-    }
-
-    // Cache wp_kses_post() results keyed by product_id — many inventory units
-    // share the same wc_product_id so we avoid re-running the sanitizer per row.
-    $desc_cache = [];
-
-    foreach ($all_rows as $row) {
-        $product_id   = (int) ($row->wc_product_variant_id ?: $row->wc_product_id);
-        $product_data = $product_data_map[$product_id] ?? null;
-
-        if (!$product_data) {
-            $missing_count++;
-            continue;
-        }
-
         $events = json_decode($row->events);
         $sku = $row->sku;
         $model = $row->model_name ?: '';
@@ -944,23 +893,9 @@ function reports_render_inventory_report($results)
         $total_cost_price += $cost_price;
         $total_retail_price += $retail_price;
 
-        if (!isset($desc_cache[$product_id])) {
-            $raw = $row->wc_product_variant_id
-                ? $product_data->variation_description
-                : $product_data->post_excerpt;
-            $desc_cache[$product_id] = wp_kses_post(nl2br((string) $raw));
-        }
-        $desc = $desc_cache[$product_id];
-
-        $att_id = $image_id_map[$product_id] ?? null;
-        // Variant with no image set — fall back to parent product's image.
-        if (!$att_id && $row->wc_product_variant_id) {
-            $att_id = $image_id_map[(int) $row->wc_product_id] ?? null;
-        }
-        $image_url = ($att_id && isset($image_url_map[$att_id]))
-            ? $image_url_map[$att_id]
-            : '';
-        $img = empty($image_url) ? $placeholder_img : '<img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($image_url) . '" alt="' . esc_attr($product_data->post_title) . '">';
+        $desc    = wp_kses_post(nl2br((string) ($row->description ?? '')));
+        $img_url = mji_get_unit_image_url($row, 'woocommerce_gallery_thumbnail');
+        $img     = '<img style="height:150px; width:150px; object-fit:cover;" src="' . esc_url($img_url) . '" alt="' . esc_attr($row->name ?? $sku) . '">';
 
         echo '<tr>';
         echo '<td>' . $img . '</td>';
@@ -1026,12 +961,6 @@ function reports_render_inventory_report($results)
 
     echo '</div>'; // end report div
 
-    // Missing products notice
-    if ($missing_count > 0) {
-        echo '<div class="notice notice-error" style="margin-top:10px;">
-                <p>Missing ' . $missing_count . ' products. Need to investigate!</p>
-              </div>';
-    }
 
     echo '</div>'; // end container
 }

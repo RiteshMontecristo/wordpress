@@ -46,14 +46,14 @@ function find_page()
             </a>
         </h2>
 
-        <?= render_search_section() ?>
+        <?php render_search_section(); ?>
     </div>
 
 <?php
 }
 
 // Reports sales Section
-function render_search_section()
+function render_search_section(): void
 {
     echo '<hr>';
     $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'sales';
@@ -229,13 +229,16 @@ function reports_search_sales_results($reference_num)
 
         $order_id = $order->id;
         $items = $wpdb->get_results($wpdb->prepare("
-            SELECT 
+            SELECT
                 oi.*,
                 inv.sku,
                 inv.wc_product_id,
                 inv.wc_product_variant_id,
                 inv.serial,
                 inv.notes,
+                inv.name,
+                inv.description,
+                inv.image_id,
                 m.name as model_name
             FROM {$order_items_table} oi
             LEFT JOIN {$inventory_table} inv ON inv.id = oi.product_inventory_unit_id
@@ -328,29 +331,14 @@ function render_invoice($results)
                             <tr>
                                 <td>
                                     <?php
-                                    $product_id = $item->wc_product_variant_id ?: $item->wc_product_id;
-                                    $is_variant = empty($item->wc_product_variant_id) ? false : true;
-                                    $product = wc_get_product($product_id);
-                                    $description = "";
+                                    $item->display_name = $item->name ?? '';
+                                    $item->image_url    = esc_url(mji_get_unit_image_url($item, 'thumbnail'));
 
-                                    if (!$product) {
-                                        echo "<p>No product found";
-                                        continue;
-                                    }
-
-                                    $image_url = esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($item->wc_product_id), 'thumbnail'));
-                                    if ($is_variant) {
-                                        $description = $product->get_description();
-                                    } else {
-                                        $description = $product->get_short_description();
-                                    }
-                                    $item->description = $description;
-                                    $item->image_url = $image_url;
-                                    echo "<img src='" . esc_url($image_url) . "' alt='product image' />";
+                                    echo "<img src='" . esc_url($item->image_url) . "' alt='product image' />";
                                     echo "<p>";
                                     if (!empty($item->sku))
                                         echo "<b>SKU: " . esc_html($item->sku) . "</b><br/>";
-                                    echo nl2br(wp_kses_post($description));
+                                    echo nl2br(wp_kses_post($item->description));
                                     if (!empty($item->serial))
                                         echo "<br />Serial: " . esc_html($item->serial);
                                     if (!empty($item->notes))
@@ -473,11 +461,11 @@ function render_invoice($results)
                                                 data-pst="<?= esc_attr($calculate_pst) ?>">
                                             <label for="return_items[<?= esc_attr($item->id) ?>]" class="item-content">
                                                 <img class="item-image" src="<?= esc_url($item->image_url) ?>"
-                                                    alt="<?= esc_attr($product->get_name()) ?>">
+                                                    alt="<?= esc_attr($item->display_name) ?>">
                                                 <div class="item-info">
                                                     <p class="item-details">
                                                         Order ID: <?= esc_html($item->id) ?><br>
-                                                        <?= esc_html($product->get_name()) ?><br>
+                                                        <?= esc_html($item->display_name) ?><br>
                                                         <?php if (!empty($item->sku)): ?>
                                                             SKU: <?= esc_html($item->sku) ?><br>
                                                         <?php endif; ?>
@@ -607,11 +595,11 @@ function render_invoice($results)
                                                 data-pst="<?= esc_attr($calculate_pst) ?>">
                                             <label for="refund_items[<?= esc_attr($item->id) ?>]" class="item-content">
                                                 <img class="item-image" src="<?= esc_url($item->image_url) ?>"
-                                                    alt="<?= esc_attr($product->get_name()) ?>">
+                                                    alt="<?= esc_attr($item->display_name) ?>">
                                                 <div class="item-info">
                                                     <p class="item-details">
                                                         Order ID: <?= esc_html($item->id) ?><br>
-                                                        <?= esc_html($product->get_name()) ?><br>
+                                                        <?= esc_html($item->display_name) ?><br>
                                                         <?php if (!empty($item->sku)): ?>
                                                             SKU: <?= esc_html($item->sku) ?><br>
                                                         <?php endif; ?>
@@ -1086,6 +1074,9 @@ function search_layaway_results($reference_num)
                 p.wc_product_variant_id,
                 p.sku,
                 p.serial,
+                p.name,
+                p.description,
+                p.image_id,
                 ri.unit_price,
                 oi.sale_price
             FROM {$returns_table} r
@@ -1103,28 +1094,12 @@ function search_layaway_results($reference_num)
                 $items = [];
                 foreach ($return_items as $return_item) {
 
-                    $product_id = $return_item->wc_product_variant_id ?: $return_item->wc_product_id;
-                    $product = wc_get_product($product_id);
-                    $description = "";
-
-                    if (!$product) {
-                        custom_log("{Product {$product_id} not found");
-                        throw new Exception("Product {$product_id} not found.");
-                    }
-
-                    $image_url = esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($return_item->wc_product_id), 'thumbnail'));
-                    if ($return_item->wc_product_variant_id) {
-                        $description = $product->get_description();
-                    } else {
-                        $description = $product->get_short_description();
-                    }
-
                     $item = [
-                        "sku" => $return_item->sku,
-                        "serial" => $return_item->serial,
-                        "description" => $description,
-                        "image_url" => $image_url,
-                        "sold_price" => $return_item->sale_price,
+                        "sku"            => $return_item->sku,
+                        "serial"         => $return_item->serial,
+                        "description"    => $return_item->description ?? '',
+                        "image_url"      => esc_url(mji_get_unit_image_url($return_item, 'thumbnail')),
+                        "sold_price"     => $return_item->sale_price,
                         "returned_price" => $return_item->unit_price
                     ];
 
@@ -1804,6 +1779,9 @@ function search_refund_results($reference_num)
                 p.wc_product_variant_id,
                 p.sku,
                 p.serial,
+                p.name,
+                p.description,
+                p.image_id,
                 ri.unit_price,
                 oi.sale_price
             FROM {$returns_table} r
@@ -1818,32 +1796,14 @@ function search_refund_results($reference_num)
         if ($return_items) {
             $items = [];
             foreach ($return_items as $return_item) {
-
-                $product_id = $return_item->wc_product_variant_id ?: $return_item->wc_product_id;
-                $product = wc_get_product($product_id);
-                $description = "";
-
-                if (!$product) {
-                    custom_log("{Product {$product_id} not found");
-                    throw new Exception("Product {$product_id} not found.");
-                }
-
-                $image_url = esc_url(wp_get_attachment_image_url(get_post_thumbnail_id($return_item->wc_product_id), 'thumbnail'));
-                if ($return_item->wc_product_variant_id) {
-                    $description = $product->get_description();
-                } else {
-                    $description = $product->get_short_description();
-                }
-
                 $item = [
-                    "sku" => $return_item->sku,
-                    "serial" => $return_item->serial,
-                    "description" => $description,
-                    "image_url" => $image_url,
-                    "sold_price" => $return_item->sale_price,
-                    "returned_price" => $return_item->unit_price
+                    "sku"            => $return_item->sku,
+                    "serial"         => $return_item->serial,
+                    "description"    => $return_item->description ?? '',
+                    "image_url"      => esc_url(mji_get_unit_image_url($return_item, 'thumbnail')),
+                    "sold_price"     => $return_item->sale_price,
+                    "returned_price" => $return_item->unit_price,
                 ];
-
                 array_push($items, $item);
             }
             $results->items = $items;
@@ -2147,14 +2107,14 @@ function delete_credit($reference_num)
                         check_wpdb_error($wpdb);
 
                         $product_id = $return->wc_product_variant_id ?: $return->wc_product_id;
-                        $product = wc_get_product($product_id);
-                        if (!$product) {
-                            throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
+                        if ($product_id) {
+                            $product = wc_get_product($product_id);
+                            if ($product && $product->managing_stock()) {
+                                $product->set_stock_quantity($product->get_stock_quantity() - 1);
+                                $product->save();
+                                $restored_stock[] = $product_id;
+                            }
                         }
-
-                        $product->set_stock_quantity($product->get_stock_quantity() - 1);
-                        $product->save();
-                        $restored_stock[] = $product_id;
                     }
                 }
             }
@@ -2242,14 +2202,14 @@ function delete_refund($reference_num)
                     check_wpdb_error($wpdb);
 
                     $product_id = $return->wc_product_variant_id ?: $return->wc_product_id;
-                    $product = wc_get_product($product_id);
-                    if (!$product) {
-                        throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
+                    if ($product_id) {
+                        $product = wc_get_product($product_id);
+                        if ($product && $product->managing_stock()) {
+                            $product->set_stock_quantity($product->get_stock_quantity() - 1);
+                            $product->save();
+                            $restored_stock[] = $product_id;
+                        }
                     }
-
-                    $product->set_stock_quantity($product->get_stock_quantity() - 1);
-                    $product->save();
-                    $restored_stock[] = $product_id;
                 }
             }
         }
@@ -2768,7 +2728,7 @@ function insert_return_transactions($data, $order, $type)
 
         if (!empty($returned_items_ids)) {
             $order_items = $wpdb->get_results(
-                "SELECT 
+                "SELECT
                     oi.id AS id,
                     oi.sale_price,
                     oi.product_inventory_unit_id,
@@ -2776,6 +2736,9 @@ function insert_return_transactions($data, $order, $type)
                     pi.wc_product_variant_id,
                     pi.sku,
                     pi.serial,
+                    pi.name,
+                    pi.description,
+                    pi.image_id,
                     o.gst_total,
                     o.pst_total
                 FROM $mji_order_items_table oi
@@ -2842,25 +2805,24 @@ function insert_return_transactions($data, $order, $type)
                     }
                 }
 
-                $product_id = $item->wc_product_variant_id ?: $item->wc_product_id;
-                $product = wc_get_product($product_id);
-                if (!$product) {
-                    throw new RuntimeException("Invalid WooCommerce product ID: {$product_id}");
+                $items_info['image_url']   = mji_get_unit_image_url($item, 'thumbnail');
+                $items_info['description'] = $item->description ?? '';
+                $items_info['sku']         = $item->sku;
+                $items_info['serial']      = $item->serial;
+                $items_info['price']       = $item->sale_price;
+                $items_data[$item->id]     = $items_info;
+
+                if ($data['item_returned']) {
+                    $product_id = $item->wc_product_variant_id ?: $item->wc_product_id;
+                    if ($product_id) {
+                        $product = wc_get_product($product_id);
+                        if ($product && $product->managing_stock()) {
+                            $product->set_stock_quantity($product->get_stock_quantity() + 1);
+                            $product->save();
+                            $restored_stock[] = $product_id;
+                        }
+                    }
                 }
-                $image_url = wp_get_attachment_image_url($product->get_image_id(), 'thumbnail');
-                $items_info['image_url'] = $image_url;
-                $items_info['sku'] = $item->sku;
-                $items_info['serial'] = $item->serial;
-                $items_info['price'] = $item->sale_price;
-                if ($item->wc_product_variant_id) {
-                    $items_info['description'] = $product->get_description();
-                } else {
-                    $items_info['description'] = $product->get_short_description();
-                }
-                $items_data[$item->id] = $items_info;
-                $data['item_returned'] && $product->set_stock_quantity($product->get_stock_quantity() + 1);
-                $product->save();
-                $restored_stock[] = $product_id;
             }
 
             // Insert into return item 
