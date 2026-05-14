@@ -248,7 +248,7 @@
 
                 <div class="first-header">
 
-                    <!-- <div class="mobile-icons" role="navigation" aria-label="Menu Icons">
+                    <div class="mobile-icons" role="navigation" aria-label="Menu Icons">
                         <div class="shopping-bag-icon">
                             <a href="<?php echo wc_get_cart_url(); ?>" aria-label="View your shopping cart">
                                 <img height="25" width="25" src="<?php echo get_stylesheet_directory_uri() . "/assets/icons/cart.svg" ?>" alt="Shopping Cart Icon" />
@@ -257,7 +257,7 @@
                         <a href="<?php echo get_permalink(get_option('woocommerce_myaccount_page_id')); ?>" aria-label="Account">
                             <img height="25" width="25" src="<?php echo get_stylesheet_directory_uri() . "/assets/icons/account.svg" ?>" alt="Account Icon" />
                         </a>
-                    </div> -->
+                    </div>
 
                     <a href="<?php echo esc_url(home_url('/')); ?>" class="custom-logo-link" rel="home" aria-current="page">
                         <img width="250px" height="40px" fetchpriority="high" src="<?php echo get_stylesheet_directory_uri() . "/assets/MJI1978-dal-min.svg"  ?> " class="custom-logo exclude-litespeed-lazyload" title="Montecristo Jewellers" alt="Montecristo Jewellers" decoding="async">
@@ -323,8 +323,8 @@
                             </ul>
                         </div>
 
-                        <!-- <div class="menu-icons" role="navigation" aria-label="Menu Icons"> -->
-                        <!-- <div class="shopping-bag-icon">
+                        <div class="menu-icons" role="navigation" aria-label="Menu Icons">
+                            <div class="shopping-bag-icon">
                                 <a href="<?php echo wc_get_cart_url(); ?>" aria-label="View your shopping cart">
                                     <img height="25" width="25" src="<?php echo get_stylesheet_directory_uri() . "/assets/icons/cart.svg" ?>" alt="Shopping Cart Icon" />
                                 </a>
@@ -332,7 +332,7 @@
 
                             <a href="<?php echo get_permalink(get_option('woocommerce_myaccount_page_id')); ?>" aria-label="Account">
                                 <img height="25" width="25" src="<?php echo get_stylesheet_directory_uri() . "/assets/icons/account.svg" ?>" alt="Account Icon" />
-                            </a> -->
+                            </a>
 
                     </nav><!-- #site-navigation -->
                 </div>
