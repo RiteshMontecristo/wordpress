@@ -1246,7 +1246,7 @@ function mji_get_unit_image_url(object|array $unit, string $size = 'medium'): st
             if ($url) return $url;
         }
     }
-    return '';
+    return wc_placeholder_img_src($size);
 }
 
 function mji_suppliers_dropdown(bool $required = true, int $selected = 0)

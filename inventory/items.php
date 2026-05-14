@@ -596,7 +596,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
     $image_id       = absint($unit->image_id ?? 0);
     $wc_product_id  = absint($unit->wc_product_id ?? 0);
 
-    $image_url  = $image_id ? wp_get_attachment_image_url($image_id, 'thumbnail') : '';
+    $image_url  = $is_new ? wc_placeholder_img_src('thumbnail') : mji_get_unit_image_url($unit, 'thumbnail');
     $brand_name = $is_new ? '' : esc_html($unit->brand_name ?? '');
     $model_name = $is_new ? '' : esc_html($unit->model_name ?? '');
 
@@ -761,11 +761,7 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
                 <label>Image</label>
                 <div class="items-image-picker">
                     <input type="hidden" id="image_id" name="image_id" value="<?= $image_id ?>">
-                    <?php if ($image_url): ?>
-                        <img id="items-image-preview" src="<?= esc_url($image_url) ?>" alt="Unit image">
-                    <?php else: ?>
-                        <img id="items-image-preview" src="" alt="" style="display:none;">
-                    <?php endif; ?>
+                    <img id="items-image-preview" src="<?= esc_url($image_url) ?>" alt="Unit image">
                     <?php if (!$readonly && !$wc_locked): ?>
                     <button type="button" id="items-pick-image" class="button">Select Image</button>
                     <button type="button" id="items-remove-image" class="button" <?= $image_id ? '' : 'style="display:none;"' ?>>Remove</button>
