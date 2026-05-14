@@ -880,6 +880,15 @@ function reports_render_inventory_report($results)
             </tr></thead>';
     echo '<tbody>';
 
+    // Batch-prime attachment caches for all unique image IDs so the per-row
+    // wp_get_attachment_image_url() calls inside mji_get_unit_image_url() are
+    // served from the object cache instead of firing individual DB queries.
+    $att_ids = array_unique(array_filter(array_map(fn($r) => (int) $r->image_id, $all_rows)));
+    if (!empty($att_ids)) {
+        _prime_post_caches($att_ids, false, false);
+        update_meta_cache('post', $att_ids);
+    }
+
     foreach ($all_rows as $row) {
         $events = json_decode($row->events);
         $sku = $row->sku;
