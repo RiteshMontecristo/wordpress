@@ -540,7 +540,7 @@ function mji_sync_online_refund($refund_id, $args)
         foreach ($mji_items_to_return as $oi) {
             $to_status = $item_returned ? 'in_stock' : 'sold';
 
-            $wpdb->insert($wpdb->prefix . 'mji_inventory_status_history', [
+            $inserted = $wpdb->insert($wpdb->prefix . 'mji_inventory_status_history', [
                 'inventory_unit_id' => $oi->product_inventory_unit_id,
                 'from_status'       => 'sold',
                 'to_status'         => $to_status,
@@ -548,13 +548,16 @@ function mji_sync_online_refund($refund_id, $args)
                 'created_at'        => $now,
                 'notes'             => $reason,
             ]);
+            if (!$inserted) {
+                throw new RuntimeException("Failed to insert status history for unit {$oi->product_inventory_unit_id}: " . $wpdb->last_error);
+            }
 
             if ($item_returned) {
-                $wpdb->update(
-                    $wpdb->prefix . 'mji_product_inventory_units',
-                    ['status' => 'in_stock', 'sold_date' => null],
-                    ['id' => $oi->product_inventory_unit_id]
-                );
+                // Use raw query — $wpdb->update() casts null to '' which breaks DATE columns
+                $wpdb->query($wpdb->prepare(
+                    "UPDATE {$wpdb->prefix}mji_product_inventory_units SET status = 'in_stock', sold_date = NULL WHERE id = %d",
+                    $oi->product_inventory_unit_id
+                ));
             }
 
             $inserted = $wpdb->insert($wpdb->prefix . 'mji_return_items', [
@@ -666,11 +669,11 @@ function mji_handle_wc_order_status_change($order_id, $from, $to, $order)
                 throw new RuntimeException("Failed to insert status history for unit {$oi->product_inventory_unit_id}: " . $wpdb->last_error);
             }
 
-            $updated = $wpdb->update(
-                $wpdb->prefix . 'mji_product_inventory_units',
-                ['status' => 'in_stock', 'sold_date' => null],
-                ['id' => $oi->product_inventory_unit_id]
-            );
+            // Use raw query — $wpdb->update() casts null to '' which breaks DATE columns
+            $updated = $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}mji_product_inventory_units SET status = 'in_stock', sold_date = NULL WHERE id = %d",
+                $oi->product_inventory_unit_id
+            ));
             if ($updated === false) {
                 throw new RuntimeException("Failed to restore unit {$oi->product_inventory_unit_id} to in_stock: " . $wpdb->last_error);
             }
