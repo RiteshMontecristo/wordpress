@@ -1,5 +1,9 @@
 <?php
 
+add_filter('woocommerce_email_enabled_new_order', '__return_false');
+add_action('woocommerce_refund_created', 'mji_sync_online_refund', 10, 2);
+add_action('woocommerce_order_status_changed', 'mji_handle_wc_order_status_change', 5, 4);
+
 function mji_online_settings_page()
 {
     if (!current_user_can('manage_options')) {
@@ -124,6 +128,12 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
 {
     global $wpdb;
 
+    // Re-fetch status — the passed $order object can be stale after Stripe processes payment.
+    // Only skip failed orders (payment hard-declined). Pending/on-hold orders are valid reservations.
+    if (wc_get_order($order_id)->get_status() === 'failed') {
+        return;
+    }
+
     $salesperson_id = mji_get_online_salesperson_id();
     $location_id    = mji_get_online_location_id();
     if (!$salesperson_id || !$location_id) {
@@ -205,42 +215,42 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
         }
 
         // Split WC taxes into GST and PST by tax label name.
+        // get_tax_total() covers product taxes; get_shipping_tax_total() covers shipping taxes (e.g. GST on shipping).
         // GST/HST → gst_total; PST/QST/RST → pst_total.
         // Handles inter-provincial orders: AB = GST only, ON = HST only, QC = GST+QST, MB = GST+RST.
         $gst_total = 0.0;
         $pst_total = 0.0;
         foreach ($order->get_taxes() as $tax_item) {
-            $label = strtolower($tax_item->get_name());
+            $label      = strtolower($tax_item->get_name());
+            $tax_amount = (float) $tax_item->get_tax_total() + (float) $tax_item->get_shipping_tax_total();
             if (str_contains($label, 'pst') || str_contains($label, 'qst') || str_contains($label, 'rst')) {
-                $pst_total += (float) $tax_item->get_tax_total();
+                $pst_total += $tax_amount;
             } else {
-                $gst_total += (float) $tax_item->get_tax_total();
+                $gst_total += $tax_amount;
             }
         }
         $gst_total = round($gst_total, 2);
         $pst_total = round($pst_total, 2);
 
-        // Subtotal = items after discount, excluding shipping.
-        // Total = subtotal + taxes, excluding shipping (MJI records product sales, not fulfillment costs).
+        $shipping_total = round((float) $order->get_shipping_total(), 2);
+
+        // Subtotal = items after discount + shipping (pre-tax). Shipping also stored as a mji_services row.
+        // Total = subtotal + taxes, matching the WC order total.
         $item_subtotal = 0.0;
         foreach ($sold_units as $entry) {
             $item_subtotal += $entry['unit_price'];
         }
-        $item_subtotal = round($item_subtotal, 2);
+        $item_subtotal = round($item_subtotal + $shipping_total, 2);
         $mji_total     = round($item_subtotal + $gst_total + $pst_total, 2);
 
-        $shipping_total = round((float) $order->get_shipping_total(), 2);
         $notes = 'WooCommerce online order #' . $order->get_order_number();
-        if ($shipping_total > 0) {
-            $notes .= sprintf(' | Shipping: $%s (not included in MJI total)', number_format($shipping_total, 2));
-        }
 
         $inserted = $wpdb->insert($wpdb->prefix . 'mji_orders', [
             'customer_id'    => $customer_id,
             'salesperson_id' => $salesperson_id,
             'location_id'    => $location_id,
             'reference_num'  => $reference_num,
-            'subtotal'       => $item_subtotal,
+            'subtotal'       => $item_subtotal, // items + shipping (pre-tax)
             'gst_total'      => $gst_total,
             'pst_total'      => $pst_total,
             'total'          => $mji_total,
@@ -288,6 +298,21 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
             );
             if ($updated === false) {
                 throw new RuntimeException("Failed to set unit {$unit->id} to sold: " . $wpdb->last_error);
+            }
+        }
+
+        if ($shipping_total > 0) {
+            $shipping_method = sanitize_text_field($order->get_shipping_method()) ?: 'Shipping';
+            $inserted = $wpdb->insert($wpdb->prefix . 'mji_services', [
+                'order_id'    => $mji_order_id,
+                'location_id' => $location_id,
+                'category'    => 'shipping',
+                'description' => $shipping_method . ' — WC order #' . $order->get_order_number(),
+                'cost_price'  => $shipping_total,
+                'sold_price'  => $shipping_total,
+            ]);
+            if (!$inserted) {
+                throw new RuntimeException('Failed to insert shipping service record: ' . $wpdb->last_error);
             }
         }
 
@@ -342,7 +367,7 @@ function mji_notify_online_sale($order, $sold_units, $reference_num)
 
     $shipping_total = (float) $order->get_shipping_total();
     $shipping_row   = $shipping_total > 0
-        ? '<tr><td style="padding:4px 0;color:#666;">Shipping (WC)</td><td>$' . number_format($shipping_total, 2) . ' CAD (not in MJI total)</td></tr>'
+        ? '<tr><td style="padding:4px 0;color:#666;">Shipping</td><td>$' . number_format($shipping_total, 2) . ' CAD</td></tr>'
         : '';
 
     $message = '<!DOCTYPE html><html><body style="font-family:sans-serif;color:#333;max-width:680px;">
@@ -393,4 +418,275 @@ function mji_notify_online_sale_error($order, $error_message)
 </body></html>';
 
     wp_mail($to, $subject, $message, ['Content-Type: text/html; charset=UTF-8']);
+}
+
+function mji_sync_online_refund($refund_id, $args)
+{
+    global $wpdb;
+
+    $order_id = (int) ($args['order_id'] ?? 0);
+    if (!$order_id) return;
+
+    $order  = wc_get_order($order_id);
+    $refund = wc_get_order($refund_id);
+    if (!$order || !$refund) return;
+
+    $reference_num = 'WEB-' . $order->get_order_number();
+    $mji_order = $wpdb->get_row($wpdb->prepare(
+        "SELECT id, customer_id, salesperson_id, location_id FROM {$wpdb->prefix}mji_orders WHERE reference_num = %s",
+        $reference_num
+    ));
+    if (!$mji_order) {
+        custom_log("WC refund #{$refund_id} for order #{$order_id}: no MJI order found for {$reference_num} — skipping.");
+        return;
+    }
+
+    $mji_order_id  = (int) $mji_order->id;
+    $return_ref    = 'WRET-' . $order->get_order_number() . '-' . $refund_id;
+    $refund_amount = round((float) $refund->get_amount(), 2);
+    $reason        = sanitize_text_field($refund->get_reason()) ?: 'WooCommerce online refund';
+    $now           = current_time('mysql');
+    $today         = current_time('Y-m-d');
+    $item_returned = !empty($args['restock_items']);
+
+    // Split refund taxes into GST and PST (same logic as the sale; values are negative in refund object so use abs)
+    $gst_total = 0.0;
+    $pst_total = 0.0;
+    foreach ($refund->get_taxes() as $tax_item) {
+        $label      = strtolower($tax_item->get_name());
+        $tax_amount = abs((float) $tax_item->get_tax_total() + (float) $tax_item->get_shipping_tax_total());
+        if (str_contains($label, 'pst') || str_contains($label, 'qst') || str_contains($label, 'rst')) {
+            $pst_total += $tax_amount;
+        } else {
+            $gst_total += $tax_amount;
+        }
+    }
+    $gst_total = round($gst_total, 2);
+    $pst_total = round($pst_total, 2);
+    $subtotal  = round($refund_amount - $gst_total - $pst_total, 2);
+
+    // Build a map of wc_product/variant_id => qty being refunded
+    $product_qty_map = [];
+    foreach ($refund->get_items() as $wc_item) {
+        if (!($wc_item instanceof WC_Order_Item_Product)) continue;
+        $qty    = abs((int) $wc_item->get_quantity());
+        $var_id = (int) $wc_item->get_variation_id();
+        $key    = $var_id > 0 ? "v_{$var_id}" : 'p_' . (int) $wc_item->get_product_id();
+        $product_qty_map[$key] = ($product_qty_map[$key] ?? 0) + $qty;
+    }
+
+    // All MJI order items for this order, with WC product linkage
+    $all_order_items = $wpdb->get_results($wpdb->prepare(
+        "SELECT oi.id, oi.sale_price, oi.product_inventory_unit_id,
+                u.wc_product_id, u.wc_product_variant_id
+         FROM {$wpdb->prefix}mji_order_items oi
+         JOIN {$wpdb->prefix}mji_product_inventory_units u ON u.id = oi.product_inventory_unit_id
+         WHERE oi.order_id = %d",
+        $mji_order_id
+    ));
+
+    // Units already covered by a previous return for this order — skip them
+    $already_returned = array_column(
+        $wpdb->get_results($wpdb->prepare(
+            "SELECT ri.product_inventory_unit_id
+             FROM {$wpdb->prefix}mji_return_items ri
+             JOIN {$wpdb->prefix}mji_returns r ON r.id = ri.return_id
+             WHERE r.order_id = %d",
+            $mji_order_id
+        )),
+        'product_inventory_unit_id'
+    );
+
+    // FIFO match: pick the first unreturned MJI order items that correspond to the refunded WC products
+    $mji_items_to_return = [];
+    $remaining = $product_qty_map;
+    foreach ($all_order_items as $oi) {
+        if (in_array($oi->product_inventory_unit_id, $already_returned)) continue;
+        $var_id = (int) $oi->wc_product_variant_id;
+        $key    = $var_id > 0 ? "v_{$var_id}" : 'p_' . (int) $oi->wc_product_id;
+        if (!empty($remaining[$key])) {
+            $mji_items_to_return[] = $oi;
+            $remaining[$key]--;
+        }
+    }
+
+    // Shipping service row for this order (needed for mji_return_services)
+    $shipping_refund  = abs((float) $refund->get_shipping_total());
+    $shipping_service = null;
+    if ($shipping_refund > 0) {
+        $shipping_service = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}mji_services WHERE order_id = %d AND category = 'shipping'",
+            $mji_order_id
+        ));
+    }
+
+    $wpdb->query('START TRANSACTION');
+    try {
+        $inserted = $wpdb->insert($wpdb->prefix . 'mji_returns', [
+            'order_id'      => $mji_order_id,
+            'reference_num' => $return_ref,
+            'return_date'   => $today,
+            'reason'        => $reason,
+            'subtotal'      => $subtotal,
+            'gst_total'     => $gst_total,
+            'pst_total'     => $pst_total,
+            'total'         => $refund_amount,
+        ]);
+        if (!$inserted) {
+            throw new RuntimeException('Failed to insert mji_returns: ' . $wpdb->last_error);
+        }
+        $return_id = (int) $wpdb->insert_id;
+
+        foreach ($mji_items_to_return as $oi) {
+            $to_status = $item_returned ? 'in_stock' : 'sold';
+
+            $wpdb->insert($wpdb->prefix . 'mji_inventory_status_history', [
+                'inventory_unit_id' => $oi->product_inventory_unit_id,
+                'from_status'       => 'sold',
+                'to_status'         => $to_status,
+                'reference_num'     => $return_ref,
+                'created_at'        => $now,
+                'notes'             => $reason,
+            ]);
+
+            if ($item_returned) {
+                $wpdb->update(
+                    $wpdb->prefix . 'mji_product_inventory_units',
+                    ['status' => 'in_stock', 'sold_date' => null],
+                    ['id' => $oi->product_inventory_unit_id]
+                );
+            }
+
+            $inserted = $wpdb->insert($wpdb->prefix . 'mji_return_items', [
+                'return_id'                 => $return_id,
+                'order_item_id'             => $oi->id,
+                'product_inventory_unit_id' => $oi->product_inventory_unit_id,
+                'unit_price'                => $oi->sale_price,
+            ]);
+            if (!$inserted) {
+                throw new RuntimeException("Failed to insert mji_return_items for unit {$oi->product_inventory_unit_id}: " . $wpdb->last_error);
+            }
+        }
+
+        if ($shipping_service) {
+            $inserted = $wpdb->insert($wpdb->prefix . 'mji_return_services', [
+                'return_id'  => $return_id,
+                'service_id' => (int) $shipping_service->id,
+                'price'      => $shipping_refund,
+            ]);
+            if (!$inserted) {
+                throw new RuntimeException('Failed to insert mji_return_services: ' . $wpdb->last_error);
+            }
+        }
+
+        $inserted = $wpdb->insert($wpdb->prefix . 'mji_payments', [
+            'order_id'         => $mji_order_id,
+            'customer_id'      => (int) $mji_order->customer_id,
+            'salesperson_id'   => (int) $mji_order->salesperson_id,
+            'location_id'      => (int) $mji_order->location_id,
+            'reference_num'    => $return_ref,
+            'method'           => mji_map_wc_payment_method($order->get_payment_method()),
+            'amount'           => $refund_amount,
+            'transaction_type' => 'refund',
+            'payment_date'     => $now,
+            'notes'            => $reason,
+        ]);
+        if (!$inserted) {
+            throw new RuntimeException('Failed to insert refund payment: ' . $wpdb->last_error);
+        }
+
+        $wpdb->query('COMMIT');
+        custom_log("WC refund #{$refund_id} synced to MJI as {$return_ref}: " . count($mji_items_to_return) . " item(s), \${$refund_amount} total.");
+
+    } catch (Exception $e) {
+        $wpdb->query('ROLLBACK');
+        custom_log("WC refund #{$refund_id} MJI sync failed: " . $e->getMessage());
+    }
+}
+
+function mji_handle_wc_order_status_change($order_id, $from, $to, $order)
+{
+    if ($to !== 'cancelled') {
+        return;
+    }
+
+    // Block cancellation of paid orders — must refund first
+    if ($from === 'processing') {
+        $order->update_status('processing');
+        $order->add_order_note(
+            'Cancellation blocked — this order has been paid. Please issue a refund using the Refund button first.',
+            false,
+            false
+        );
+        add_action('admin_notices', function () {
+            echo '<div class="notice notice-error is-dismissible"><p>
+                <strong>Order cannot be cancelled.</strong>
+                This order has been paid. Please use the <strong>Refund</strong> button to issue a refund first.
+            </p></div>';
+        });
+        return;
+    }
+
+    // For pending/on-hold cancellations — payment never went through, clean up MJI if a record exists
+    if (!in_array($from, ['pending', 'on-hold'])) {
+        return;
+    }
+
+    global $wpdb;
+    $reference_num = 'WEB-' . $order->get_order_number();
+
+    $mji_order = $wpdb->get_row($wpdb->prepare(
+        "SELECT id FROM {$wpdb->prefix}mji_orders WHERE reference_num = %s",
+        $reference_num
+    ));
+    if (!$mji_order) {
+        return;
+    }
+
+    $mji_order_id = (int) $mji_order->id;
+    $now          = current_time('mysql');
+
+    $wpdb->query('START TRANSACTION');
+    try {
+        $order_items = $wpdb->get_results($wpdb->prepare(
+            "SELECT product_inventory_unit_id FROM {$wpdb->prefix}mji_order_items WHERE order_id = %d",
+            $mji_order_id
+        ));
+
+        foreach ($order_items as $oi) {
+            $inserted = $wpdb->insert($wpdb->prefix . 'mji_inventory_status_history', [
+                'inventory_unit_id' => $oi->product_inventory_unit_id,
+                'from_status'       => 'sold',
+                'to_status'         => 'in_stock',
+                'reference_num'     => $reference_num,
+                'created_at'        => $now,
+                'notes'             => 'WC order cancelled (unpaid)',
+            ]);
+            if (!$inserted) {
+                throw new RuntimeException("Failed to insert status history for unit {$oi->product_inventory_unit_id}: " . $wpdb->last_error);
+            }
+
+            $updated = $wpdb->update(
+                $wpdb->prefix . 'mji_product_inventory_units',
+                ['status' => 'in_stock', 'sold_date' => null],
+                ['id' => $oi->product_inventory_unit_id]
+            );
+            if ($updated === false) {
+                throw new RuntimeException("Failed to restore unit {$oi->product_inventory_unit_id} to in_stock: " . $wpdb->last_error);
+            }
+        }
+
+        $wpdb->delete($wpdb->prefix . 'mji_payments',    ['order_id' => $mji_order_id], ['%d']);
+        $wpdb->delete($wpdb->prefix . 'mji_services',    ['order_id' => $mji_order_id], ['%d']);
+        $wpdb->delete($wpdb->prefix . 'mji_order_items', ['order_id' => $mji_order_id], ['%d']);
+        $wpdb->delete($wpdb->prefix . 'mji_orders',      ['id'       => $mji_order_id], ['%d']);
+
+        $wpdb->query('COMMIT');
+
+        custom_log("WC order {$reference_num} cancelled (unpaid, from '{$from}') — MJI order {$mji_order_id} deleted, " . count($order_items) . " unit(s) restored to in_stock.");
+
+    } catch (Exception $e) {
+        $wpdb->query('ROLLBACK');
+        custom_log("WC cancellation cleanup for {$reference_num} failed: " . $e->getMessage());
+    }
 }
