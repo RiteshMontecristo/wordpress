@@ -108,9 +108,9 @@ function reports_render_sales_section()
 
 function reports_render_sales_filters()
 {
-    $salesperson_id = absint($_GET['salesperson']);
-    $location_id = absint($_GET['location']);
-    $brands_id = absint($_GET['brands']);
+    $salesperson_id = isset($_GET['salesperson']) ? absint($_GET['salesperson']) : 0;
+    $location_id = isset($_GET['location']) ? absint($_GET['location']) : 0;
+    $brands_id = isset($_GET['brands']) ? absint($_GET['brands']) : 0;
 ?>
     <form method="get" action="">
         <input type="hidden" name="page" value="reports-management">
@@ -373,9 +373,13 @@ function reports_render_sales_report($results)
         $services_profit = 0;
 
         $location_id = isset($_GET['location']) ? intval($_GET['location']) : 0;
-        $location_arr = mji_get_locations();
-        $location_obj = array_find($location_arr, fn($loc) => $loc->id == $location_id);
-        $location_name = $location_obj->name;
+        if ($location_id) {
+            $location_arr = mji_get_locations();
+            $location_obj = array_find($location_arr, fn($loc) => $loc->id == $location_id);
+            $location_name = $location_obj ? $location_obj->name : 'All Locations';
+        } else {
+            $location_name = 'All Locations';
+        }
 
         echo '<button id="exportInventory" class="button button-primary" style="margin-bottom:10px;">Export to CSV</button>';
         echo '<button id="printInventory" class="button button-secondary" style="margin-bottom:10px;">Print Report</button>';
@@ -969,9 +973,6 @@ function reports_render_inventory_report($results)
     echo '<div id="reportTotals" style="margin-top:14px; padding:10px 16px; background:#f8f8f8; border:1px solid #ddd; border-top:3px solid #555; font-size:13px; font-weight:bold;">Total Items: ' . $total_count . ' &nbsp;&nbsp;&nbsp; Total Cost: $' . number_format($total_cost_price, 2) . ' &nbsp;&nbsp;&nbsp; Total Retail: $' . number_format($total_retail_price, 2) . '</div>';
 
     echo '</div>'; // end report div
-
-
-    echo '</div>'; // end container
 }
 
 // Reports layaway Section
@@ -2015,10 +2016,7 @@ function reports_render_refund_report($results)
         $total_original = 0.0;
 
         echo '<tbody>';
-        foreach ($results as $index => $row) {
-
-            if (!is_object($row))
-                continue;
+        foreach ($results['rows'] as $index => $row) {
             $payments = json_decode($row->payment_details, true);
             $orig_methods = !empty($row->original_payment_methods)
                 ? json_decode($row->original_payment_methods, true)
@@ -2409,52 +2407,41 @@ function reports_get_financial_results()
     }
 
     // Fetching items and services for original order
-    $placeholders = implode(',', array_fill(0, count($order_ids), '%d'));
-    $sql = "
-        SELECT 
-            oi.order_id,
-            oi.sale_price,
-            i.sku,
-            i.cost_price
-        FROM $order_items_table oi
-        JOIN $product_inventory_units_table i ON oi.product_inventory_unit_id = i.id
-        WHERE oi.order_id IN ($placeholders)
-        ";
-    $order_items = $wpdb->get_results($wpdb->prepare($sql, ...$order_ids));
-
-    $sql = "
-        SELECT 
-            order_id,
-            sold_price AS sale_price,
-            cost_price
-        FROM $services_table
-        WHERE order_id IN ($placeholders)
-        ";
-    $services = $wpdb->get_results($wpdb->prepare($sql, ...$order_ids));
+    $order_items = [];
+    $services = [];
+    if (!empty($order_ids)) {
+        $placeholders = implode(',', array_fill(0, count($order_ids), '%d'));
+        $order_items = $wpdb->get_results($wpdb->prepare("
+            SELECT oi.order_id, oi.sale_price, i.sku, i.cost_price
+            FROM $order_items_table oi
+            JOIN $product_inventory_units_table i ON oi.product_inventory_unit_id = i.id
+            WHERE oi.order_id IN ($placeholders)
+        ", ...$order_ids));
+        $services = $wpdb->get_results($wpdb->prepare("
+            SELECT order_id, sold_price AS sale_price, cost_price
+            FROM $services_table
+            WHERE order_id IN ($placeholders)
+        ", ...$order_ids));
+    }
 
     // Fetching return items and return services
-    $placeholders = implode(',', array_fill(0, count($return_ids), '%d'));
-    $sql = "
-        SELECT 
-            ri.return_id,
-            -ri.unit_price AS sale_price,
-            i.sku,
-            i.cost_price
-        FROM $return_items_table ri
-        JOIN $product_inventory_units_table i ON ri.product_inventory_unit_id = i.id
-        WHERE ri.return_id IN ($placeholders)
-        ";
-    $return_items = $wpdb->get_results($wpdb->prepare($sql, ...$return_ids));
-    $sql = "
-        SELECT 
-            rs.return_id,
-            -rs.price AS sale_price,
-            s.cost_price
-        FROM $return_services_table rs
-        JOIN $services_table s ON s.id = rs.service_id
-        WHERE rs.return_id IN ($placeholders)
-        ";
-    $return_services = $wpdb->get_results($wpdb->prepare($sql, ...$return_ids));
+    $return_items = [];
+    $return_services = [];
+    if (!empty($return_ids)) {
+        $placeholders = implode(',', array_fill(0, count($return_ids), '%d'));
+        $return_items = $wpdb->get_results($wpdb->prepare("
+            SELECT ri.return_id, -ri.unit_price AS sale_price, i.sku, i.cost_price
+            FROM $return_items_table ri
+            JOIN $product_inventory_units_table i ON ri.product_inventory_unit_id = i.id
+            WHERE ri.return_id IN ($placeholders)
+        ", ...$return_ids));
+        $return_services = $wpdb->get_results($wpdb->prepare("
+            SELECT rs.return_id, -rs.price AS sale_price, s.cost_price
+            FROM $return_services_table rs
+            JOIN $services_table s ON s.id = rs.service_id
+            WHERE rs.return_id IN ($placeholders)
+        ", ...$return_ids));
+    }
 
     // Mergin items map together
     $items_map = [];
