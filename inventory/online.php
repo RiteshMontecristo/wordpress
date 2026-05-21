@@ -293,7 +293,7 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
 
             $updated = $wpdb->update(
                 $wpdb->prefix . 'mji_product_inventory_units',
-                ['status' => 'sold', 'sold_date' => $now],
+                ['status' => 'sold', 'sold_date' => $now, 'location_id' => $location_id],
                 ['id' => $unit->id]
             );
             if ($updated === false) {
@@ -371,30 +371,30 @@ function mji_notify_online_sale($order, $sold_units, $reference_num)
         : '';
 
     $message = '<!DOCTYPE html><html><body style="font-family:sans-serif;color:#333;max-width:680px;">
-<h2 style="border-bottom:2px solid #c9a96e;padding-bottom:8px;color:#222;">Online Order — Inventory Synced</h2>
-<table style="border-collapse:collapse;width:100%;margin-bottom:20px;">
-<tr><td style="padding:4px 0;width:150px;color:#666;">WC Order #</td><td><strong>' . esc_html($order->get_order_number()) . '</strong></td></tr>
-<tr><td style="padding:4px 0;color:#666;">MJI Reference</td><td><strong>' . esc_html($reference_num) . '</strong></td></tr>
-<tr><td style="padding:4px 0;color:#666;">Customer</td><td>' . esc_html($order->get_billing_first_name() . ' ' . $order->get_billing_last_name()) . '</td></tr>
-<tr><td style="padding:4px 0;color:#666;">Province</td><td>' . esc_html($order->get_billing_state()) . '</td></tr>
-<tr><td style="padding:4px 0;color:#666;">Email</td><td>' . esc_html($order->get_billing_email()) . '</td></tr>
-<tr><td style="padding:4px 0;color:#666;">Payment</td><td>' . esc_html($order->get_payment_method_title()) . '</td></tr>
-<tr><td style="padding:4px 0;color:#666;">WC Order Total</td><td>$' . number_format((float) $order->get_total(), 2) . ' CAD</td></tr>
-' . $shipping_row . '
-</table>
-<h3 style="margin-bottom:8px;">Units Marked as SOLD</h3>
-<table style="border-collapse:collapse;width:100%;">
-<thead><tr style="background:#f5f0e8;">
-<th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c9a96e;">Product</th>
-<th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c9a96e;">SKU</th>
-<th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c9a96e;">Serial</th>
-<th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c9a96e;">Discount</th>
-<th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c9a96e;">Sale Price</th>
-</tr></thead>
-<tbody>' . $rows . '</tbody>
-</table>
-<p style="margin-top:20px;color:#888;font-size:12px;">This is an automated message from Montecristo Jewellers inventory system.</p>
-</body></html>';
+                <h2 style="border-bottom:2px solid #c9a96e;padding-bottom:8px;color:#222;">Online Order — Inventory Synced</h2>
+                <table style="border-collapse:collapse;width:100%;margin-bottom:20px;">
+                <tr><td style="padding:4px 0;width:150px;color:#666;">WC Order #</td><td><strong>' . esc_html($order->get_order_number()) . '</strong></td></tr>
+                <tr><td style="padding:4px 0;color:#666;">MJI Reference</td><td><strong>' . esc_html($reference_num) . '</strong></td></tr>
+                <tr><td style="padding:4px 0;color:#666;">Customer</td><td>' . esc_html($order->get_billing_first_name() . ' ' . $order->get_billing_last_name()) . '</td></tr>
+                <tr><td style="padding:4px 0;color:#666;">Province</td><td>' . esc_html($order->get_billing_state()) . '</td></tr>
+                <tr><td style="padding:4px 0;color:#666;">Email</td><td>' . esc_html($order->get_billing_email()) . '</td></tr>
+                <tr><td style="padding:4px 0;color:#666;">Payment</td><td>' . esc_html($order->get_payment_method_title()) . '</td></tr>
+                <tr><td style="padding:4px 0;color:#666;">WC Order Total</td><td>$' . number_format((float) $order->get_total(), 2) . ' CAD</td></tr>
+                ' . $shipping_row . '
+                </table>
+                <h3 style="margin-bottom:8px;">Units Marked as SOLD</h3>
+                <table style="border-collapse:collapse;width:100%;">
+                <thead><tr style="background:#f5f0e8;">
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c9a96e;">Product</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c9a96e;">SKU</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c9a96e;">Serial</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c9a96e;">Discount</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c9a96e;">Sale Price</th>
+                </tr></thead>
+                <tbody>' . $rows . '</tbody>
+                </table>
+                <p style="margin-top:20px;color:#888;font-size:12px;">This is an automated message from Montecristo Jewellers inventory system.</p>
+                </body></html>';
 
     wp_mail($to, $subject, $message, ['Content-Type: text/html; charset=UTF-8']);
 }
@@ -405,17 +405,17 @@ function mji_notify_online_sale_error($order, $error_message)
     $subject = '[Montecristo] ACTION REQUIRED — Online Order #' . $order->get_order_number() . ' not synced';
 
     $message = '<!DOCTYPE html><html><body style="font-family:sans-serif;color:#333;max-width:680px;">
-<h2 style="color:#c00;border-bottom:2px solid #c00;padding-bottom:8px;">Online Order — Inventory Sync Failed</h2>
-<p>WooCommerce Order <strong>#' . esc_html($order->get_order_number()) . '</strong> was placed but could not be automatically recorded in the inventory system.</p>
-<table style="border-collapse:collapse;width:100%;margin-bottom:20px;">
-<tr><td style="padding:4px 0;width:150px;color:#666;">Customer</td><td>' . esc_html($order->get_billing_first_name() . ' ' . $order->get_billing_last_name()) . '</td></tr>
-<tr><td style="padding:4px 0;color:#666;">Email</td><td>' . esc_html($order->get_billing_email()) . '</td></tr>
-<tr><td style="padding:4px 0;color:#666;">Total</td><td>$' . number_format((float) $order->get_total(), 2) . ' CAD</td></tr>
-</table>
-<p><strong>Error:</strong> ' . esc_html($error_message) . '</p>
-<p style="background:#fff3cd;padding:12px;border-left:4px solid #ffc107;">Please create this sale manually in the MJI inventory admin and mark the correct SKU(s) as sold.</p>
-<p style="margin-top:20px;color:#888;font-size:12px;">This is an automated message from Montecristo Jewellers inventory system.</p>
-</body></html>';
+                <h2 style="color:#c00;border-bottom:2px solid #c00;padding-bottom:8px;">Online Order — Inventory Sync Failed</h2>
+                <p>WooCommerce Order <strong>#' . esc_html($order->get_order_number()) . '</strong> was placed but could not be automatically recorded in the inventory system.</p>
+                <table style="border-collapse:collapse;width:100%;margin-bottom:20px;">
+                <tr><td style="padding:4px 0;width:150px;color:#666;">Customer</td><td>' . esc_html($order->get_billing_first_name() . ' ' . $order->get_billing_last_name()) . '</td></tr>
+                <tr><td style="padding:4px 0;color:#666;">Email</td><td>' . esc_html($order->get_billing_email()) . '</td></tr>
+                <tr><td style="padding:4px 0;color:#666;">Total</td><td>$' . number_format((float) $order->get_total(), 2) . ' CAD</td></tr>
+                </table>
+                <p><strong>Error:</strong> ' . esc_html($error_message) . '</p>
+                <p style="background:#fff3cd;padding:12px;border-left:4px solid #ffc107;">Please create this sale manually in the MJI inventory admin and mark the correct SKU(s) as sold.</p>
+                <p style="margin-top:20px;color:#888;font-size:12px;">This is an automated message from Montecristo Jewellers inventory system.</p>
+                </body></html>';
 
     wp_mail($to, $subject, $message, ['Content-Type: text/html; charset=UTF-8']);
 }
@@ -447,7 +447,6 @@ function mji_sync_online_refund($refund_id, $args)
     $reason        = sanitize_text_field($refund->get_reason()) ?: 'WooCommerce online refund';
     $now           = current_time('mysql');
     $today         = current_time('Y-m-d');
-    $item_returned = !empty($args['restock_items']);
 
     // Split refund taxes into GST and PST (same logic as the sale; values are negative in refund object so use abs)
     $gst_total = 0.0;
@@ -465,11 +464,12 @@ function mji_sync_online_refund($refund_id, $args)
     $pst_total = round($pst_total, 2);
     $subtotal  = round($refund_amount - $gst_total - $pst_total, 2);
 
-    // Build a map of wc_product/variant_id => qty being refunded
+    // Build a map of wc_product/variant_id => qty being refunded from WC line items
     $product_qty_map = [];
     foreach ($refund->get_items() as $wc_item) {
         if (!($wc_item instanceof WC_Order_Item_Product)) continue;
-        $qty    = abs((int) $wc_item->get_quantity());
+        $qty = abs((int) $wc_item->get_quantity());
+        if ($qty <= 0) continue;
         $var_id = (int) $wc_item->get_variation_id();
         $key    = $var_id > 0 ? "v_{$var_id}" : 'p_' . (int) $wc_item->get_product_id();
         $product_qty_map[$key] = ($product_qty_map[$key] ?? 0) + $qty;
@@ -497,17 +497,24 @@ function mji_sync_online_refund($refund_id, $args)
         'product_inventory_unit_id'
     );
 
-    // FIFO match: pick the first unreturned MJI order items that correspond to the refunded WC products
+    // Match WC refund line items to MJI order items by WC product/variant ID.
+    // If the admin issued an amount-only refund (no line items specified), $mji_items_to_return
+    // stays empty — inventory is left untouched and only the financial records are written.
+    // Staff must manually update unit status in that case.
     $mji_items_to_return = [];
-    $remaining = $product_qty_map;
-    foreach ($all_order_items as $oi) {
-        if (in_array($oi->product_inventory_unit_id, $already_returned)) continue;
-        $var_id = (int) $oi->wc_product_variant_id;
-        $key    = $var_id > 0 ? "v_{$var_id}" : 'p_' . (int) $oi->wc_product_id;
-        if (!empty($remaining[$key])) {
-            $mji_items_to_return[] = $oi;
-            $remaining[$key]--;
+    if (!empty($product_qty_map)) {
+        $remaining = $product_qty_map;
+        foreach ($all_order_items as $oi) {
+            if (in_array($oi->product_inventory_unit_id, $already_returned)) continue;
+            $var_id = (int) $oi->wc_product_variant_id;
+            $key    = $var_id > 0 ? "v_{$var_id}" : 'p_' . (int) $oi->wc_product_id;
+            if (!empty($remaining[$key])) {
+                $mji_items_to_return[] = $oi;
+                $remaining[$key]--;
+            }
         }
+    } else {
+        custom_log("WC refund #{$refund_id} for order #{$order_id}: no line items specified — financial records written but inventory not updated. Update unit status manually if items were physically returned.");
     }
 
     // Shipping service row for this order (needed for mji_return_services)
@@ -538,12 +545,10 @@ function mji_sync_online_refund($refund_id, $args)
         $return_id = (int) $wpdb->insert_id;
 
         foreach ($mji_items_to_return as $oi) {
-            $to_status = $item_returned ? 'in_stock' : 'sold';
-
             $inserted = $wpdb->insert($wpdb->prefix . 'mji_inventory_status_history', [
                 'inventory_unit_id' => $oi->product_inventory_unit_id,
                 'from_status'       => 'sold',
-                'to_status'         => $to_status,
+                'to_status'         => 'in_stock',
                 'reference_num'     => $return_ref,
                 'created_at'        => $now,
                 'notes'             => $reason,
@@ -552,13 +557,11 @@ function mji_sync_online_refund($refund_id, $args)
                 throw new RuntimeException("Failed to insert status history for unit {$oi->product_inventory_unit_id}: " . $wpdb->last_error);
             }
 
-            if ($item_returned) {
-                // Use raw query — $wpdb->update() casts null to '' which breaks DATE columns
-                $wpdb->query($wpdb->prepare(
-                    "UPDATE {$wpdb->prefix}mji_product_inventory_units SET status = 'in_stock', sold_date = NULL WHERE id = %d",
-                    $oi->product_inventory_unit_id
-                ));
-            }
+            // Use raw query — $wpdb->update() casts null to '' which breaks DATE columns
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}mji_product_inventory_units SET status = 'in_stock', sold_date = NULL WHERE id = %d",
+                $oi->product_inventory_unit_id
+            ));
 
             $inserted = $wpdb->insert($wpdb->prefix . 'mji_return_items', [
                 'return_id'                 => $return_id,
