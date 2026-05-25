@@ -2221,50 +2221,48 @@ function delete_refund($reference_num)
         ", $reference_num));
 
         if ($payments) {
-            $credit_id = 0;
-            $layaway_id = 0;
-            $total_amount = 0;
+            $credit_amounts  = [];
+            $layaway_amounts = [];
             foreach ($payments as $payment) {
-                $total_amount += $payment->amount;
                 if (!empty($payment->credit_id)) {
-                    $credit_id = $payment->credit_id;
-                } else if (!empty($payment->layaway_id)) {
-                    $layaway_id = $payment->layaway_id;
+                    $credit_amounts[(int) $payment->credit_id] =
+                        ($credit_amounts[(int) $payment->credit_id] ?? 0.0) + (float) $payment->amount;
+                } elseif (!empty($payment->layaway_id)) {
+                    $layaway_amounts[(int) $payment->layaway_id] =
+                        ($layaway_amounts[(int) $payment->layaway_id] ?? 0.0) + (float) $payment->amount;
                 }
             }
-            if ($credit_id) {
+
+            foreach ($credit_amounts as $credit_id => $amount) {
                 $result = $wpdb->query(
                     $wpdb->prepare(
-                        "UPDATE {$credits_table} 
-                        SET total_amount = total_amount, 
-                        remaining_amount = remaining_amount + %f, 
-                        status = 'active'
+                        "UPDATE {$credits_table}
+                        SET remaining_amount = remaining_amount + %f,
+                            status = 'active'
                         WHERE id = %d",
-                        $total_amount,
+                        $amount,
                         $credit_id
                     )
                 );
-
-                if ($result === 0) {
-                    throw new Exception("Credits was not updated");
+                if ($result === false) {
+                    throw new Exception("Failed to restore credit #{$credit_id}: " . $wpdb->last_error);
                 }
                 check_wpdb_error($wpdb);
             }
-            if ($layaway_id) {
+
+            foreach ($layaway_amounts as $layaway_id => $amount) {
                 $result = $wpdb->query(
                     $wpdb->prepare(
-                        "UPDATE {$layaways_table} 
-                        SET total_amount = total_amount, 
-                        remaining_amount = remaining_amount + %f, 
-                        status = 'active'
+                        "UPDATE {$layaways_table}
+                        SET remaining_amount = remaining_amount + %f,
+                            status = 'active'
                         WHERE id = %d",
-                        $total_amount,
+                        $amount,
                         $layaway_id
                     )
                 );
-
-                if ($result === 0) {
-                    throw new Exception("Layaways was not updated");
+                if ($result === false) {
+                    throw new Exception("Failed to restore layaway #{$layaway_id}: " . $wpdb->last_error);
                 }
                 check_wpdb_error($wpdb);
             }
@@ -3244,24 +3242,31 @@ function create_refund_credit()
         wp_send_json_error(['message' => "Credit not found"], 404);
     }
 
-    if ($refund_total > $credit->remaining_amount) {
-        wp_send_json_error(['message' => "Refund amount greater than layaway value"], 422);
-    }
-
-    // === Determine Status ===
-    $refundCents    = (int) round($refund_total * 100);
-    $totalCents     = (int) round($credit->total_amount * 100);
-    $remainingCents = (int) round($credit->remaining_amount * 100);
-
-    $new_status = 'active';
-    if ($refundCents === $totalCents) {
-        $new_status = 'cancelled';
-    } elseif ($remainingCents - $refundCents <= 0) {
-        $new_status = 'cancelled';
-    }
-
     $wpdb->query('START TRANSACTION');
     try {
+
+        $fresh = $wpdb->get_row($wpdb->prepare(
+            "SELECT remaining_amount, total_amount FROM $credits_table WHERE id = %d FOR UPDATE",
+            $credit->id
+        ));
+        if (!$fresh) {
+            throw new RuntimeException("Credit record not found.");
+        }
+        if ($refund_total > $fresh->remaining_amount) {
+            throw new RuntimeException("Refund amount greater than credit balance.");
+        }
+
+        // === Determine Status ===
+        $refundCents    = (int) round($refund_total * 100);
+        $totalCents     = (int) round($fresh->total_amount * 100);
+        $remainingCents = (int) round($fresh->remaining_amount * 100);
+
+        $new_status = 'active';
+        if ($refundCents === $totalCents) {
+            $new_status = 'cancelled';
+        } elseif ($remainingCents - $refundCents <= 0) {
+            $new_status = 'cancelled';
+        }
 
         foreach ($payment_data as $payment) {
             $wpdb->insert($payments_table, [
@@ -3282,8 +3287,7 @@ function create_refund_credit()
         $wpdb->update(
             $credits_table,
             [
-                'total_amount' => $credit->total_amount,
-                'remaining_amount' => $credit->remaining_amount - $refund_total,
+                'remaining_amount' => $fresh->remaining_amount - $refund_total,
                 'status' => $new_status,
             ],
             ['id' => $credit->id]
@@ -3310,7 +3314,7 @@ function create_refund_credit()
             'message' => "Refund processed",
             'original_reference' => $reference,
             'reference_num' => $refund_reference,
-            'remaining_amount' => $credit->remaining_amount - $refund_total,
+            'remaining_amount' => $fresh->remaining_amount - $refund_total,
             'payment_data' => $payment_data,
             'reason' => $refund_reason,
             'date' => $date,
