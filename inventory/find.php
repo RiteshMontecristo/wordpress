@@ -3150,7 +3150,7 @@ function create_refund_layaway()
             'message' => "Refund processed",
             'original_reference' => $reference,
             'reference_num' => $refund_reference,
-            'remaining_amount' => $layaway->remaining_amount - $refund_total,
+            'remaining_amount' => $fresh->remaining_amount - $refund_total,
             'payment_data' => $payment_data,
             'reason' => $refund_reason,
             'date' => $date,
