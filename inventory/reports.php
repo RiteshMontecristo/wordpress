@@ -201,7 +201,7 @@ function reports_get_sales_results()
     $return_items_table = $wpdb->prefix . 'mji_return_items';
     $return_services_table = $wpdb->prefix . 'mji_return_services';
 
-    $where1 = ["o.created_at BETWEEN %s AND %s"];
+    $where1 = ["o.created_at BETWEEN %s AND %s", "o.status != 'cancelled'"];
     $params1 = [$start_date, $end_date];
 
     if ($salesperson !== null) {
@@ -2173,7 +2173,7 @@ function reports_get_financial_results()
     $return_items_table = "{$wpdb->prefix}mji_return_items";
     $return_services_table = "{$wpdb->prefix}mji_return_services";
 
-    $where_orders = ["o.created_at BETWEEN %s AND %s"];
+    $where_orders = ["o.created_at BETWEEN %s AND %s", "o.status != 'cancelled'"];
     $params_orders = [$start_date, $end_date];
 
     $where_returns = ["r.return_date BETWEEN %s AND %s"];
