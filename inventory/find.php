@@ -3081,20 +3081,27 @@ function create_refund_layaway()
         wp_send_json_error(['message' => "Refund amount greater than layaway value"], 422);
     }
 
-    // === Determine Status ===
-    $refundCents    = (int) round($refund_total * 100);
-    $totalCents     = (int) round($layaway->total_amount * 100);
-    $remainingCents = (int) round($layaway->remaining_amount * 100);
-
-    $new_status = 'active';
-    if ($refundCents === $totalCents) {
-        $new_status = 'cancelled';
-    } elseif ($remainingCents - $refundCents <= 0) {
-        $new_status = 'cancelled';
-    }
-
     $wpdb->query('START TRANSACTION');
     try {
+        // Re-read balance with row lock — prevents concurrent refunds double-deducting
+        $fresh = $wpdb->get_row($wpdb->prepare(
+            "SELECT remaining_amount, total_amount FROM $layaways_table WHERE id = %d FOR UPDATE",
+            $layaway->id
+        ));
+        if (!$fresh || $refund_total > $fresh->remaining_amount) {
+            throw new RuntimeException("Refund amount exceeds available layaway balance.");
+        }
+
+        $refundCents    = (int) round($refund_total * 100);
+        $totalCents     = (int) round($fresh->total_amount * 100);
+        $remainingCents = (int) round($fresh->remaining_amount * 100);
+
+        $new_status = 'active';
+        if ($refundCents === $totalCents) {
+            $new_status = 'cancelled';
+        } elseif ($remainingCents - $refundCents <= 0) {
+            $new_status = 'cancelled';
+        }
 
         foreach ($payment_data as $payment) {
             $wpdb->insert($payments_table, [
@@ -3115,8 +3122,8 @@ function create_refund_layaway()
         $wpdb->update(
             $layaways_table,
             [
-                'total_amount' => $layaway->total_amount,
-                'remaining_amount' => $layaway->remaining_amount - $refund_total,
+                'total_amount' => $fresh->total_amount,
+                'remaining_amount' => $fresh->remaining_amount - $refund_total,
                 'status' => $new_status,
             ],
             ['id' => $layaway->id]
@@ -3233,8 +3240,8 @@ function create_refund_credit()
         $reference
     ));
 
-    if (!$credits_table) {
-        wp_send_json_error(['message' => "Layaway not found"], 404);
+    if (!$credit) {
+        wp_send_json_error(['message' => "Credit not found"], 404);
     }
 
     if ($refund_total > $credit->remaining_amount) {
