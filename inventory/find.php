@@ -2221,50 +2221,48 @@ function delete_refund($reference_num)
         ", $reference_num));
 
         if ($payments) {
-            $credit_id = 0;
-            $layaway_id = 0;
-            $total_amount = 0;
+            $credit_amounts  = [];
+            $layaway_amounts = [];
             foreach ($payments as $payment) {
-                $total_amount += $payment->amount;
                 if (!empty($payment->credit_id)) {
-                    $credit_id = $payment->credit_id;
-                } else if (!empty($payment->layaway_id)) {
-                    $layaway_id = $payment->layaway_id;
+                    $credit_amounts[(int) $payment->credit_id] =
+                        ($credit_amounts[(int) $payment->credit_id] ?? 0.0) + (float) $payment->amount;
+                } elseif (!empty($payment->layaway_id)) {
+                    $layaway_amounts[(int) $payment->layaway_id] =
+                        ($layaway_amounts[(int) $payment->layaway_id] ?? 0.0) + (float) $payment->amount;
                 }
             }
-            if ($credit_id) {
+
+            foreach ($credit_amounts as $credit_id => $amount) {
                 $result = $wpdb->query(
                     $wpdb->prepare(
-                        "UPDATE {$credits_table} 
-                        SET total_amount = total_amount, 
-                        remaining_amount = remaining_amount + %f, 
-                        status = 'active'
+                        "UPDATE {$credits_table}
+                        SET remaining_amount = remaining_amount + %f,
+                            status = 'active'
                         WHERE id = %d",
-                        $total_amount,
+                        $amount,
                         $credit_id
                     )
                 );
-
-                if ($result === 0) {
-                    throw new Exception("Credits was not updated");
+                if ($result === false) {
+                    throw new Exception("Failed to restore credit #{$credit_id}: " . $wpdb->last_error);
                 }
                 check_wpdb_error($wpdb);
             }
-            if ($layaway_id) {
+
+            foreach ($layaway_amounts as $layaway_id => $amount) {
                 $result = $wpdb->query(
                     $wpdb->prepare(
-                        "UPDATE {$layaways_table} 
-                        SET total_amount = total_amount, 
-                        remaining_amount = remaining_amount + %f, 
-                        status = 'active'
+                        "UPDATE {$layaways_table}
+                        SET remaining_amount = remaining_amount + %f,
+                            status = 'active'
                         WHERE id = %d",
-                        $total_amount,
+                        $amount,
                         $layaway_id
                     )
                 );
-
-                if ($result === 0) {
-                    throw new Exception("Layaways was not updated");
+                if ($result === false) {
+                    throw new Exception("Failed to restore layaway #{$layaway_id}: " . $wpdb->last_error);
                 }
                 check_wpdb_error($wpdb);
             }
