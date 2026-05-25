@@ -642,7 +642,11 @@ function add_layaway()
             $success = $wpdb->insert($credit_table, $credit_data, $format);
 
             if (!$success) {
-                throw new Exception("Failed to insert payment: " . $wpdb->last_error);
+                if (strpos($wpdb->last_error, 'Duplicate entry') !== false) {
+                    throw new Exception("Reference number already exists.");
+                } else {
+                    throw new Exception("Failed to insert payment: " . $wpdb->last_error);
+                }
             }
 
             $credit_id = $wpdb->insert_id;
