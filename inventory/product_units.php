@@ -814,9 +814,9 @@ function create_inventory_units()
             wp_send_json_success($result);
         }
     } catch (Exception $e) {
+        $wpdb->query('ROLLBACK');
         custom_log("Error " . $e->getMessage());
         wp_send_json_error(['message' => 'Error creating inventory unit: ' . $e->getMessage()]);
-        $wpdb->query('ROLLBACK');
     }
 }
 
@@ -1205,7 +1205,24 @@ function change_status()
 
     $inventory_unit_table = $wpdb->prefix . "mji_product_inventory_units";
 
-    // Start transaction
+    $existing_unit = $wpdb->get_row($wpdb->prepare(
+        "SELECT id, status FROM {$inventory_unit_table} WHERE id = %d",
+        $unit_id
+    ));
+
+    if (!$existing_unit) {
+        wp_send_json_error('Unit not found.');
+    }
+
+    if ($existing_unit->status === 'sold') {
+        wp_send_json_error('Cannot change status of a sold unit.');
+    }
+
+    if ($existing_unit->status === $status) {
+        wp_send_json_success('Status did not change.');
+    }
+
+    // Start transaction only when we know we will write
     $wpdb->query('START TRANSACTION');
 
     try {
@@ -1214,21 +1231,16 @@ function change_status()
             $unit_id
         ));
 
-        if (!$existing_unit) {
-            wp_send_json_error('Unit not found.');
-            wp_die();
+        if (!$existing_unit || $existing_unit->status === 'sold') {
+            throw new Exception('Unit not found or already sold.');
         }
 
-        if ($existing_unit->status === 'sold') {
-            throw new Exception('Cannot change status of a sold unit.');
-        }
-
-        if ($existing_unit->status == $status) {
+        if ($existing_unit->status === $status) {
+            $wpdb->query('ROLLBACK');
             wp_send_json_success('Status did not change.');
         }
 
         if (!mji_insert_unit_history($unit_id, $existing_unit->status, $status, $notes ?? null, $date)) {
-            $wpdb->query('ROLLBACK');
             throw new Exception('Failed to insert status history: ' . $wpdb->last_error);
         }
 
@@ -1249,8 +1261,7 @@ function change_status()
         );
 
         if ($updated_result === false) {
-            $wpdb->query('ROLLBACK');
-            throw new Exception('Database update failed.' . $wpdb->last_error);
+            throw new Exception('Database update failed: ' . $wpdb->last_error);
         }
 
         // If product_id not provided in POST, look it up from the unit row
