@@ -579,7 +579,7 @@ function edit_customer_form()
                     <option value="">—</option>
                     <option value="Mr." <?= selected('Mr.',  trim($customer->prefix), false); ?>>Mr.</option>
                     <option value="Mrs." <?= selected('Mrs.', trim($customer->prefix), false); ?>>Mrs.</option>
-                    <option value="Miss." <?= selected('Miss', trim($customer->prefix), false); ?>>Miss</option>
+                    <option value="Miss" <?= selected('Miss', trim($customer->prefix), false); ?>>Miss</option>
                     <option value="Ms." <?= selected('Ms.',  trim($customer->prefix), false); ?>>Ms.</option>
                     <option value="Dr." <?= selected('Dr.',  trim($customer->prefix), false); ?>>Dr.</option>
                     <option value="Mr. & Mrs." <?= selected('Mr. & Mrs.',  trim($customer->prefix), false); ?>>Mr. and Mrs.</option>
