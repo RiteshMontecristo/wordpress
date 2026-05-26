@@ -606,15 +606,15 @@ function create_inventory_units()
     }
     $brand_id = $brand_id != 0 ? get_brand_model_id($brands_table, $brand) : NULL;
 
-    // If numeric, it is an existing supplier else create new
+    // If numeric, it is an existing supplier else find or create
     if (ctype_digit($supplier)) {
         $supplier_id = intval($supplier);
     } else {
-        $wpdb->insert($suppliers_table, [
-            'name' => $supplier
-        ]);
-
-        $supplier_id = $wpdb->insert_id;
+        $supplier_id = get_brand_model_id($suppliers_table, $supplier);
+        if ($supplier_id === false) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(['message' => 'Failed to find or create supplier.']);
+        }
         delete_transient('mji_suppliers');
     }
 
