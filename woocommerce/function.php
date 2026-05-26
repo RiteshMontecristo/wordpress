@@ -780,7 +780,7 @@ function favourite_content()
 
         echo '
         <div class="popup">
-            <p>Are you sure you want to remove it from favourite?<?p>
+            <p>Are you sure you want to remove it from favourite?</p>
             <div>
                 <button id="yes-btn" class="btn btn-red">Yes</button>
                 <button id="no-btn" class="btn">No</button>
