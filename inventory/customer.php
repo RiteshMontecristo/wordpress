@@ -148,29 +148,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
         return ob_get_clean();
     }
 
-    // Count query — THIS is where the bug is. Fix it like this:
-    if (!empty($search_query)) {
-        $count_query = $wpdb->prepare(
-            "
-        SELECT COUNT(DISTINCT id)
-        FROM $table_name
-        $where
-    ",
-            $like,
-            $like,
-            $like,
-            $like,
-            $like,
-            $like,
-            $like,
-            $like,
-            $like,
-            $like,
-            $like
-        );
-    } else {
-        $count_query = "SELECT COUNT(DISTINCT id) FROM $table_name";
-    }
+    $count_query = "SELECT COUNT(DISTINCT id) FROM $table_name $where";
     // Get total number of customers
     $total_customers = $wpdb->get_var($count_query);
 
