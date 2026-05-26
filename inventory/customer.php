@@ -194,7 +194,7 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                 if ($context === "customer") {
                     $saleperson_html = empty($salesperson)
                         ? '<td></td>'
-                        : "<td id='salesperson'>" . esc_html($salesperson->first_name) . " " . esc_html($salesperson->last_name) . "</td>";
+                        : "<td class='salesperson'>" . esc_html($salesperson->first_name) . " " . esc_html($salesperson->last_name) . "</td>";
 
                     $actionMethod = "
                         {$saleperson_html}
@@ -227,12 +227,12 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                 }
 
                 echo "<tr>";
-                echo "<td id='firstName'>" . esc_html($customer->prefix) . " " . esc_html($customer->first_name) . "</td>";
-                echo "<td id='lastName'>" . esc_html($customer->last_name) . "</td>";
-                echo "<td id='primaryPhone'>" . esc_html($primary_phone) . "</td>";
-                echo "<td id='secondaryPhone'>" . esc_html($secondary_phone) . "</td>";
-                echo "<td id='email'>" . esc_html($customer->email) . "</td>";
-                echo "<td id='address'>" . $address . "</td>";
+                echo "<td class='firstName'>" . esc_html($customer->prefix) . " " . esc_html($customer->first_name) . "</td>";
+                echo "<td class='lastName'>" . esc_html($customer->last_name) . "</td>";
+                echo "<td class='primaryPhone'>" . esc_html($primary_phone) . "</td>";
+                echo "<td class='secondaryPhone'>" . esc_html($secondary_phone) . "</td>";
+                echo "<td class='email'>" . esc_html($customer->email) . "</td>";
+                echo "<td class='address'>" . $address . "</td>";
                 echo $actionMethod;
                 echo "</tr>";
             }

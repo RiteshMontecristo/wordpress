@@ -65,9 +65,9 @@ export const CustomerSelector = {
         // Grabbing the selected customer's details
         const customerData = {
           id: button.dataset.customerid,
-          firstName: buttonParent.querySelector("#firstName").innerText.trim(),
-          lastName: buttonParent.querySelector("#lastName").innerText.trim(),
-          address: buttonParent.querySelector("#address").innerText.trim(),
+          firstName: buttonParent.querySelector(".firstName").innerText.trim(),
+          lastName: buttonParent.querySelector(".lastName").innerText.trim(),
+          address: buttonParent.querySelector(".address").innerText.trim(),
         };
 
         this.searchCustomer.classList.add("hidden");
