@@ -71,16 +71,16 @@ function fetch_salespeople($search_query = '')
           </thead>';
     echo '<tbody>';
 
-    foreach ($salespeople as $salespeople) {
+    foreach ($salespeople as $salesperson) {
 
         echo "<tr>
-            <td id='firstName'>" . esc_html($salespeople->first_name) . "</td>
-            <td id='lastName'>" . esc_html($salespeople->last_name) . "</td>
+            <td>" . esc_html($salesperson->first_name) . "</td>
+            <td>" . esc_html($salesperson->last_name) . "</td>
             <td>
-                <a href='" . esc_url("?page=salespeople-management&action=view&id=" . $salespeople->id) . "' class='button'>View</a>";
+                <a href='" . esc_url("?page=salespeople-management&action=view&id=" . $salesperson->id) . "' class='button'>View</a>";
         echo "<a href='" . esc_url(wp_nonce_url(
-            "?page=salespeople-management&action=delete&id=" . $salespeople->id,
-            'delete_salesperson_' . $salespeople->id
+            "?page=salespeople-management&action=delete&id=" . $salesperson->id,
+            'delete_salesperson_' . $salesperson->id
         )) . "' class='button' onclick=\"return confirm('Are you sure you want to delete this salesperson?');\">Delete</a>";
 
         echo "</td>
