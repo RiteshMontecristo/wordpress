@@ -110,7 +110,7 @@ function mji_get_or_create_customer_from_order($order)
     return $inserted ? (int) $wpdb->insert_id : 0;
 }
 
-function mji_map_wc_payment_method($gateway_id)
+function mji_map_wc_payment_method($gateway_id, $order = null)
 {
     $map = [
         'cod'    => 'cash',
@@ -119,7 +119,35 @@ function mji_map_wc_payment_method($gateway_id)
         'wechat' => 'alipay',
         'cup'    => 'cup',
     ];
-    return $map[$gateway_id] ?? 'visa';
+    if (isset($map[$gateway_id])) {
+        return $map[$gateway_id];
+    }
+
+    // For Stripe, check card funding first (debit/prepaid → 'debit'), then brand.
+    if ($order && str_starts_with($gateway_id, 'stripe')) {
+        $order_id = $order->get_id();
+        $funding  = get_post_meta($order_id, '_stripe_card_funding', true);
+        if (in_array($funding, ['debit', 'prepaid'], true)) {
+            return 'debit';
+        }
+        $brand_map = [
+            'visa'       => 'visa',
+            'mastercard' => 'master_card',
+            'amex'       => 'amex',
+            'unionpay'   => 'cup',
+        ];
+        $brand = strtolower((string) get_post_meta($order_id, '_stripe_card_brand', true));
+        if (isset($brand_map[$brand])) {
+            return $brand_map[$brand];
+        }
+        // Stripe but brand unknown — log and default to visa
+        custom_log("mji_map_wc_payment_method: unknown Stripe card brand '{$brand}' for order #{$order_id} — defaulting to visa.");
+        return 'visa';
+    }
+
+    // Unknown gateway — log and default to visa
+    custom_log("mji_map_wc_payment_method: unmapped gateway '{$gateway_id}' — defaulting to visa.");
+    return 'visa';
 }
 
 add_action('woocommerce_checkout_order_processed', 'adjust_stock_after_order', 10, 3);
@@ -316,7 +344,7 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
             }
         }
 
-        $payment_method = mji_map_wc_payment_method($order->get_payment_method());
+        $payment_method = mji_map_wc_payment_method($order->get_payment_method(), $order);
         $inserted = $wpdb->insert($wpdb->prefix . 'mji_payments', [
             'order_id'         => $mji_order_id,
             'customer_id'      => $customer_id,
@@ -462,7 +490,7 @@ function mji_sync_online_refund($refund_id, $args)
     }
     $gst_total = round($gst_total, 2);
     $pst_total = round($pst_total, 2);
-    $subtotal  = round($refund_amount - $gst_total - $pst_total, 2);
+    // Subtotal is computed below after $shipping_refund is known.
 
     // Build a map of wc_product/variant_id => qty being refunded from WC line items
     $product_qty_map = [];
@@ -526,6 +554,14 @@ function mji_sync_online_refund($refund_id, $args)
             $mji_order_id
         ));
     }
+
+    // Sum product line-item totals directly — avoids rounding errors from back-calculating via tax.
+    $subtotal = 0.0;
+    foreach ($refund->get_items() as $wc_item) {
+        if (!($wc_item instanceof WC_Order_Item_Product)) continue;
+        $subtotal += abs((float) $wc_item->get_total());
+    }
+    $subtotal = round($subtotal + $shipping_refund, 2);
 
     $wpdb->query('START TRANSACTION');
     try {
@@ -591,7 +627,7 @@ function mji_sync_online_refund($refund_id, $args)
             'salesperson_id'   => (int) $mji_order->salesperson_id,
             'location_id'      => (int) $mji_order->location_id,
             'reference_num'    => $return_ref,
-            'method'           => mji_map_wc_payment_method($order->get_payment_method()),
+            'method'           => mji_map_wc_payment_method($order->get_payment_method(), $order),
             'amount'           => $refund_amount,
             'transaction_type' => 'refund',
             'payment_date'     => $now,
