@@ -1462,7 +1462,7 @@ function render_layaway_invoice($invoice)
         </p>
 
         <?php if ($type === 'credit' && !empty($invoice->original_order_reference)): ?>
-        <p><strong>Purchase Invoice:</strong> #<?= esc_html($invoice->original_order_reference) ?></p>
+            <p><strong>Purchase Invoice:</strong> #<?= esc_html($invoice->original_order_reference) ?></p>
         <?php endif; ?>
 
         <?php
@@ -2863,7 +2863,8 @@ function insert_return_transactions($data, $order, $type)
         $customer_id = $order->customer_id;
         $salesperson_id = $order->salesperson_id;
         $all_salepeople = mji_get_salespeople();
-        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id);
+        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id)
+            ?? (object) ['first_name' => 'Unknown', 'last_name' => '', 'id' => $salesperson_id];
 
         $query = $wpdb->prepare("SELECT * FROM $customer_table WHERE id = %d", $customer_id);
         $customer_info = $wpdb->get_row($query);
@@ -3100,7 +3101,8 @@ function create_refund_layaway()
         check_wpdb_error($wpdb);
 
         $all_salepeople = mji_get_salespeople();
-        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id);
+        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id)
+            ?? (object) ['first_name' => 'Unknown', 'last_name' => '', 'id' => $salesperson_id];
         $customer_info = [
             "prefix" => $layaway->prefix,
             "first_name" => $layaway->first_name,
@@ -3266,7 +3268,8 @@ function create_refund_credit()
         check_wpdb_error($wpdb);
 
         $all_salepeople = mji_get_salespeople();
-        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id);
+        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id)
+            ?? (object) ['first_name' => 'Unknown', 'last_name' => '', 'id' => $salesperson_id];
         $customer_info = [
             "prefix" => $credit->prefix,
             "first_name" => $credit->first_name,
@@ -3585,8 +3588,17 @@ function edit_layaway()
     $acc_table = $type === 'layaway' ? $layaways_table : $credits_table;
 
     $allowed_regular = [
-        'cash', 'cheque', 'debit', 'visa', 'master_card', 'amex',
-        'bank_draft', 'cup', 'alipay', 'gift_card', 'wire',
+        'cash',
+        'cheque',
+        'debit',
+        'visa',
+        'master_card',
+        'amex',
+        'bank_draft',
+        'cup',
+        'alipay',
+        'gift_card',
+        'wire',
     ];
     $pay = [];
     foreach ($pay_raw as $key => $raw_amount) {

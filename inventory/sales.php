@@ -682,7 +682,7 @@ function add_layaway()
         });
         $layaway_sum = get_layaway_sum($customer_id, $location_id);
         $response = [
-            'salesperson' => $salesperson->first_name . ' ' . $salesperson->last_name,
+            'salesperson' => $salesperson ? $salesperson->first_name . ' ' . $salesperson->last_name : 'Unknown Salesperson',
             'reference_num' => $reference_num,
             'payment_date' => $payment_date,
             'payments' => $payments,
