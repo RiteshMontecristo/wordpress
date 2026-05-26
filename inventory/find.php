@@ -2273,7 +2273,7 @@ function sanitize_payment_amount($value)
     }
 
     $num = (float) $value;
-    return is_naN($num) ? 0.00 : round($num, 2);
+    return is_nan($num) ? 0.00 : round($num, 2);
 }
 
 function sanitize_and_validate_return($post_data)
