@@ -156,6 +156,38 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
     $total_pages = ceil($total_customers / $per_page);
     $salespeople_array = mji_get_salespeople();
 
+    // Batch-fetch layaways and credits for all customers on this page (avoids N+1)
+    $layaways_map = [];
+    $credits_map  = [];
+    if ($context !== 'customer' && !empty($customers)) {
+        $customer_ids     = array_map(fn($c) => (int) $c->id, $customers);
+        $id_placeholders  = implode(',', array_fill(0, count($customer_ids), '%d'));
+        $layaways_table   = $wpdb->prefix . 'mji_layaways';
+        $credits_table    = $wpdb->prefix . 'mji_credits';
+
+        $layaway_params = array_merge($customer_ids, [$location_id]);
+        $layaway_rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, customer_id, reference_num, remaining_amount
+             FROM {$layaways_table}
+             WHERE status = 'active' AND customer_id IN ($id_placeholders) AND location_id = %d",
+            ...$layaway_params
+        ));
+        foreach ($layaway_rows as $row) {
+            $layaways_map[(int) $row->customer_id][] = $row;
+        }
+
+        $credit_params = array_merge($customer_ids, [$location_id]);
+        $credit_rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, customer_id, reference_num, remaining_amount
+             FROM {$credits_table}
+             WHERE status = 'active' AND customer_id IN ($id_placeholders) AND location_id = %d",
+            ...$credit_params
+        ));
+        foreach ($credit_rows as $row) {
+            $credits_map[(int) $row->customer_id][] = $row;
+        }
+    }
+
 ?>
     <table class="wp-list-table widefat fixed striped">
         <thead>
@@ -204,8 +236,8 @@ function customer_table($context = "customer", $search_query = "", $per_page = 2
                             <a href='" . esc_url(wp_nonce_url("?page=customer-management&action=delete&id={$customer_id}", "delete_customer_{$customer_id}")) . "' class='button' onclick=\"return confirm('Are you sure you want to delete this customer?');\">Delete</a>
                         </td>";
                 } else {
-                    $layaway = get_active_layaway_list($customer_id, $location_id);
-                    $credit = get_active_credit_list($customer_id, $location_id);
+                    $layaway = $layaways_map[$customer_id] ?? [];
+                    $credit  = $credits_map[$customer_id]  ?? [];
 
                     $layaway_arr = array_map(function ($n) {
                         return "Layaway #" . esc_html($n->reference_num) . ": $" . esc_html($n->remaining_amount);
