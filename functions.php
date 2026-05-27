@@ -105,7 +105,7 @@ function get_image_sizes($image_url)
         $image_path = wp_normalize_path(ABSPATH . ltrim($image_url, '/'));
 
         if (file_exists($image_path)) {
-            $image_info = @getimagesize($image_path);
+            $image_info = getimagesize($image_path);
         } else {
             custom_log("Image not found locally: " . $image_path);
             return [
@@ -115,15 +115,14 @@ function get_image_sizes($image_url)
         }
     } else {
         //    Absolute URL (remote URL)
-        $headers = @get_headers($image_url);
-        if (!$headers || strpos($headers[0], '200') === false) {
+        $image_info = getimagesize($image_url);
+        if (!$image_info) {
             custom_log("Remote image not accessible: " . $image_url);
             return [
                 'width'  => null,
                 'height' => null
             ];
         }
-        $image_info = @getimagesize($image_url);
     }
 
     // Validate image data
@@ -140,8 +139,7 @@ function get_image_sizes($image_url)
         'height' => $image_info[1],
     ];
 
-    // Store in transient (5 years)  Practically permanent but still self-cleaning if unused.
-    set_transient($transient_key, $sizes, YEAR_IN_SECONDS * 5);
+    set_transient($transient_key, $sizes, DAY_IN_SECONDS * 30);
 
     return $sizes;
 }
@@ -223,8 +221,8 @@ function responsive_video_shortcode($atts)
     $hq_url = "https://img.youtube.com/vi/{$atts['embed_code']}/hqdefault.jpg";
 
     // Check if the max resolution thumbnail exists
-    $maxres_headers = @get_headers($maxres_url);
-
+    $context = stream_context_create(['http' => ['timeout' => 3]]);
+    $maxres_headers = get_headers($maxres_url, false, $context);
 
     // If max resolution thumbnail exists, return it, otherwise use hqdefault
     if ($maxres_headers && strpos($maxres_headers[0], '200') !== false) {
