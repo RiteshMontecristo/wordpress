@@ -702,83 +702,39 @@ function add_layaway()
 
 add_action('wp_ajax_addLayaway', 'add_layaway');
 
-// Get layaway that is active and hasn't been redeemed
-function get_active_layaway_list($customer_id = null, $location_id = null)
+function get_active_account_list(string $type, int $customer, int $location): array
 {
-    if (defined('DOING_AJAX') && DOING_AJAX) {
-        check_ajax_referer('mji_inventory_nonce', 'nonce');
-    }
-
-    $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : $customer_id;
-    $location = isset($_GET['location_id']) ? intval($_GET['location_id']) : $location_id;
-
-    if (!$customer) {
-        return wp_send_json_error('Customer ID is required');
-    }
-
-    if (!$location) {
-        return wp_send_json_error('Location ID is required');
-    }
-
     global $wpdb;
-
-    $table_name = $wpdb->prefix . 'mji_layaways';
-
-    $query = $wpdb->prepare("
+    $table_name = $wpdb->prefix . ($type === 'layaway' ? 'mji_layaways' : 'mji_credits');
+    return $wpdb->get_results($wpdb->prepare("
         SELECT id, reference_num, remaining_amount
         FROM {$table_name}
         WHERE status = 'active'
         AND customer_id = %d
         AND location_id = %d
-    ", $customer, $location);
+    ", $customer, $location)) ?: [];
+}
 
-    $layaway_items = $wpdb->get_results($query);
-
-    if ($customer_id && $location_id)
-        return $layaway_items;
-
-    return wp_send_json_success($layaway_items);
+function get_active_layaway_list()
+{
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
+    $customer = intval($_GET['customer_id'] ?? 0);
+    $location = intval($_GET['location_id'] ?? 0);
+    if (!$customer) { wp_send_json_error('Customer ID is required'); return; }
+    if (!$location) { wp_send_json_error('Location ID is required'); return; }
+    wp_send_json_success(get_active_account_list('layaway', $customer, $location));
 }
 
 add_action('wp_ajax_getActiveLayaway', 'get_active_layaway_list');
 
-
-// Get layaway that is active and hasn't been redeemed
-function get_active_credit_list($customer_id = null, $location_id = null)
+function get_active_credit_list()
 {
-    if (defined('DOING_AJAX') && DOING_AJAX) {
-        check_ajax_referer('mji_inventory_nonce', 'nonce');
-    }
-
-    $customer = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : $customer_id;
-    $location = isset($_GET['location_id']) ? intval($_GET['location_id']) : $location_id;
-
-    if (!$customer) {
-        return wp_send_json_error('Customer ID is required');
-    }
-
-    if (!$location) {
-        return wp_send_json_error('Location ID is required');
-    }
-
-    global $wpdb;
-
-    $table_name = $wpdb->prefix . 'mji_credits';
-
-    $query = $wpdb->prepare("
-        SELECT id, reference_num, remaining_amount
-        FROM {$table_name}
-        WHERE status = 'active'
-        AND customer_id = %d
-        AND location_id = %d
-    ", $customer, $location);
-
-    $credit_items = $wpdb->get_results($query);
-
-    if ($customer_id && $location_id)
-        return $credit_items;
-
-    return wp_send_json_success($credit_items);
+    check_ajax_referer('mji_inventory_nonce', 'nonce');
+    $customer = intval($_GET['customer_id'] ?? 0);
+    $location = intval($_GET['location_id'] ?? 0);
+    if (!$customer) { wp_send_json_error('Customer ID is required'); return; }
+    if (!$location) { wp_send_json_error('Location ID is required'); return; }
+    wp_send_json_success(get_active_account_list('credit', $customer, $location));
 }
 
 add_action('wp_ajax_getActiveCredit', 'get_active_credit_list');
