@@ -854,7 +854,7 @@ function reports_render_inventory_report($results)
     if (!empty($results['location'])) {
         $store_locations = mji_get_locations();
         $location_obj = array_find($store_locations, fn($loc) => $loc->id == $results['location']);
-        $location_name = $location_obj->name;
+        $location_name = $location_obj ? $location_obj->name : 'Unknown Location';
     } else {
         $location_name = 'All Location';
     }
@@ -1188,7 +1188,7 @@ function reports_render_layaway_report($results)
         if (!empty($results['location'])) {
             $store_locations = mji_get_locations();
             $location_obj = array_find($store_locations, fn($loc) => $loc->id == $results['location']);
-            $location_name = $location_obj->name;
+            $location_name = $location_obj ? $location_obj->name : 'Unknown Location';
         } else {
             $location_name = 'All Location';
         }

@@ -1462,7 +1462,7 @@ function render_layaway_invoice($invoice)
         </p>
 
         <?php if ($type === 'credit' && !empty($invoice->original_order_reference)): ?>
-        <p><strong>Purchase Invoice:</strong> #<?= esc_html($invoice->original_order_reference) ?></p>
+            <p><strong>Purchase Invoice:</strong> #<?= esc_html($invoice->original_order_reference) ?></p>
         <?php endif; ?>
 
         <?php
@@ -1981,61 +1981,45 @@ function delete_layaway($layaway_id)
 {
     $layaway_id = absint($layaway_id);
     if (!$layaway_id) {
-        return array("success" => false, "message" => "Layaway id is required to delete.");
+        return ['success' => false, 'message' => 'Layaway id is required to delete.'];
     }
 
     global $wpdb;
-
     $layaways_table = $wpdb->prefix . 'mji_layaways';
     $payments_table = $wpdb->prefix . 'mji_payments';
+
+    $layaway_amount = $wpdb->get_row($wpdb->prepare(
+        "SELECT total_amount, remaining_amount FROM {$layaways_table} WHERE id = %d",
+        $layaway_id
+    ));
+
+    if (!$layaway_amount) {
+        return ['success' => false, 'message' => 'No Layaway found with that ID.'];
+    }
+
+    if ((int) round($layaway_amount->total_amount * 100) !== (int) round($layaway_amount->remaining_amount * 100)) {
+        return ['success' => false, 'message' => 'Layaway already used so unable to delete.'];
+    }
+
     $wpdb->query('START TRANSACTION');
-
     try {
-        $layaway_amount = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT total_amount, remaining_amount 
-                 FROM {$layaways_table}
-                 WHERE id = %d",
-                $layaway_id
-            )
-        );
-
+        $wpdb->delete($payments_table, ['layaway_id' => $layaway_id], ['%d']);
         check_wpdb_error($wpdb);
-
-        if (!$layaway_amount) {
-            return array("success" => false, "message" => "No Layaway found with that ID.");
-        }
-
-        if ($layaway_amount->total_amount == $layaway_amount->remaining_amount) {
-            $wpdb->delete($payments_table, ['layaway_id' => $layaway_id], ['%d']);
-            check_wpdb_error($wpdb);
-            $wpdb->delete($layaways_table, ['id' => $layaway_id], ['%d']);
-            check_wpdb_error($wpdb);
-            $wpdb->query('COMMIT');
-            return [
-                'success' => true,
-                "message" => "Layaway successfully deleted."
-            ];
-        } else {
-            return [
-                'success' => false,
-                "message" => "Layaway already used so unable to delete."
-            ];
-        }
+        $wpdb->delete($layaways_table, ['id' => $layaway_id], ['%d']);
+        check_wpdb_error($wpdb);
+        $wpdb->query('COMMIT');
+        return ['success' => true, 'message' => 'Layaway successfully deleted.'];
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
         custom_log('[Delete Layaway Invoice Failed] ' . $e->getMessage());
-        return [
-            'success' => false,
-            'message' => '[Delete Layaway Invoice Failed] ' . $e->getMessage(),
-        ];
+        return ['success' => false, 'message' => '[Delete Layaway Invoice Failed] ' . $e->getMessage()];
     }
 }
 
 function delete_credit($reference_num)
 {
     if (!$reference_num) {
-        return array("success" => false, "message" => "Credit id is required to delete.");
+        return ['success' => false, 'message' => 'Credit id is required to delete.'];
     }
 
     global $wpdb;
@@ -2046,90 +2030,77 @@ function delete_credit($reference_num)
     $return_services_table = $wpdb->prefix . "mji_return_services";
     $inventory_status_history_table = $wpdb->prefix . "mji_inventory_status_history";
     $product_inventory_units_table = $wpdb->prefix . "mji_product_inventory_units";
+
+    $credit_amount = $wpdb->get_row($wpdb->prepare(
+        "SELECT id, total_amount, remaining_amount FROM {$credits_table} WHERE reference_num = %s",
+        $reference_num
+    ));
+
+    if (!$credit_amount) {
+        return ['success' => false, 'message' => 'No Credits found with that reference number.'];
+    }
+
+    if ((int) round($credit_amount->total_amount * 100) !== (int) round($credit_amount->remaining_amount * 100)) {
+        return ['success' => false, 'message' => 'Credit already used so unable to delete.'];
+    }
+
+    $credit_id = $credit_amount->id;
     $restored_stock = [];
     $wpdb->query('START TRANSACTION');
     try {
-        $credit_amount = $wpdb->get_row(
+        $wpdb->delete($payments_table, ['credit_id' => $credit_id], ['%d']);
+        check_wpdb_error($wpdb);
+        $wpdb->delete($credits_table, ['id' => $credit_id], ['%d']);
+        check_wpdb_error($wpdb);
+
+        $returns = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT id, total_amount, remaining_amount 
-                 FROM {$credits_table}
-                 WHERE reference_num = %s",
+                "SELECT r.id, ri.product_inventory_unit_id, p.wc_product_id, p.wc_product_variant_id, ish.from_status, ish.to_status
+                FROM {$return_table} r
+                JOIN {$return_items_table} ri
+                    ON r.id = ri.return_id
+                JOIN {$product_inventory_units_table} p
+                    ON ri.product_inventory_unit_id = p.id
+                JOIN {$inventory_status_history_table} ish
+                    ON ish.inventory_unit_id = ri.product_inventory_unit_id
+                    AND ish.reference_num = r.reference_num
+                WHERE r.reference_num = %s",
                 $reference_num
             )
         );
 
         check_wpdb_error($wpdb);
 
-        if (!$credit_amount) {
-            return array("message" => "No Credits found with that reference number.");
-        }
-
-        $credit_id = $credit_amount->id;
-        if ($credit_amount->total_amount == $credit_amount->remaining_amount) {
-
-            $wpdb->delete($payments_table, ['credit_id' => $credit_id], ['%d']);
+        if ($returns) {
+            $wpdb->delete($inventory_status_history_table, ['reference_num' => $reference_num], ['%s']);
             check_wpdb_error($wpdb);
-            $wpdb->delete($credits_table, ['id' => $credit_id], ['%d']);
+            $wpdb->delete($return_items_table, ['return_id' => $returns[0]->id], ['%d']);
+            check_wpdb_error($wpdb);
+            $wpdb->delete($return_services_table, ['return_id' => $returns[0]->id], ['%d']);
+            check_wpdb_error($wpdb);
+            $wpdb->delete($return_table, ['reference_num' => $reference_num], ['%s']);
             check_wpdb_error($wpdb);
 
-            $returns = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT r.id, ri.product_inventory_unit_id, p.wc_product_id, p.wc_product_variant_id,  ish.from_status, ish.to_status
-                    FROM {$return_table} r
-                    JOIN {$return_items_table} ri
-                        ON r.id = ri.return_id
-                    JOIN {$product_inventory_units_table} p
-                        ON ri.product_inventory_unit_id = p.id
-                    JOIN {$inventory_status_history_table} ish 
-                        ON ish.inventory_unit_id = ri.product_inventory_unit_id
-                        AND ish.reference_num = r.reference_num
-                    WHERE r.reference_num = %s",
-                    $reference_num
-                )
-            );
+            foreach ($returns as $return) {
+                if ($return->from_status == "sold" && $return->to_status == "in_stock") {
+                    $wpdb->update($product_inventory_units_table, ["status" => "sold"], ['id' => $return->product_inventory_unit_id], ['%s'], ['%d']);
+                    check_wpdb_error($wpdb);
 
-            check_wpdb_error($wpdb);
-
-            if ($returns) {
-                $wpdb->delete($inventory_status_history_table, ['reference_num' => $reference_num], ['%s']);
-                check_wpdb_error($wpdb);
-                $wpdb->delete($return_items_table, ['return_id' => $returns[0]->id], ['%d']);
-                check_wpdb_error($wpdb);
-                $wpdb->delete($return_services_table, ['return_id' => $returns[0]->id], ['%d']);
-                check_wpdb_error($wpdb);
-                $wpdb->delete($return_table, ['reference_num' => $reference_num], ['%s']);
-                check_wpdb_error($wpdb);
-
-                foreach ($returns as $return) {
-
-                    if ($return->from_status == "sold" && $return->to_status == "in_stock") {
-                        $wpdb->update($product_inventory_units_table, ["status" => "sold"], ['id' => $return->product_inventory_unit_id], ['%s'], ['%d']);
-                        check_wpdb_error($wpdb);
-
-                        $product_id = $return->wc_product_variant_id ?: $return->wc_product_id;
-                        if ($product_id) {
-                            $product = wc_get_product($product_id);
-                            if ($product && $product->managing_stock()) {
-                                $product->set_stock_quantity($product->get_stock_quantity() - 1);
-                                $product->save();
-                                $restored_stock[] = $product_id;
-                            }
+                    $product_id = $return->wc_product_variant_id ?: $return->wc_product_id;
+                    if ($product_id) {
+                        $product = wc_get_product($product_id);
+                        if ($product && $product->managing_stock()) {
+                            $product->set_stock_quantity($product->get_stock_quantity() - 1);
+                            $product->save();
+                            $restored_stock[] = $product_id;
                         }
                     }
                 }
             }
-
-            $wpdb->query('COMMIT');
-            return [
-                'success' => true,
-                "message" => "Credit successfully deleted."
-            ];
-        } else {
-            return [
-                'success' => false,
-                "message" => "Credit already used so unable to delete."
-            ];
         }
+
+        $wpdb->query('COMMIT');
+        return ['success' => true, 'message' => 'Credit successfully deleted.'];
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
 
@@ -2302,7 +2273,7 @@ function sanitize_payment_amount($value)
     }
 
     $num = (float) $value;
-    return is_naN($num) ? 0.00 : round($num, 2);
+    return is_nan($num) ? 0.00 : round($num, 2);
 }
 
 function sanitize_and_validate_return($post_data)
@@ -2892,7 +2863,8 @@ function insert_return_transactions($data, $order, $type)
         $customer_id = $order->customer_id;
         $salesperson_id = $order->salesperson_id;
         $all_salepeople = mji_get_salespeople();
-        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id);
+        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id)
+            ?? (object) ['first_name' => 'Unknown', 'last_name' => '', 'id' => $salesperson_id];
 
         $query = $wpdb->prepare("SELECT * FROM $customer_table WHERE id = %d", $customer_id);
         $customer_info = $wpdb->get_row($query);
@@ -3129,7 +3101,8 @@ function create_refund_layaway()
         check_wpdb_error($wpdb);
 
         $all_salepeople = mji_get_salespeople();
-        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id);
+        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id)
+            ?? (object) ['first_name' => 'Unknown', 'last_name' => '', 'id' => $salesperson_id];
         $customer_info = [
             "prefix" => $layaway->prefix,
             "first_name" => $layaway->first_name,
@@ -3295,7 +3268,8 @@ function create_refund_credit()
         check_wpdb_error($wpdb);
 
         $all_salepeople = mji_get_salespeople();
-        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id);
+        $salesperson = array_find($all_salepeople, fn($p) => $p->id == $salesperson_id)
+            ?? (object) ['first_name' => 'Unknown', 'last_name' => '', 'id' => $salesperson_id];
         $customer_info = [
             "prefix" => $credit->prefix,
             "first_name" => $credit->first_name,
@@ -3614,8 +3588,17 @@ function edit_layaway()
     $acc_table = $type === 'layaway' ? $layaways_table : $credits_table;
 
     $allowed_regular = [
-        'cash', 'cheque', 'debit', 'visa', 'master_card', 'amex',
-        'bank_draft', 'cup', 'alipay', 'gift_card', 'wire',
+        'cash',
+        'cheque',
+        'debit',
+        'visa',
+        'master_card',
+        'amex',
+        'bank_draft',
+        'cup',
+        'alipay',
+        'gift_card',
+        'wire',
     ];
     $pay = [];
     foreach ($pay_raw as $key => $raw_amount) {

@@ -88,7 +88,7 @@ export const CartSelector = {
 
     if (AppState.cart.length == 0 && AppState.services.length == 0) {
       cartHTML =
-        "<p>No items in the cart!!. Please add by searching the prooducts.</p>";
+        "<p>No items in the cart. Please add by searching the products.</p>";
     }
 
     this.cartItems.innerHTML = cartHTML;

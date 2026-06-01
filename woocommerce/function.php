@@ -156,8 +156,8 @@ function responsive_video($atts)
     $hq_url = "https://img.youtube.com/vi/{$atts['embed_code']}/hqdefault.jpg";
 
     // Check if the max resolution thumbnail exists
-    $maxres_headers = @get_headers($maxres_url);
-
+    $context = stream_context_create(['http' => ['timeout' => 3]]);
+    $maxres_headers = get_headers($maxres_url, false, $context);
 
     // If max resolution thumbnail exists, return it, otherwise use hqdefault
     if ($maxres_headers && strpos($maxres_headers[0], '200') !== false) {
@@ -780,7 +780,7 @@ function favourite_content()
 
         echo '
         <div class="popup">
-            <p>Are you sure you want to remove it from favourite?<?p>
+            <p>Are you sure you want to remove it from favourite?</p>
             <div>
                 <button id="yes-btn" class="btn btn-red">Yes</button>
                 <button id="no-btn" class="btn">No</button>

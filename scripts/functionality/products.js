@@ -207,18 +207,24 @@ function getFilterValues() {
   return queryParams;
 }
 
+let filterAbortController = null;
+
 // Filter all products
 function filterProducts() {
   page = 0;
-  // Get all the values
-  const queryParams = getFilterValues();
 
+  if (filterAbortController) {
+    filterAbortController.abort();
+  }
+  filterAbortController = new AbortController();
+
+  const queryParams = getFilterValues();
   queryParams.append("action", "filter_products");
   queryParams.append("page", page);
 
-  // Update the URL or perform AJAX request
   fetch(`${ajax_object_another.ajax_url}?${queryParams}`, {
     method: "GET",
+    signal: filterAbortController.signal,
   })
     .then((response) => response.json())
     .then((data) => {
@@ -231,7 +237,9 @@ function filterProducts() {
         loadMoreProducts.style.display = "block";
       }
     })
-    .catch((error) => console.error("Error:", error));
+    .catch((error) => {
+      if (error.name !== "AbortError") console.error("Error:", error);
+    });
 }
 
 resetFilter?.addEventListener("click", () => {

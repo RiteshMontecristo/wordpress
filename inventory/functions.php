@@ -1104,126 +1104,99 @@ function mji_get_salespeople()
     return $salespeople;
 }
 
+function mji_build_select(array $config): string
+{
+    $items         = $config['items'];
+    $name          = $config['name'];
+    $id            = $config['id'] ?? $name;
+    $placeholder   = $config['placeholder'];
+    $label_cb      = $config['label'];
+    $required      = $config['required'] ?? true;
+    $selected_id   = $config['selected'] ?? '';
+    $class         = isset($config['class']) ? " class=\"{$config['class']}\"" : '';
+    $required_attr = $required ? ' required' : '';
+
+    $html  = "<select name='{$name}' id='{$id}'{$class}{$required_attr}>";
+    $html .= "<option value=''>" . esc_html($placeholder) . "</option>";
+
+    foreach ($items as $item) {
+        $label    = is_callable($label_cb) ? $label_cb($item) : esc_html($item->{$label_cb});
+        $selected = ($item->id == $selected_id) ? 'selected' : '';
+        $html    .= "<option value='" . esc_attr($item->id) . "' {$selected}>{$label}</option>";
+    }
+
+    $html .= '</select>';
+    return $html;
+}
+
 function mji_salesperson_dropdown($required = true, $selected_id = '')
 {
-    $salespeople = mji_get_salespeople();
-    $required_attr = $required ? 'required' : '';
-
-    $html = "<select name='salesperson' id='salesperson' {$required_attr}>";
-    $html .= '<option value="">Select Salesperson</option>';
-
-    foreach ($salespeople as $s) {
-        $selected = ($s->id == $selected_id) ? 'selected' : '';
-        $html .= "<option value='{$s->id}' {$selected}>{$s->first_name} {$s->last_name}</option>";
-    }
-
-    $html .= '</select>';
-    return $html;
+    return mji_build_select([
+        'items'       => mji_get_salespeople(),
+        'name'        => 'salesperson',
+        'placeholder' => 'Select Salesperson',
+        'label'       => fn($s) => esc_html("{$s->first_name} {$s->last_name}"),
+        'required'    => $required,
+        'selected'    => $selected_id,
+    ]);
 }
 
-function mji_get_locations()
+function mji_get_reference_data(string $table_key): array
 {
-    static $locations = null;
+    static $cache = [];
 
-    if ($locations !== null) {
-        return $locations;
+    if (isset($cache[$table_key])) {
+        return $cache[$table_key];
     }
 
-    $locations = get_transient('mji_locations');
-    if ($locations !== false) {
-        return $locations;
+    $cached = get_transient("mji_{$table_key}");
+    if ($cached !== false) {
+        $cache[$table_key] = $cached;
+        return $cached;
     }
 
     global $wpdb;
-    $table_name = $wpdb->prefix . 'mji_locations';
-    $results = $wpdb->get_results("SELECT id, name FROM $table_name");
+    $results = $wpdb->get_results(
+        "SELECT id, name FROM {$wpdb->prefix}mji_{$table_key} ORDER BY name ASC"
+    ) ?: [];
 
-    $locations = $results ?: [];
-    set_transient('mji_locations', $locations, DAY_IN_SECONDS);
-
-    return $locations;
-}
-
-function mji_store_dropdown($required = true, $selected_id = '')
-{
-    $locations = mji_get_locations();
-    $required_attr = $required ? 'required' : '';
-
-    $html = "<select name='location' id='location' {$required_attr}>";
-    $html .= '<option value="">Select Location</option>';
-
-    foreach ($locations as $l) {
-        $selected = ($l->id == $selected_id) ? 'selected' : '';
-        $html .= "<option value='{$l->id}' {$selected}>{$l->name}</option>";
-    }
-
-    $html .= '</select>';
-    return $html;
-}
-
-function mji_get_brands()
-{
-    // Try transient first
-    $brands = get_transient('mji_brands');
-    if ($brands !== false) {
-        return $brands;
-    }
-
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'mji_brands';
-    $results = $wpdb->get_results("SELECT id, name FROM $table_name ORDER BY name ASC");
-
-    $brands = $results ?: [];
-    set_transient('mji_brands', $brands, DAY_IN_SECONDS);
-
-    return $brands;
-}
-
-function mji_brands_dropdown($required = true, $selected_id = '')
-{
-    $brands = mji_get_brands();
-    $required_attr = $required ? 'required' : '';
-
-    $html = "<select name='brands' id='brands' {$required_attr}>";
-    $html .= '<option value="">Select Brands</option>';
-
-    foreach ($brands as $b) {
-        $selected = ($b->id == $selected_id) ? 'selected' : '';
-        $html .= "<option value='{$b->id}' {$selected}>{$b->name}</option>";
-    }
-
-    $html .= '</select>';
-    return $html;
-}
-
-function mji_get_models(): array
-{
-    $cached = get_transient('mji_models');
-    if ($cached !== false) return $cached;
-
-    global $wpdb;
-    $results = $wpdb->get_results("SELECT id, name FROM {$wpdb->prefix}mji_models ORDER BY name ASC") ?: [];
-    set_transient('mji_models', $results, DAY_IN_SECONDS);
+    set_transient("mji_{$table_key}", $results, DAY_IN_SECONDS);
+    $cache[$table_key] = $results;
     return $results;
 }
 
-function mji_get_suppliers()
+function mji_get_locations()  { return mji_get_reference_data('locations'); }
+
+
+function mji_store_dropdown($required = true, $selected_id = '')
 {
-    // Try transient first
-    $brands = get_transient('mji_suppliers');
-    if ($brands !== false) {
-        return $brands;
-    }
-
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'mji_suppliers';
-    $results = $wpdb->get_results("SELECT id, name FROM $table_name ORDER BY name ASC");
-
-    $brands = $results ?: [];
-    set_transient('mji_suppliers', $brands, DAY_IN_SECONDS);
-
-    return $brands;
+    return mji_build_select([
+        'items'       => mji_get_locations(),
+        'name'        => 'location',
+        'placeholder' => 'Select Location',
+        'label'       => 'name',
+        'required'    => $required,
+        'selected'    => $selected_id,
+    ]);
 }
+
+function mji_get_brands() { return mji_get_reference_data('brands'); }
+
+function mji_brands_dropdown($required = true, $selected_id = '')
+{
+    return mji_build_select([
+        'items'       => mji_get_brands(),
+        'name'        => 'brands',
+        'placeholder' => 'Select Brands',
+        'label'       => 'name',
+        'required'    => $required,
+        'selected'    => $selected_id,
+    ]);
+}
+
+function mji_get_models(): array { return mji_get_reference_data('models'); }
+
+function mji_get_suppliers(): array { return mji_get_reference_data('suppliers'); }
 
 function mji_get_unit_image_url(object|array $unit, string $size = 'medium'): string {
     $image_id      = is_array($unit) ? (int) ($unit['image_id'] ?? 0)      : (int) ($unit->image_id ?? 0);
@@ -1245,18 +1218,16 @@ function mji_get_unit_image_url(object|array $unit, string $size = 'medium'): st
 
 function mji_suppliers_dropdown(bool $required = true, int $selected = 0)
 {
-    $suppliers = mji_get_suppliers();
-    $required_attr = $required ? 'required' : '';
-
-?>
-    <select id="supplierID" name="supplier_id" class="supplier-select" <?= $required_attr ?>>
-        <option value="">Select or add supplier</option>
-        <?php foreach ($suppliers as $supplier): ?>
-            <option value="<?= $supplier->id ?>" <?= selected($supplier->id, $selected, false) ?>><?= esc_html($supplier->name) ?></option>
-        <?php endforeach; ?>
-    </select>
-
-<?php
+    echo mji_build_select([
+        'items'       => mji_get_suppliers(),
+        'name'        => 'supplier_id',
+        'id'          => 'supplierID',
+        'placeholder' => 'Select or add supplier',
+        'label'       => 'name',
+        'class'       => 'supplier-select',
+        'required'    => $required,
+        'selected'    => $selected,
+    ]);
 }
 // To look at our categories and then make the primary category based on parent category
 add_action('admin_menu', function () {
