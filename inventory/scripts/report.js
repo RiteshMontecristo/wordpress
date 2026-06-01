@@ -2,7 +2,6 @@
 const excludedColumns = new Set();
 
 // ─── Column Toggle ────────────────────────────────────────────────────────────
-asd
 function initColumnToggle() {
   const table = document.getElementById("inventoryTable");
   if (!table) return;
