@@ -13,7 +13,7 @@
  *
  * @see     https://woocommerce.com/document/template-structure/
  * @package WooCommerce\Templates
- * @version 10.1.0
+ * @version 10.8.0
  */
 
 defined('ABSPATH') || exit;
@@ -165,6 +165,12 @@ do_action('woocommerce_before_cart'); ?>
 
 			<?php do_action('woocommerce_cart_contents'); ?>
 
+			<tr>
+				<td colspan="6" class="actions">
+					<?php do_action( 'woocommerce_cart_actions' ); ?>
+					<?php wp_nonce_field( 'woocommerce-cart', 'woocommerce-cart-nonce' ); ?>
+				</td>
+			</tr>
 
 			<?php do_action('woocommerce_after_cart_contents'); ?>
 		</tbody>

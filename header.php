@@ -277,13 +277,14 @@
                                     <ul class="children-menu-container">
                                         <li>
                                             <a href="/montecristo">Montecristo</a>
-                                            <ul class="children-menu-container">
+                                            <!-- Might need to add these later -->
+                                            <!-- <ul class="children-menu-container">
                                                 <li><a href="/jewellery/bracelets">Bracelets</a></li>
                                                 <li><a href="/jewellery/earrings">Earrings</a></li>
                                                 <li><a href="/jewellery/pendants-necklaces">Pendants & Necklaces</a></li>
                                                 <li><a href="/jewellery/rings">Rings</a></li>
                                                 <li><a href="/jewellery/wedding-bands">Wedding Bands</a></li>
-                                            </ul>
+                                            </ul> -->
                                         </li>
                                         <li><a href="/designer/cammillifirenze">Cammilli Firenze</a></li>
                                         <li><a href="/designer/faberge">Fabergé</a></li>
