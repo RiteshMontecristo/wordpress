@@ -35,6 +35,19 @@ if (is_search()) {
                     } ?>
                 </ul>
             </div>
+            <div class="filter filter-hide tags">
+                <h3>Availability</h3>
+                <ul class="hidden">
+                    <li>
+                        <input type="checkbox" name="stock_status[]" id="stock-instock" value="instock">
+                        <label for="stock-instock">In Stock</label>
+                    </li>
+                    <li>
+                        <input type="checkbox" name="stock_status[]" id="stock-outofstock" value="outofstock">
+                        <label for="stock-outofstock">Out of Stock</label>
+                    </li>
+                </ul>
+            </div>
         </div>
     </sidebar>
 
@@ -261,6 +274,20 @@ if (!empty($children) || $parent_category_name == "Jewellery") {
                     </div>
                 </div>
             <?php } ?>
+
+            <div class="filter filter-hide tags">
+                <h3>Availability</h3>
+                <ul class="hidden">
+                    <li>
+                        <input type="checkbox" name="stock_status[]" id="stock-instock" value="instock">
+                        <label for="stock-instock">In Stock</label>
+                    </li>
+                    <li>
+                        <input type="checkbox" name="stock_status[]" id="stock-outofstock" value="outofstock">
+                        <label for="stock-outofstock">Out of Stock</label>
+                    </li>
+                </ul>
+            </div>
 
             <!-- <div class="filter reset">
                 <button id="reset-filters">Reset

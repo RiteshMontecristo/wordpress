@@ -190,6 +190,19 @@ function responsive_video($atts)
 }
 add_shortcode('facade_video', 'responsive_video');
 
+// Stock availability badge on product listing cards
+function mji_product_loop_stock_badge()
+{
+    global $product;
+    if (!$product) return;
+    if ($product->get_stock_status() === 'instock') {
+        echo '<span class="stock-badge in-stock">In Stock</span>';
+    } else {
+        echo '<span class="stock-badge out-of-stock">Out of Stock</span>';
+    }
+}
+add_action('woocommerce_after_shop_loop_item_title', 'mji_product_loop_stock_badge', 11);
+
 // Removing the sidebar
 function remove_sidebar_from_non_category_pages()
 {

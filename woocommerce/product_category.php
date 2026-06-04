@@ -385,18 +385,34 @@ function get_products_info()
     $posts_per_page = 12;
     $offset = $page * $posts_per_page;
 
+    $meta_query = array(
+        'relation' => 'AND',
+        array(
+            'key'     => '_price',
+            'value'   => array($minPrice, $maxPrice),
+            'compare' => 'BETWEEN',
+            'type'    => 'NUMERIC',
+        ),
+    );
+
+    if (isset($_GET['stockStatus']) && !empty($_GET['stockStatus'])) {
+        $allowed_statuses = ['instock', 'outofstock'];
+        $raw = array_map('sanitize_key', explode(',', $_GET['stockStatus']));
+        $valid = array_values(array_intersect($raw, $allowed_statuses));
+        if (!empty($valid)) {
+            $meta_query[] = array(
+                'key'     => '_stock_status',
+                'value'   => $valid,
+                'compare' => 'IN',
+            );
+        }
+    }
+
     $args = array(
         'post_type' => 'product',
         'posts_per_page' => $posts_per_page,
         'offset' => $offset,
-        'meta_query' => array(
-            array(
-                'key' => '_price',
-                'value' => array($minPrice, $maxPrice),
-                'compare' => 'BETWEEN',
-                'type' => 'NUMERIC',
-            )
-        ),
+        'meta_query' => $meta_query,
         'orderby' => $orderby,
         'order' => 'ASC',
         'post_status' => 'publish'

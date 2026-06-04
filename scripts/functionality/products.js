@@ -19,6 +19,7 @@ const allTargetGroup = document.querySelectorAll(
 const allMaterial = document.querySelectorAll('input[name="materials[]"]');
 const allGemstone = document.querySelectorAll('input[name="gemstone[]"]');
 const allGift = document.querySelectorAll('input[name="gifts[]"]');
+const allStockStatus = document.querySelectorAll('input[name="stock_status[]"]');
 // to make only one checkbox selectable at a time for the category title brand
 const categoryHeading = document.querySelector(".category h3");
 
@@ -109,6 +110,10 @@ allGift.forEach((el) => {
   el.addEventListener("change", debouncedFunc);
 });
 
+allStockStatus.forEach((el) => {
+  el.addEventListener("change", debouncedFunc);
+});
+
 filterComponent.forEach((el) => {
   const h3 = el.querySelector("h3");
   const ul = el.querySelector("ul");
@@ -145,6 +150,7 @@ function getFilterValues() {
   const giftsCheckboxes = document.querySelectorAll(
     'input[name="gifts[]"]:checked'
   );
+  const stockStatusCheckboxes = document.querySelectorAll('input[name="stock_status[]"]:checked');
   const minPrice = document.getElementById("min-price")?.value;
   const maxPrice = document.getElementById("max-price")?.value;
   const orderby = sortby?.value;
@@ -171,6 +177,9 @@ function getFilterValues() {
   );
   // Create an array to hold selected values
   const selectedGiftCategories = Array.from(giftsCheckboxes).map(
+    (checkbox) => checkbox.value
+  );
+  const selectedStockStatuses = Array.from(stockStatusCheckboxes).map(
     (checkbox) => checkbox.value
   );
 
@@ -202,6 +211,10 @@ function getFilterValues() {
 
   if (maxPrice !== "" && maxPrice !== null && maxPrice !== undefined) {
     queryParams.append("max_price", maxPrice);
+  }
+
+  if (selectedStockStatuses.length > 0) {
+    queryParams.append("stockStatus", selectedStockStatuses.join(","));
   }
 
   return queryParams;
@@ -265,6 +278,10 @@ resetFilter?.addEventListener("click", () => {
 
   allPrice.forEach((el) => {
     el.value = "";
+  });
+
+  allStockStatus.forEach((el) => {
+    el.checked = false;
   });
 
   filterProducts();
