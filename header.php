@@ -334,7 +334,7 @@
                             <a href="<?php echo get_permalink(get_option('woocommerce_myaccount_page_id')); ?>" aria-label="Account">
                                 <img height="25" width="25" src="<?php echo get_stylesheet_directory_uri() . "/assets/icons/account.svg" ?>" alt="Account Icon" />
                             </a>
-
+                        </div><!-- .menu-icons -->
                     </nav><!-- #site-navigation -->
                 </div>
             </div>

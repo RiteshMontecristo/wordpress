@@ -3,6 +3,9 @@
 add_filter('woocommerce_email_enabled_new_order', '__return_false');
 add_action('woocommerce_refund_created', 'mji_sync_online_refund', 10, 2);
 add_action('woocommerce_order_status_changed', 'mji_handle_wc_order_status_change', 5, 4);
+add_filter('woocommerce_valid_order_statuses_for_cancel', 'mji_prevent_paid_order_cancel');
+add_action('admin_notices', 'mji_cancel_blocked_notice');
+add_action('mji_async_sale_email', 'mji_send_deferred_sale_email', 10, 2);
 
 function mji_online_settings_page()
 {
@@ -107,17 +110,37 @@ function mji_get_or_create_customer_from_order($order)
         'primary_phone'  => sanitize_text_field($order->get_billing_phone()),
     ]);
 
-    return $inserted ? (int) $wpdb->insert_id : 0;
+    if ($inserted) {
+        return (int) $wpdb->insert_id;
+    }
+
+    // INSERT failed — if we have an email, a concurrent request may have just created this customer.
+    // Re-select to recover from the race rather than aborting the order sync.
+    if ($email) {
+        $race_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}mji_customers WHERE email = %s",
+            $email
+        ));
+        if ($race_id) {
+            return (int) $race_id;
+        }
+    }
+
+    return 0;
 }
 
 function mji_map_wc_payment_method($gateway_id, $order = null)
 {
     $map = [
-        'cod'    => 'cash',
-        'cheque' => 'cheque',
-        'alipay' => 'alipay',
-        'wechat' => 'alipay',
-        'cup'    => 'cup',
+        'cod'            => 'cash',
+        'cheque'         => 'cheque',
+        'alipay'         => 'alipay',
+        'wechat'         => 'alipay',
+        'cup'            => 'cup',
+        // PayPal — no dedicated enum bucket; visa is the closest fit
+        'paypal'         => 'visa',
+        'ppec_paypal'    => 'visa',
+        'paypal_express' => 'visa',
     ];
     if (isset($map[$gateway_id])) {
         return $map[$gateway_id];
@@ -135,6 +158,9 @@ function mji_map_wc_payment_method($gateway_id, $order = null)
             'mastercard' => 'master_card',
             'amex'       => 'amex',
             'unionpay'   => 'cup',
+            'discover'   => 'visa',  // no discover bucket in enum — closest fit
+            'diners'     => 'visa',
+            'jcb'        => 'cup',
         ];
         $brand = strtolower((string) get_post_meta($order_id, '_stripe_card_brand', true));
         if (isset($brand_map[$brand])) {
@@ -150,17 +176,17 @@ function mji_map_wc_payment_method($gateway_id, $order = null)
     return 'visa';
 }
 
-add_action('woocommerce_checkout_order_processed', 'adjust_stock_after_order', 10, 3);
+add_action('woocommerce_payment_complete', 'adjust_stock_after_order');
 
-function adjust_stock_after_order($order_id, $posted_data, $order)
+function adjust_stock_after_order($order_id)
 {
-    global $wpdb;
-
-    // Re-fetch status — the passed $order object can be stale after Stripe processes payment.
-    // Only skip failed orders (payment hard-declined). Pending/on-hold orders are valid reservations.
-    if (wc_get_order($order_id)->get_status() === 'failed') {
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        custom_log("adjust_stock_after_order: wc_get_order({$order_id}) returned false — skipping MJI sync.");
         return;
     }
+
+    global $wpdb;
 
     $salesperson_id = mji_get_online_salesperson_id();
     $location_id    = mji_get_online_location_id();
@@ -194,6 +220,7 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
     $wpdb->query('START TRANSACTION');
     try {
         foreach ($order->get_items() as $item) {
+            if (!($item instanceof WC_Order_Item_Product)) continue;
             $variation_id    = (int) $item->get_variation_id();
             $product_id      = (int) $item->get_product_id();
             $qty             = (int) $item->get_quantity();
@@ -269,7 +296,6 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
             $item_subtotal += $entry['unit_price'];
         }
         $item_subtotal = round($item_subtotal + $shipping_total, 2);
-        $mji_total     = round($item_subtotal + $gst_total + $pst_total, 2);
 
         $notes = 'WooCommerce online order #' . $order->get_order_number();
 
@@ -281,7 +307,7 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
             'subtotal'       => $item_subtotal, // items + shipping (pre-tax)
             'gst_total'      => $gst_total,
             'pst_total'      => $pst_total,
-            'total'          => $mji_total,
+            'total'          => round((float) $order->get_total(), 2),
             'created_at'     => $now,
             'notes'          => $notes,
         ]);
@@ -344,26 +370,28 @@ function adjust_stock_after_order($order_id, $posted_data, $order)
             }
         }
 
-        $payment_method = mji_map_wc_payment_method($order->get_payment_method(), $order);
-        $inserted = $wpdb->insert($wpdb->prefix . 'mji_payments', [
-            'order_id'         => $mji_order_id,
-            'customer_id'      => $customer_id,
-            'salesperson_id'   => $salesperson_id,
-            'location_id'      => $location_id,
-            'reference_num'    => $reference_num,
-            'method'           => $payment_method,
-            'amount'           => (float) $order->get_total(),
-            'transaction_type' => 'purchase',
-            'payment_date'     => $now,
-            'notes'            => 'WC gateway: ' . $order->get_payment_method_title(),
-        ]);
-        if (!$inserted) {
-            throw new RuntimeException('Failed to insert payment record: ' . $wpdb->last_error);
+        if ((float) $order->get_total() > 0) {
+            $payment_method = mji_map_wc_payment_method($order->get_payment_method(), $order);
+            $inserted = $wpdb->insert($wpdb->prefix . 'mji_payments', [
+                'order_id'         => $mji_order_id,
+                'customer_id'      => $customer_id,
+                'salesperson_id'   => $salesperson_id,
+                'location_id'      => $location_id,
+                'reference_num'    => $reference_num,
+                'method'           => $payment_method,
+                'amount'           => (float) $order->get_total(),
+                'transaction_type' => 'purchase',
+                'payment_date'     => $now,
+                'notes'            => 'WC gateway: ' . $order->get_payment_method_title(),
+            ]);
+            if (!$inserted) {
+                throw new RuntimeException('Failed to insert payment record: ' . $wpdb->last_error);
+            }
         }
 
         $wpdb->query('COMMIT');
 
-        mji_notify_online_sale($order, $sold_units, $reference_num);
+        wp_schedule_single_event(time(), 'mji_async_sale_email', [$order_id, $reference_num]);
 
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
@@ -448,6 +476,62 @@ function mji_notify_online_sale_error($order, $error_message)
     wp_mail($to, $subject, $message, ['Content-Type: text/html; charset=UTF-8']);
 }
 
+function mji_notify_online_refund_error($order, $refund_id, $error_message)
+{
+    $to      = get_option('mji_notification_email') ?: get_option('admin_email');
+    $subject = '[Montecristo] ACTION REQUIRED — Refund #' . $refund_id . ' for Order #' . $order->get_order_number() . ' not synced';
+
+    $message = '<!DOCTYPE html><html><body style="font-family:sans-serif;color:#333;max-width:680px;">
+                <h2 style="color:#c00;border-bottom:2px solid #c00;padding-bottom:8px;">Online Refund — Inventory Sync Failed</h2>
+                <p>A WooCommerce refund was issued for Order <strong>#' . esc_html($order->get_order_number()) . '</strong> but could not be automatically recorded in the inventory system.</p>
+                <table style="border-collapse:collapse;width:100%;margin-bottom:20px;">
+                <tr><td style="padding:4px 0;width:150px;color:#666;">WC Refund ID</td><td>' . esc_html($refund_id) . '</td></tr>
+                <tr><td style="padding:4px 0;color:#666;">Customer</td><td>' . esc_html($order->get_billing_first_name() . ' ' . $order->get_billing_last_name()) . '</td></tr>
+                <tr><td style="padding:4px 0;color:#666;">Email</td><td>' . esc_html($order->get_billing_email()) . '</td></tr>
+                </table>
+                <p><strong>Error:</strong> ' . esc_html($error_message) . '</p>
+                <p style="background:#fff3cd;padding:12px;border-left:4px solid #ffc107;">Please update the return records manually in the MJI inventory admin and restore the correct unit status if items were physically returned.</p>
+                <p style="margin-top:20px;color:#888;font-size:12px;">This is an automated message from Montecristo Jewellers inventory system.</p>
+                </body></html>';
+
+    wp_mail($to, $subject, $message, ['Content-Type: text/html; charset=UTF-8']);
+}
+
+function mji_send_deferred_sale_email($order_id, $reference_num)
+{
+    global $wpdb;
+    $order = wc_get_order($order_id);
+    if (!$order) return;
+
+    $mji_order = $wpdb->get_row($wpdb->prepare(
+        "SELECT id FROM {$wpdb->prefix}mji_orders WHERE reference_num = %s",
+        $reference_num
+    ));
+    if (!$mji_order) return;
+
+    $rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT oi.sale_price, oi.discount_amount, u.sku, u.serial,
+                COALESCE(p.post_title, CONCAT('SKU: ', u.sku)) AS product_name
+         FROM {$wpdb->prefix}mji_order_items oi
+         JOIN {$wpdb->prefix}mji_product_inventory_units u ON u.id = oi.product_inventory_unit_id
+         LEFT JOIN {$wpdb->prefix}posts p ON p.ID = u.wc_product_id
+         WHERE oi.order_id = %d",
+        (int) $mji_order->id
+    ));
+
+    $sold_units = [];
+    foreach ($rows as $row) {
+        $sold_units[] = [
+            'unit'          => (object) ['sku' => $row->sku, 'serial' => $row->serial],
+            'product_name'  => $row->product_name,
+            'unit_price'    => (float) $row->sale_price,
+            'unit_discount' => (float) $row->discount_amount,
+        ];
+    }
+
+    mji_notify_online_sale($order, $sold_units, $reference_num);
+}
+
 function mji_sync_online_refund($refund_id, $args)
 {
     global $wpdb;
@@ -471,6 +555,16 @@ function mji_sync_online_refund($refund_id, $args)
 
     $mji_order_id  = (int) $mji_order->id;
     $return_ref    = 'WRET-' . $order->get_order_number() . '-' . $refund_id;
+
+    // Idempotency guard — don't double-process if hook fires twice
+    $already = $wpdb->get_var($wpdb->prepare(
+        "SELECT id FROM {$wpdb->prefix}mji_returns WHERE reference_num = %s",
+        $return_ref
+    ));
+    if ($already) {
+        return;
+    }
+
     $refund_amount = round((float) $refund->get_amount(), 2);
     $reason        = sanitize_text_field($refund->get_reason()) ?: 'WooCommerce online refund';
     $now           = current_time('mysql');
@@ -643,29 +737,41 @@ function mji_sync_online_refund($refund_id, $args)
     } catch (Exception $e) {
         $wpdb->query('ROLLBACK');
         custom_log("WC refund #{$refund_id} MJI sync failed: " . $e->getMessage());
+        mji_notify_online_refund_error($order, $refund_id, $e->getMessage());
     }
+}
+
+function mji_prevent_paid_order_cancel($statuses)
+{
+    // Paid (processing) orders must be refunded, not cancelled — remove 'processing' from the allowed cancel list.
+    return array_diff($statuses, ['processing']);
+}
+
+function mji_cancel_blocked_notice()
+{
+    $uid = get_current_user_id();
+    if (!get_transient('mji_cancel_blocked_' . $uid)) return;
+    delete_transient('mji_cancel_blocked_' . $uid);
+    echo '<div class="notice notice-error is-dismissible"><p><strong>Order cannot be cancelled.</strong> This order has been paid. Please use the <strong>Refund</strong> button to issue a refund first.</p></div>';
 }
 
 function mji_handle_wc_order_status_change($order_id, $from, $to, $order)
 {
-    if ($to !== 'cancelled') {
+    if ($to !== 'cancelled' && $to !== 'failed') {
         return;
     }
 
-    // Block cancellation of paid orders — must refund first
-    if ($from === 'processing') {
-        $order->update_status('processing');
-        $order->add_order_note(
-            'Cancellation blocked — this order has been paid. Please issue a refund using the Refund button first.',
-            false,
-            false
-        );
-        add_action('admin_notices', function () {
-            echo '<div class="notice notice-error is-dismissible"><p>
-                <strong>Order cannot be cancelled.</strong>
-                This order has been paid. Please use the <strong>Refund</strong> button to issue a refund first.
-            </p></div>';
-        });
+    // Defence-in-depth for programmatic update_status('cancelled') calls that bypass the filter.
+    // Primary gate is mji_prevent_paid_order_cancel (woocommerce_valid_order_statuses_for_cancel).
+    if ($to === 'cancelled' && $from === 'processing') {
+        static $reverting = false;
+        if ($reverting) return;
+        $reverting = true;
+        $order->update_status('processing', 'Cancellation blocked — this order has been paid. Please issue a refund using the Refund button first.');
+        $reverting = false;
+        if (is_admin() && ($uid = get_current_user_id())) {
+            set_transient('mji_cancel_blocked_' . $uid, true, 60);
+        }
         return;
     }
 
@@ -687,6 +793,19 @@ function mji_handle_wc_order_status_change($order_id, $from, $to, $order)
 
     $mji_order_id = (int) $mji_order->id;
     $now          = current_time('mysql');
+
+    // Guard: if a captured payment exists this was a real sale — do NOT auto-delete.
+    // Catches processing → on-hold → cancelled/failed where $from passes the ['pending','on-hold']
+    // check above but money was already taken.
+    $has_purchase = $wpdb->get_var($wpdb->prepare(
+        "SELECT id FROM {$wpdb->prefix}mji_payments WHERE order_id = %d AND transaction_type = 'purchase'",
+        $mji_order_id
+    ));
+    if ($has_purchase) {
+        custom_log("WC order {$reference_num} moved to '{$to}' from '{$from}' but has a captured payment (mji_payments #{$has_purchase}) — NOT auto-reversing MJI records. Manual review required.");
+        mji_notify_online_sale_error($order, "Order {$reference_num} transitioned to '{$to}' but a captured payment exists on record. MJI inventory records have NOT been automatically reversed — please review and update manually.");
+        return;
+    }
 
     $wpdb->query('START TRANSACTION');
     try {
@@ -718,7 +837,7 @@ function mji_handle_wc_order_status_change($order_id, $from, $to, $order)
             }
         }
 
-        $wpdb->delete($wpdb->prefix . 'mji_payments',    ['order_id' => $mji_order_id], ['%d']);
+        $wpdb->delete($wpdb->prefix . 'mji_payments',    ['order_id' => $mji_order_id, 'transaction_type' => 'purchase'], ['%d', '%s']);
         $wpdb->delete($wpdb->prefix . 'mji_services',    ['order_id' => $mji_order_id], ['%d']);
         $wpdb->delete($wpdb->prefix . 'mji_order_items', ['order_id' => $mji_order_id], ['%d']);
         $wpdb->delete($wpdb->prefix . 'mji_orders',      ['id'       => $mji_order_id], ['%d']);
