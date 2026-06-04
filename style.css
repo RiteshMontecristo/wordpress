@@ -1676,6 +1676,28 @@ sidebar .filter-hide h3::after {
   transform: translateX(-50%);
 }
 
+/* Stock availability badge */
+.stock-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 3px;
+  margin-top: 0.35rem;
+}
+
+.stock-badge.in-stock {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.stock-badge.out-of-stock {
+  background: #f5f5f5;
+  color: #888;
+}
+
 /* product taxonomies page with no sidebar */
 .product_width .products-container {
   grid-template-columns: 1fr;
