@@ -73,6 +73,38 @@ get_header(); ?>
 						<span class="error hidden" id="emailError">Email is required</span>
 					</div>
 
+					<div class="preferred-contact">
+						<label for="preferred-contact">Preferred Contact Method *</label>
+						<select id="preferred-contact" name="preferredContact" required>
+							<option value="" selected disabled>Select One</option>
+							<option value="email">Email</option>
+							<option value="phone">Phone</option>
+							<option value="store">Visit a Store</option>
+						</select>
+						<span class="error hidden" id="preferredContactError">Please select the contact method you prefer</span>
+					</div>
+
+					<div class="store-selection hidden" id="store-selection">
+						<span class="store-selection-label">Select a Store *</span>
+						<div class="store-options">
+							<label class="store-option">
+								<input type="radio" name="preferredStore" value="downtown">
+								<span class="store-info">
+									<strong>Downtown Vancouver</strong>
+									<small>406 Hornby St, Vancouver, BC V6C 0A6</small>
+								</span>
+							</label>
+							<label class="store-option">
+								<input type="radio" name="preferredStore" value="richmond">
+								<span class="store-info">
+									<strong>Richmond</strong>
+									<small>6551 Number 3 Rd Unit 1564, Richmond, BC V6Y 2B6</small>
+								</span>
+							</label>
+						</div>
+						<span class="error hidden" id="storeSelectionError">Please select a store</span>
+					</div>
+
 					<div>
 						<label for="jewelleryPiece">What jewellery piece would you like made? *</label>
 						<select name="jewelleryPiece" id="jewelleryPiece">
@@ -127,7 +159,7 @@ get_header(); ?>
 
 
 					<!-- Honeypot — hidden from real users, bots will fill it -->
-					<div style="position:absolute;left:-9999px;opacity:0;" aria-hidden="true">
+					<div class="honeypot-field" aria-hidden="true">
 						<label for="website">Website</label>
 						<input type="text" name="website" id="website" tabindex="-1" autocomplete="off" />
 					</div>
@@ -143,7 +175,7 @@ get_header(); ?>
 
 						<button class="btn" name="sendMessage" id="sendMessage">Send Message</button>
 					</div>
-
+					<p class="recaptcha-disclosure">This site is protected by reCAPTCHA and the Google <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> apply.</p>
 
 					<ul id="serverError" class="server-error">
 					</ul>
@@ -151,11 +183,8 @@ get_header(); ?>
 				</form>
 
 				<div id="customizeSuccess" class="customize-success">
-					<h3>Message sent successfully. </h3>
-
-					<p>Thank you for reaching out to us. One of our representative will be in contact with you through your preferred contact method as soon as possible.</p>
-
-					<a href="/" class="btn">Done</a>
+					<h3>Request Received</h3>
+					<p>Thank you for sharing your vision with us. Our jewellery specialists have received your request and will reach out to you soon to begin bringing your dream piece to life.</p>
 				</div>
 			</section>
 

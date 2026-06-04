@@ -292,7 +292,7 @@ function add_gtm_noscript()
 ?>
     <!-- Google Tag Manager (noscript) -->
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MQ42VSZ8"
-            height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+            height="0" width="0" class="gtm-noscript"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
 <?php
 }
@@ -368,19 +368,9 @@ function add_span_to_primary_menu_items($items, $args)
 }
 add_filter('wp_nav_menu_objects', 'add_span_to_primary_menu_items', 10, 2);
 
-// add google recaptcha script
+// Load reCAPTCHA on all pages — contact modal is now available site-wide
 function conditional_recaptcha_script()
 {
-    // Get current URL path
-    $current_path = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
-
-    // Check if path contains 'contact' or 'customize'
-    if (
-        (stripos($current_path, 'contact') !== false || stripos($current_path, 'customize') !== false)  &&
-        stripos($current_path, 'rolex/contact-richmond') === false
-    ) {
-        // Output the script
-        echo '<script src="https://www.google.com/recaptcha/api.js?render=6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA"></script>';
-    }
+    echo '<script src="https://www.google.com/recaptcha/api.js?render=6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA"></script>';
 }
 add_action('wp_footer', 'conditional_recaptcha_script');

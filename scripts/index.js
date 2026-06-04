@@ -16,6 +16,12 @@ if (path.includes("blog")) {
   import("./functionality/favourite.js");
 }
 
+// Load contact form JS whenever the contact modal is present in the page
+// (e.g. single product pages)
+if (document.getElementById("contact-modal-overlay")) {
+  import("./functionality/contact.js");
+}
+
 // Youtube video player
 document.addEventListener("DOMContentLoaded", () => {
   const videoContainer = document.querySelectorAll("#youtubeVideo");

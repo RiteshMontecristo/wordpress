@@ -1368,7 +1368,7 @@ ul.products li.product .woocommerce-LoopProduct-link img {
 
 .category-thumbnail img {
   width: 100%;
-    max-height: 768px;
+  max-height: 768px;
 }
 
 .tax-product_cat .site-main,
@@ -1676,6 +1676,28 @@ sidebar .filter-hide h3::after {
   transform: translateX(-50%);
 }
 
+/* Stock availability badge */
+.stock-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 3px;
+  margin-top: 0.35rem;
+}
+
+.stock-badge.in-stock {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.stock-badge.out-of-stock {
+  background: #f5f5f5;
+  color: #888;
+}
+
 /* product taxonomies page with no sidebar */
 .product_width .products-container {
   grid-template-columns: 1fr;
@@ -1976,6 +1998,7 @@ montecristo-category
   background-color: #21453a;
   color: white;
   width: 100%;
+  font-weight: normal;
   margin: 10px 0;
 
   &:hover {
@@ -1986,9 +2009,11 @@ montecristo-category
 .single-product .summary.entry-summary .btn-call {
   width: 100%;
   background-color: #2c6e91;
+  font-weight: normal;
 
   &:hover {
     background-color: #255c7a;
+    color: white;
   }
 }
 
@@ -3085,5 +3110,414 @@ form.contact-us .contact-footer .terms {
 @media (min-width: 1024px) {
   .montecristo-container .excellence {
     flex-direction: row;
+  }
+}
+
+/* Honeypot spam-trap fields — hidden via CSS to satisfy CSP (no inline styles) */
+.honeypot-field {
+  display: none !important;
+  position: absolute !important;
+  left: -9999px;
+}
+
+/* GTM noscript fallback iframe */
+.gtm-noscript {
+  display: none;
+  visibility: hidden;
+  height: 0;
+  width: 0;
+}
+
+/* ======================================================
+   CONTACT US MODAL (products / shop pages)
+   ====================================================== */
+
+.contact-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.contact-modal-overlay[hidden] {
+  display: none;
+}
+
+.contact-modal-inner {
+  position: relative;
+  background: #f2f2f0;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Header strip */
+.contact-modal-inner .contact-form-container {
+  background: transparent;
+}
+
+.contact-modal-inner
+  .contact-form-container
+  form.contact-us
+  > div:first-child
+  h2 {
+  color: #21453a;
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.contact-modal-inner
+  .contact-form-container
+  form.contact-us
+  > div:first-child
+  span {
+  color: #666;
+  font-size: 0.875rem;
+}
+
+/* Input & select fields */
+.contact-modal-inner input[type="text"],
+.contact-modal-inner input[type="email"],
+.contact-modal-inner input[type="tel"],
+.contact-modal-inner select,
+.contact-modal-inner textarea {
+  background-color: #fff;
+  border: 1px solid #d8d8d4;
+  border-radius: 5px;
+  padding: 0.6rem 0.75rem;
+  color: #2c2c2c;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+  width: 100%;
+}
+
+.contact-modal-inner input[type="text"]:focus,
+.contact-modal-inner input[type="email"]:focus,
+.contact-modal-inner input[type="tel"]:focus,
+.contact-modal-inner select:focus,
+.contact-modal-inner textarea:focus {
+  border-color: #21453a;
+  box-shadow: 0 0 0 3px rgba(33, 69, 58, 0.12);
+  outline: none;
+}
+
+/* Labels */
+.contact-modal-inner label {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #555;
+  margin-bottom: 0.3rem;
+}
+
+/* Submit button */
+.contact-modal-inner .submit-button {
+  background-color: #21453a;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.75rem 2rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.contact-modal-inner .submit-button:hover {
+  background-color: #18332b;
+}
+
+.contact-modal-inner .submit-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #21453a;
+}
+
+/* Close button */
+.contact-modal-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  background: transparent;
+  border: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #888;
+  padding: 0 0.25rem;
+  z-index: 1;
+  transition: color 0.15s;
+}
+
+.contact-modal-close:hover {
+  color: #21453a;
+}
+
+/* Store selection cards */
+.store-selection {
+  grid-column: 1 / -1;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.store-selection.hidden {
+  display: none !important;
+}
+
+.store-selection:not(.hidden) {
+  display: flex !important;
+}
+
+.store-selection-label {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #555;
+}
+
+.store-options {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.contact-modal-overlay .store-options {
+  grid-template-columns: 1fr;
+}
+
+.store-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid #d8d8d4;
+  border-radius: 5px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.store-option:has(input:checked) {
+  border-color: #21453a;
+  background: rgba(33, 69, 58, 0.05);
+}
+
+.store-option input[type="radio"] {
+  margin-top: 3px;
+  accent-color: #21453a;
+  flex-shrink: 0;
+}
+
+.store-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.store-info strong {
+  font-size: 0.875rem;
+  color: #2c2c2c;
+}
+
+.store-info small {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+/* Hide reCAPTCHA badge — disclosure text is shown inline near each form instead */
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
+
+/* reCAPTCHA inline disclosure */
+.recaptcha-disclosure {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.5rem;
+  grid-column: 1 / -1;
+}
+
+.recaptcha-disclosure a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* ======================================================
+   FLOATING CONTACT BUTTON
+   ====================================================== */
+
+.float-action-btn {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 99998;
+  width: 65px;
+  height: 56px;
+  border-radius: 50%;
+  background: #21453a;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition:
+    background 0.2s,
+    transform 0.15s;
+}
+
+.float-action-btn:hover {
+  background: #18332b;
+  transform: scale(1.07);
+  color: #fff;
+}
+
+.float-action-btn svg {
+  width: 30px;
+  height: 30px;
+}
+
+@media (max-width: 480px) {
+  .float-action-btn {
+    bottom: 1rem;
+    right: 1rem;
+  }
+}
+
+/* ======================================================
+   CALL US MODAL
+   ====================================================== */
+
+#call-us-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+#call-us-overlay[hidden] {
+  display: none;
+}
+
+.call-us-modal {
+  background: #fff;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 380px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.call-us-header {
+  background: #21453a;
+  color: #fff;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.call-us-header span {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.call-us-close {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+
+.call-us-close:hover {
+  opacity: 1;
+}
+
+.call-us-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.store-call-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #d8d8d4;
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.store-call-option:hover {
+  border-color: #21453a;
+  background: rgba(33, 69, 58, 0.05);
+  color: inherit;
+}
+
+.store-call-option strong {
+  font-size: 0.875rem;
+  color: #555;
+}
+
+.store-call-option span {
+  font-size: 1.1rem;
+  color: #21453a;
+  font-weight: 600;
+}
+
+/* Success message */
+.contact-modal-inner .contact-success {
+  text-align: center;
+  padding: 1.5rem 1rem;
+}
+
+.contact-modal-inner .contact-success h3 {
+  color: #21453a;
+}
+
+@media (min-width: 768px) {
+  .contact-modal-inner {
+    padding: 2rem;
+  }
+
+  .contact-modal-overlay .contact-form-container form.contact-us {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contact-modal-overlay
+    .contact-form-container
+    form.contact-us
+    div:first-child,
+  .contact-modal-overlay
+    .contact-form-container
+    form.contact-us
+    .contact-footer,
+  .contact-modal-overlay .contact-form-container form.contact-us .message,
+  .contact-modal-overlay .contact-form-container form.contact-us .country,
+  .contact-modal-overlay .contact-form-container form.contact-us #serverError {
+    grid-column: 1 / -1;
   }
 }

@@ -101,7 +101,7 @@ wp_footer();
                 <form id="newsletter-form" role="form" method="POST">
                     <input type="email" id="newsletter" class="newsletter-field" placeholder="E-mail" name="newsletter_email" aria-required="true" required>
                     </input>
-                    <input type="text" name="newsletter_hp" value="" style="display:none">
+                    <input type="text" name="newsletter_hp" value="" class="honeypot-field">
                     <button name="newsletter_subscribe" type="submit" class="newsletter-submit" aria-label="Subscribe">Subscribe
                     </button>
                 </form>
@@ -119,6 +119,36 @@ wp_footer();
     <p class="copyright">Copyright © <?php echo date("Y"); ?> Montecristo Jewellers Inc. All rights reserved. | <a class="privacy" href="/privacy-policy">Privacy Policy</a> | <button class="cookie" id="cookie">Cookie Policy</button></p>
 
 </footer><!-- #colophon -->
+
+<?php if ( ! is_page( 'contact' ) ) : ?>
+    <?php get_template_part( 'template-parts/contact-modal' ); ?>
+
+    <!-- Call Us modal (triggered by .open-call-modal on product pages) -->
+    <div id="call-us-overlay" hidden role="dialog" aria-modal="true" aria-label="Call Us">
+        <div class="call-us-modal">
+            <div class="call-us-header">
+                <span>Call Us</span>
+                <button class="call-us-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="call-us-body">
+                <a href="tel:6048998866" class="store-call-option">
+                    <strong>Downtown Vancouver</strong>
+                    <span>(604) 899-8866</span>
+                </a>
+                <a href="tel:6042633611" class="store-call-option">
+                    <strong>Richmond</strong>
+                    <span>(604) 263-3611</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <button class="float-action-btn open-contact-modal" aria-label="Contact us">
+        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+    </button>
+<?php endif; ?>
 
 </div><!-- #page -->
 
