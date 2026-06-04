@@ -146,11 +146,11 @@ function single_page_contact()
     ?>
         <div class="montecristo-category">
             <a href="/customize-your-jewellery" class="btn btn-customize">Customize Jewellery</a>
-            <a href="/contact" class="btn btn-contact">Contact Us</a>
+            <button type="button" class="btn btn-contact open-contact-modal">Contact Us</button>
         </div>
     <?php } else { ?>
-        <a href="/contact#contactUs" class="btn btn-contact">Contact Us</a>
-        <a href="<?= esc_url($contact) ?>" class="btn btn-call">Call Us</a>
+        <button type="button" class="btn btn-contact open-contact-modal">Contact Us</button>
+        <button type="button" class="btn btn-call open-call-modal">Call Us</button>
     <?php }
 }
 

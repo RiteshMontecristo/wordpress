@@ -5,17 +5,15 @@ const contactUsFormContainer = document.querySelector(
   ".contact-form-container",
 );
 if (contactUsFormContainer) {
-  // Form and the form values
   const contactUsForm = contactUsFormContainer.querySelector("#contactUsForm");
   const firstName = contactUsFormContainer.querySelector("#first-name");
-  const firstNameError =
-    contactUsFormContainer.querySelector("#firstNameError");
+  const firstNameError = contactUsFormContainer.querySelector("#firstNameError");
   const lastName = contactUsFormContainer.querySelector("#last-name");
   const lastNameError = contactUsFormContainer.querySelector("#lastNameError");
-  const preferredContact =
-    contactUsFormContainer.querySelector("#preferred-contact");
-  const preferredContactError =
-    contactUsFormContainer.querySelector("#preferred-contact");
+  const preferredContact = contactUsFormContainer.querySelector("#preferred-contact");
+  const preferredContactError = contactUsFormContainer.querySelector("#preferredContactError");
+  const storeSelection = contactUsFormContainer.querySelector("#store-selection");
+  const storeSelectionError = contactUsFormContainer.querySelector("#storeSelectionError");
   const email = contactUsFormContainer.querySelector("#email");
   const emailError = contactUsFormContainer.querySelector("#emailError");
   const phone = contactUsFormContainer.querySelector("#phone");
@@ -27,8 +25,7 @@ if (contactUsFormContainer) {
   const province = contactUsFormContainer.querySelector("#province");
   const provinceError = contactUsFormContainer.querySelector("#provinceError");
   const postalCode = contactUsFormContainer.querySelector("#postalCode");
-  const postalCodeError =
-    contactUsFormContainer.querySelector("#postalCodeError");
+  const postalCodeError = contactUsFormContainer.querySelector("#postalCodeError");
   const country = contactUsFormContainer.querySelector("#country");
   const countryError = contactUsFormContainer.querySelector("#countryError");
   const message = contactUsFormContainer.querySelector("#message");
@@ -36,21 +33,26 @@ if (contactUsFormContainer) {
   const terms = contactUsFormContainer.querySelector("#terms");
   const termsError = contactUsFormContainer.querySelector("#termsError");
   const serverError = contactUsFormContainer.querySelector("#serverError");
+  const contactSuccess = contactUsFormContainer.querySelector("#contactSuccess");
+  const submitBtn = contactUsFormContainer.querySelector("#send-message");
 
-  const contactSuccess =
-    contactUsFormContainer.querySelector("#contactSuccess");
+  preferredContact.addEventListener("change", () => {
+    storeSelection.classList.toggle("hidden", preferredContact.value !== "store");
+  });
 
   contactUsForm.addEventListener("submit", (e) => {
     e.preventDefault();
 
-    // Hide all errors
     const allErrorElements = contactUsFormContainer.querySelectorAll(".error");
     allErrorElements.forEach((el) => el.classList.add("hidden"));
     serverError.innerHTML = "";
 
     let errors = 0;
 
-    // Define validation rules
+    const checkedStore = contactUsFormContainer.querySelector(
+      "input[name='preferredStore']:checked",
+    );
+
     const validations = [
       {
         field: firstName,
@@ -66,6 +68,11 @@ if (contactUsFormContainer) {
         field: preferredContact,
         errorEl: preferredContactError,
         validate: () => preferredContact.value.trim() !== "",
+      },
+      {
+        field: storeSelection,
+        errorEl: storeSelectionError,
+        validate: () => preferredContact.value !== "store" || checkedStore !== null,
       },
       {
         field: email,
@@ -122,6 +129,9 @@ if (contactUsFormContainer) {
     });
 
     if (errors < 1) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Sending…";
+
       grecaptcha.ready(async () => {
         const token = await grecaptcha.execute(
           "6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA",
@@ -136,14 +146,14 @@ if (contactUsFormContainer) {
           method: "POST",
           body: data,
         })
-          .then((res) => {
-            return res.json();
-          })
+          .then((res) => res.json())
           .then((res) => {
             if (res.success) {
               contactSuccess.style.display = "flex";
               contactUsForm.style.display = "none";
             } else {
+              submitBtn.disabled = false;
+              submitBtn.textContent = "Send Message";
               if (res.data.message) {
                 serverError.innerHTML = `<li>${res.data.message}</li>`;
               } else {
@@ -151,17 +161,46 @@ if (contactUsFormContainer) {
                 res.data.errors.forEach((el) => {
                   result += `<li>${el}</li>`;
                 });
-
                 serverError.innerHTML = result;
                 serverError.style.display = "block";
               }
             }
           })
           .catch((err) => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Send Message";
             console.log("err", err);
           });
       });
     }
+  });
+}
+
+// Call Us modal (product pages)
+const callOverlay = document.getElementById("call-us-overlay");
+if (callOverlay) {
+  const openBtns = document.querySelectorAll(".open-call-modal");
+  const closeBtns = callOverlay.querySelectorAll(".call-us-close");
+
+  const openCall = () => {
+    callOverlay.removeAttribute("hidden");
+    document.body.style.overflow = "hidden";
+  };
+
+  const closeCall = () => {
+    callOverlay.setAttribute("hidden", "");
+    document.body.style.overflow = "";
+  };
+
+  openBtns.forEach((btn) => btn.addEventListener("click", openCall));
+  closeBtns.forEach((btn) => btn.addEventListener("click", closeCall));
+
+  callOverlay.addEventListener("click", (e) => {
+    if (e.target === callOverlay) closeCall();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !callOverlay.hasAttribute("hidden")) closeCall();
   });
 }
 
@@ -206,13 +245,49 @@ const jewelleryMap = {
   `,
 };
 
+// -------------------------------------------------------
+// Contact Us Modal (shop / product-category pages)
+// -------------------------------------------------------
+const contactModal = document.getElementById("contact-modal-overlay");
+
+if (contactModal) {
+  const openBtns = document.querySelectorAll(".open-contact-modal");
+  const closeBtns = contactModal.querySelectorAll(".contact-modal-close");
+
+  const openModal = () => {
+    contactModal.removeAttribute("hidden");
+    document.body.style.overflow = "hidden";
+    const firstFocusable = contactModal.querySelector(
+      "button, input, select, textarea, [href]",
+    );
+    if (firstFocusable) firstFocusable.focus();
+  };
+
+  const closeModal = () => {
+    contactModal.setAttribute("hidden", "");
+    document.body.style.overflow = "";
+  };
+
+  openBtns.forEach((btn) => btn.addEventListener("click", openModal));
+  closeBtns.forEach((btn) => btn.addEventListener("click", closeModal));
+
+  contactModal.addEventListener("click", (e) => {
+    if (e.target === contactModal) closeModal();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !contactModal.hasAttribute("hidden")) {
+      closeModal();
+    }
+  });
+}
+
 // Customize Contact US PAGE
 const customizeContainer = document.querySelector(".customize-container");
 
 if (customizeContainer) {
   const copy = customizeContainer.querySelector(".copy");
 
-  // Form and the form values
   const customizeForm = customizeContainer.querySelector("#customize-form");
 
   const title = customizeContainer.querySelector("#title");
@@ -229,21 +304,22 @@ if (customizeContainer) {
   const email = customizeContainer.querySelector("#email");
   const emailError = customizeContainer.querySelector("#emailError");
 
-  const jewelleryPiece = customizeContainer.querySelector("#jewelleryPiece");
-  const jewelleryPieceError = customizeContainer.querySelector(
-    "#jewelleryPieceError",
-  );
+  const preferredContact = customizeContainer.querySelector("#preferred-contact");
+  const preferredContactError = customizeContainer.querySelector("#preferredContactError");
+  const storeSelection = customizeContainer.querySelector("#store-selection");
+  const storeSelectionError = customizeContainer.querySelector("#storeSelectionError");
 
-  const montecristoPiece =
-    customizeContainer.querySelector("#montecristoPiece");
+  const jewelleryPiece = customizeContainer.querySelector("#jewelleryPiece");
+  const jewelleryPieceError = customizeContainer.querySelector("#jewelleryPieceError");
+
+  const montecristoPiece = customizeContainer.querySelector("#montecristoPiece");
 
   const material = customizeContainer.querySelector("#material");
 
   const gemstone = customizeContainer.querySelector("#gemstone");
 
   const inspiration = customizeContainer.querySelector("#inspiration");
-  const inspirationError =
-    customizeContainer.querySelector("#inspirationError");
+  const inspirationError = customizeContainer.querySelector("#inspirationError");
 
   const terms = customizeContainer.querySelector("#terms");
   const termsError = customizeContainer.querySelector("#termsError");
@@ -251,11 +327,15 @@ if (customizeContainer) {
   const serverError = customizeContainer.querySelector("#serverError");
   const customize_nonce = customizeContainer.querySelector("#customize_nonce");
 
-  const customizeSuccess =
-    customizeContainer.querySelector("#customizeSuccess");
+  const customizeSuccess = customizeContainer.querySelector("#customizeSuccess");
+  const customizeSubmitBtn = customizeContainer.querySelector("#sendMessage");
 
   jewelleryPiece.addEventListener("change", (e) => {
     montecristoPiece.innerHTML = jewelleryMap[jewelleryPiece.value];
+  });
+
+  preferredContact.addEventListener("change", () => {
+    storeSelection.classList.toggle("hidden", preferredContact.value !== "store");
   });
 
   customizeForm.addEventListener("submit", (e) => {
@@ -265,6 +345,8 @@ if (customizeContainer) {
     lastNameError.classList.add("hidden");
     emailError.classList.add("hidden");
     phoneError.classList.add("hidden");
+    preferredContactError.classList.add("hidden");
+    storeSelectionError.classList.add("hidden");
     jewelleryPieceError.classList.add("hidden");
     inspirationError.classList.add("hidden");
     termsError.classList.add("hidden");
@@ -280,37 +362,52 @@ if (customizeContainer) {
       lastNameError.classList.remove("hidden");
       errors++;
     }
-
     if (phone.value.length != 10) {
       phoneError.classList.remove("hidden");
       errors++;
     }
-
     if (!isValidEmail(email.value.trim())) {
       emailError.classList.remove("hidden");
       errors++;
     }
-
+    if (!preferredContact.value) {
+      preferredContactError.classList.remove("hidden");
+      errors++;
+    }
+    if (preferredContact.value === "store") {
+      const checkedStore = customizeContainer.querySelector(
+        "input[name='preferredStore']:checked",
+      );
+      if (!checkedStore) {
+        storeSelectionError.classList.remove("hidden");
+        errors++;
+      }
+    }
     if (!jewelleryPiece.value) {
       jewelleryPieceError.classList.remove("hidden");
       errors++;
     }
-
     if (!inspiration.value.trim()) {
       inspirationError.classList.remove("hidden");
       errors++;
     }
-
     if (!terms.checked) {
       termsError.classList.remove("hidden");
       errors++;
     }
 
     if (errors < 1) {
+      customizeSubmitBtn.disabled = true;
+      customizeSubmitBtn.textContent = "Sending…";
+
       grecaptcha.ready(async () => {
         const token = await grecaptcha.execute(
           "6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA",
           { action: "customize_contact_us" },
+        );
+
+        const checkedStore = customizeContainer.querySelector(
+          "input[name='preferredStore']:checked",
         );
 
         let data = new FormData();
@@ -320,6 +417,8 @@ if (customizeContainer) {
         data.append("lastName", lastName.value);
         data.append("phone", phone.value);
         data.append("email", email.value);
+        data.append("preferredContact", preferredContact.value);
+        data.append("preferredStore", checkedStore ? checkedStore.value : "");
         data.append("montecristoPiece", montecristoPiece.value);
         data.append("jewelleryPiece", jewelleryPiece.value);
         data.append("material", material.value);
@@ -333,15 +432,15 @@ if (customizeContainer) {
           method: "POST",
           body: data,
         })
-          .then((res) => {
-            return res.json();
-          })
+          .then((res) => res.json())
           .then((res) => {
             if (res.success) {
               customizeSuccess.style.display = "flex";
               customizeForm.style.display = "none";
               copy.style.display = "none";
             } else {
+              customizeSubmitBtn.disabled = false;
+              customizeSubmitBtn.textContent = "Send Message";
               if (res.data.message) {
                 serverError.innerHTML = `<li>${res.data.message}</li>`;
               } else {
@@ -349,12 +448,13 @@ if (customizeContainer) {
                 res.data.errors.forEach((el) => {
                   result += `<li>${el}</li>`;
                 });
-
                 serverError.innerHTML = result;
               }
             }
           })
           .catch((err) => {
+            customizeSubmitBtn.disabled = false;
+            customizeSubmitBtn.textContent = "Send Message";
             console.log("err", err);
           });
       });

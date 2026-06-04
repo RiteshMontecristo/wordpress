@@ -319,6 +319,7 @@ function contact_us()
     $firstName = isset($_POST['firstName']) ? sanitize_text_field($_POST['firstName']) : '';
     $lastName = isset($_POST['lastName']) ? sanitize_text_field($_POST['lastName']) : '';
     $preferredContact = isset($_POST['preferredContact']) ? sanitize_text_field($_POST['preferredContact']) : '';
+    $preferredStore = isset($_POST['preferredStore']) ? sanitize_text_field($_POST['preferredStore']) : '';
     $email = isset($_POST['email']) ? sanitize_email($_POST['email']) : '';
     $phone = isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : '';
     $street = isset($_POST['street']) ? sanitize_text_field($_POST['street']) : '';
@@ -331,12 +332,20 @@ function contact_us()
     $captcha_token = isset($_POST['g-recaptcha-response']) ? sanitize_textarea_field($_POST['g-recaptcha-response']) : '';
     $errors = [];
 
+    $store_labels = [
+        'downtown' => 'Downtown Vancouver — 406 Hornby St, Vancouver, BC V6C 0A6',
+        'richmond' => 'Richmond — 6551 Number 3 Rd Unit 1564, Richmond, BC V6Y 2B6',
+    ];
+
     // Validation checks
     if (empty($firstName)) {
         $errors[] = "First name is required.";
     }
     if (empty($lastName)) {
         $errors[] = "Last name is required.";
+    }
+    if ($preferredContact === 'store' && empty($preferredStore)) {
+        $errors[] = "Please select a store.";
     }
     if ($preferredContact == 'email' && (empty($email) || !is_email($email))) {
         $errors[] = "A valid email address is required.";
@@ -384,6 +393,9 @@ function contact_us()
         $message = "Customer reached out to us with the following information:\r\n\r\n";
         $message .= "Name: $title $firstName $lastName\r\n";
         $message .= "Preferred Contact: $preferredContact\r\n";
+        if ($preferredContact === 'store' && isset($store_labels[$preferredStore])) {
+            $message .= "Preferred Store: " . $store_labels[$preferredStore] . "\r\n";
+        }
         $message .= "Email: $email\r\n";
         $message .= "Phone: $phone\r\n";
         $message .= "Street: $street\r\n";
@@ -394,18 +406,22 @@ function contact_us()
         $message .= "\r\nMessage:\r\n$customerMessage\r\n\r\n";
         $message .= "--\r\n";
         $message .= "This message was sent via the Montecristo Jewellers contact form.";
-        $headers = array("Content-Type: text/plain; charset=UTF-8', 'From: Montecristo Jewellers <$to>");
+        $headers = array('Content-Type: text/plain; charset=UTF-8', "From: Montecristo Jewellers <$to>");
         $mail_sent = wp_mail($to, $subject, $message, $headers);
 
         if ($mail_sent) {
 
-            if ($preferredContact == "phone") {
+            if ($preferredContact === "phone") {
                 wp_send_json_success(array('message' => 'Email sent successfully.'));
             } else {
                 $to = $email;
                 $subject = 'Contact Form Submission';
                 $message = "Dear $firstName $lastName,\r\n\r\n";
-                $message .= "Thank you for reaching out to us. One of our agents will get in touch with you via $preferredContact as soon as possible.\r\n\r\n";
+                if ($preferredContact === 'store' && isset($store_labels[$preferredStore])) {
+                    $message .= "Thank you for reaching out to us. We look forward to seeing you at our " . $store_labels[$preferredStore] . " location. One of our team members will be in touch to confirm.\r\n\r\n";
+                } else {
+                    $message .= "Thank you for reaching out to us. One of our agents will get in touch with you via $preferredContact as soon as possible.\r\n\r\n";
+                }
                 $message .= "Best regards,\r\n";
                 $message .= "Montecristo Jewellers";
 
@@ -592,6 +608,8 @@ function customize_contact_us()
     $lastName = isset($_POST['lastName']) ? sanitize_text_field($_POST['lastName']) : '';
     $email = isset($_POST['email']) ? sanitize_email($_POST['email']) : '';
     $phone = isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : '';
+    $preferredContact = isset($_POST['preferredContact']) ? sanitize_text_field($_POST['preferredContact']) : '';
+    $preferredStore = isset($_POST['preferredStore']) ? sanitize_text_field($_POST['preferredStore']) : '';
     $jewelleryPiece = isset($_POST['jewelleryPiece']) ? sanitize_text_field($_POST['jewelleryPiece']) : '';
     $inspiration = isset($_POST['inspiration']) ? sanitize_textarea_field($_POST['inspiration']) : '';
     $montecristoPiece = isset($_POST['montecristoPiece']) ? sanitize_text_field($_POST['montecristoPiece']) : '';
@@ -599,6 +617,11 @@ function customize_contact_us()
     $gemstone = isset($_POST['gemstone']) ? sanitize_text_field($_POST['gemstone']) : '';
     $title = isset($_POST['title']) ? sanitize_text_field($_POST['title']) : '';
     $captcha_token = isset($_POST['g-recaptcha-response']) ? sanitize_textarea_field($_POST['g-recaptcha-response']) : '';
+
+    $store_labels = [
+        'downtown' => 'Downtown Vancouver — 406 Hornby St, Vancouver, BC V6C 0A6',
+        'richmond' => 'Richmond — 6551 Number 3 Rd Unit 1564, Richmond, BC V6Y 2B6',
+    ];
 
     // Validation checks
     if (empty($firstName)) {
@@ -612,6 +635,12 @@ function customize_contact_us()
     }
     if (empty($phone)) {
         $errors[] = "Phone number is required.";
+    }
+    if (empty($preferredContact)) {
+        $errors[] = "Preferred contact method is required.";
+    }
+    if ($preferredContact === 'store' && empty($preferredStore)) {
+        $errors[] = "Please select a store.";
     }
     if (empty($jewelleryPiece)) {
         $errors[] = "Jewellery Piece is required.";
@@ -639,11 +668,15 @@ function customize_contact_us()
     if ($result['success'] && $result['action'] === 'customize_contact_us' && $score >= 0.7) {
 
         $to = get_option('custom_sender_email', get_option('admin_email'));
-        $subject = 'Cusotmize Jewellery Form Submission';
+        $subject = 'Customize Jewellery Form Submission';
         $message = "Customer reached out to customize jewellery with the following information:\r\n\r\n";
         $message .= "Name: $title $firstName $lastName\r\n";
         $message .= "Email: $email\r\n";
         $message .= "Phone: $phone\r\n";
+        $message .= "Preferred Contact: $preferredContact\r\n";
+        if ($preferredContact === 'store' && isset($store_labels[$preferredStore])) {
+            $message .= "Preferred Store: " . $store_labels[$preferredStore] . "\r\n";
+        }
         $message .= "Montecristo Piece: $montecristoPiece\r\n";
         $message .= "Material: $material\r\n";
         $message .= "Gemstone: $gemstone\r\n";
@@ -1021,6 +1054,7 @@ add_filter('woocommerce_admin_features', function ($features) {
 });
 
 add_filter('woocommerce_allow_marketplace_suggestions', '__return_false');
+
 
 // Run update checks only when opening the updates page
 if (! isset($_GET['force-check'])) {
