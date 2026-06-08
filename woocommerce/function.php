@@ -1249,8 +1249,9 @@ function mc_cart_modal_html()
 
     // Pass nonce + AJAX URL to JS (used by the AJAX add-to-cart handler).
     echo '<script>window.mcCart = ' . wp_json_encode([
-        'nonce'    => wp_create_nonce('mc_add_to_cart'),
-        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce'        => wp_create_nonce('mc_add_to_cart'),
+        'notify_nonce' => wp_create_nonce('mji_notify_me_nonce'),
+        'ajax_url'     => admin_url('admin-ajax.php'),
     ], JSON_HEX_TAG) . ';</script>';
 
     // Page-reload fallback: if a product was just added via a non-JS POST,
@@ -1398,3 +1399,75 @@ function mc_ajax_add_to_cart()
     wp_send_json_success($data);
 }
 
+// =============================================
+// NOTIFY ME — OUT OF STOCK
+// =============================================
+
+// Render "Notify Me" button + inline form on the single product page for out-of-stock items.
+// Priority 31 places it immediately after the add-to-cart / out-of-stock area.
+add_action('woocommerce_single_product_summary', 'mji_single_notify_me_button', 31);
+function mji_single_notify_me_button()
+{
+    global $product;
+    if (!$product || $product->is_in_stock()) return;
+    echo mji_notify_me_html((int) $product->get_id());
+}
+
+function mji_notify_me_html(int $product_id): string
+{
+    ob_start();
+    ?>
+    <div class="mji-notify-wrap">
+        <p class="mji-notify-text">
+            <?php esc_html_e('Would you like us to reach out when this item is back in stock? Leave your email address below and we\'ll let you know as soon as it\'s available.', 'woocommerce'); ?>
+        </p>
+        <div class="mji-notify-form" data-product="<?php echo esc_attr($product_id); ?>">
+            <div class="mji-notify-field">
+                <input type="email" class="mji-notify-email"
+                       placeholder="<?php esc_attr_e('Your email address', 'woocommerce'); ?>">
+                <button type="button" class="mji-notify-submit">
+                    <?php esc_html_e('Notify Me', 'woocommerce'); ?>
+                </button>
+            </div>
+            <p class="mji-notify-message"></p>
+        </div>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+// AJAX handler — rate-limited, validates email, emails the store.
+add_action('wp_ajax_mji_notify_me', 'mji_notify_me');
+add_action('wp_ajax_nopriv_mji_notify_me', 'mji_notify_me');
+function mji_notify_me()
+{
+    check_ajax_referer('mji_notify_me_nonce', 'nonce');
+
+    if (!mji_check_rate_limit('notify_me', 5)) {
+        wp_send_json_error(['message' => __('Too many requests. Please try again later.', 'woocommerce')]);
+    }
+
+    $email      = sanitize_email($_POST['email'] ?? '');
+    $product_id = absint($_POST['product_id'] ?? 0);
+
+    if (!is_email($email)) {
+        wp_send_json_error(['message' => __('Please enter a valid email address.', 'woocommerce')]);
+    }
+
+    $product = wc_get_product($product_id);
+    if (!$product) {
+        wp_send_json_error(['message' => __('Product not found.', 'woocommerce')]);
+    }
+
+    $to      = get_option('custom_sender_email') ?: get_option('admin_email');
+    $subject = sprintf('Stock notification request — %s', $product->get_name());
+    $body    = sprintf(
+        "A customer would like to be notified when the following item is back in stock:\n\nProduct: %s\nURL: %s\n\nCustomer email: %s",
+        $product->get_name(),
+        get_permalink($product_id),
+        $email
+    );
+
+    wp_mail($to, $subject, $body, ['Content-Type: text/plain; charset=UTF-8']);
+    wp_send_json_success();
+}

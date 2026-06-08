@@ -17,6 +17,11 @@ if (path.includes("blog")) {
   import("./functionality/favourite.js");
 }
 
+// Load notify-me JS on single product pages with the notify form
+if (document.querySelector(".mji-notify-wrap")) {
+  import("./functionality/notify-me.js");
+}
+
 // Load contact form JS whenever the contact modal is present in the page
 // (e.g. single product pages)
 if (document.getElementById("contact-modal-overlay")) {

@@ -73,12 +73,14 @@ add_action("woocommerce_single_product_summary", "price_container", 9);
 function custom_price_zero_message($price, $product)
 {
     $brand_name = get_brand_name();
-    if ($brand_name === 'Montecristo') {
-        return;
+    $raw_price  = $product->get_price();
+
+    if ($brand_name === 'Montecristo' || $raw_price === '' || $raw_price == 0) {
+        return is_product()
+            ? '<span class="mji-price-enquire">Contact us for pricing</span>'
+            : '';
     }
-    if ($product->get_price() == 0) {
-        return '<span class="price-upon-request"><i>Price upon request</i></span>';
-    }
+
     // Remove the default currency symbol (e.g. $)
     $price = preg_replace('/<span class="woocommerce-Price-currencySymbol">.*?<\/span>/i', '', $price);
 
@@ -107,9 +109,15 @@ function close_price_container()
     //     $is_favourite =  "true";
     // }
     if (has_term('montecristo', 'product_cat', $product_id) || has_term('mikimoto', 'product_cat', $product_id)) {
-?> </div>
+        echo '</div>';
+        return;
+    }
 
-    <?php
+    $product   = wc_get_product($product_id);
+    $raw_price = $product ? $product->get_price() : '';
+
+    if ($raw_price === '' || $raw_price == 0) {
+        echo '</div>';
         return;
     }
     ?>
