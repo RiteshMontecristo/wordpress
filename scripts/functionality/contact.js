@@ -85,11 +85,6 @@ if (contactUsFormContainer) {
         validate: () => phone.value.length == 10,
       },
       {
-        field: street,
-        errorEl: streetError,
-        validate: () => street.value.trim() !== "",
-      },
-      {
         field: city,
         errorEl: cityError,
         validate: () => city.value.trim() !== "",
@@ -102,7 +97,7 @@ if (contactUsFormContainer) {
       {
         field: postalCode,
         errorEl: postalCodeError,
-        validate: () => isValidPostalCode(postalCode.value.trim()),
+        validate: () => postalCode.value.trim() === "" || isValidPostalCode(postalCode.value.trim()),
       },
       {
         field: country,

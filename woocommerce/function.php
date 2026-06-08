@@ -365,17 +365,11 @@ function contact_us()
     if ($preferredContact === 'phone' && empty($phone)) {
         $errors[] = "Phone number is required.";
     }
-    if (empty($street)) {
-        $errors[] = "Street is required.";
-    }
     if (empty($city)) {
         $errors[] = "City is required.";
     }
     if (empty($province)) {
         $errors[] = "Province is required.";
-    }
-    if (empty($postalCode)) {
-        $errors[] = "Postal code is required.";
     }
     if (empty($country)) {
         $errors[] = "Country is required.";

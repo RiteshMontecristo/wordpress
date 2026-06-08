@@ -95,7 +95,7 @@
 				</div>
 
 				<div class="street">
-					<label for="street">Street Address *</label>
+					<label for="street">Street Address</label>
 					<input type="text" id="street" name="street" placeholder="Your street address">
 					<span class="error hidden" id="streetError">Street address is required</span>
 				</div>
@@ -113,9 +113,9 @@
 				</div>
 
 				<div class="postalCode">
-					<label for="postalCode">Postal Code *</label>
-					<input type="text" id="postalCode" name="postalCode" placeholder="Your postalCode">
-					<span class="error hidden" id="postalCodeError">Postal Code is required</span>
+					<label for="postalCode">Postal Code</label>
+					<input type="text" id="postalCode" name="postalCode" placeholder="Your postal code">
+					<span class="error hidden" id="postalCodeError">Please enter a valid postal code</span>
 				</div>
 
 				<div class="country">
