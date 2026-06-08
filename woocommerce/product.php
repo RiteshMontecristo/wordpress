@@ -56,8 +56,6 @@ function custom_single_product_title($title, $id)
 }
 add_filter('the_title', 'custom_single_product_title', 10, 2);
 
-// Remove quantity input field from product pages
-add_filter('woocommerce_is_sold_individually', '__return_true');
 
 function price_container()
 {

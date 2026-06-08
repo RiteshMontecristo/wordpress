@@ -190,18 +190,17 @@ function responsive_video($atts)
 }
 add_shortcode('facade_video', 'responsive_video');
 
-// Stock availability badge on product listing cards
-function mji_product_loop_stock_badge()
+
+// Hide flat rate shipping when free shipping is available (orders over $1000)
+add_filter('woocommerce_package_rates', 'mji_hide_flat_rate_if_free_shipping_available', 10, 2);
+function mji_hide_flat_rate_if_free_shipping_available($rates, $package)
 {
-    global $product;
-    if (!$product) return;
-    if ($product->get_stock_status() === 'instock') {
-        echo '<span class="stock-badge in-stock">In Stock</span>';
-    } else {
-        echo '<span class="stock-badge out-of-stock">Out of Stock</span>';
+    $has_free = array_filter($rates, fn($rate) => $rate->method_id === 'free_shipping');
+    if (!empty($has_free)) {
+        return $has_free;
     }
+    return $rates;
 }
-add_action('woocommerce_after_shop_loop_item_title', 'mji_product_loop_stock_badge', 11);
 
 // Removing the sidebar
 function remove_sidebar_from_non_category_pages()
@@ -1163,4 +1162,239 @@ function mji_save_brand_sellable(int $term_id): void {
 }
 add_action('created_product_brand', 'mji_save_brand_sellable');
 add_action('edited_product_brand',  'mji_save_brand_sellable');
+
+// =============================================
+// ADD TO CART MODAL
+// =============================================
+
+// Capture the last added product in the WC session and flag that the modal
+// should be shown on the next page load (since add-to-cart uses a full POST).
+add_action('woocommerce_add_to_cart', 'mc_store_last_added_product', 10, 6);
+function mc_store_last_added_product($cart_item_key, $product_id, $quantity, $variation_id, $variation, $cart_item_data)
+{
+    WC()->session->set('mc_last_added_product_id', $variation_id ?: $product_id);
+    WC()->session->set('mc_last_added_qty', $quantity);
+    WC()->session->set('mc_modal_pending', true);
+}
+
+// Build modal data array from a product ID (shared by footer and fragment filter).
+function mc_build_cart_modal_data(int $product_id): ?array
+{
+    $product = wc_get_product($product_id);
+    if (!$product) return null;
+
+    $attrs = [];
+    if ($product instanceof WC_Product_Variation) {
+        foreach ($product->get_variation_attributes() as $key => $slug) {
+            $taxonomy = str_replace('attribute_', '', $key);
+            $term     = get_term_by('slug', $slug, $taxonomy);
+            $attrs[]  = $term ? $term->name : $slug;
+        }
+    }
+
+    $brand_terms = get_the_terms($product->get_id(), 'product_brand');
+    if (!$brand_terms || is_wp_error($brand_terms)) {
+        $parent_id   = $product instanceof WC_Product_Variation ? $product->get_parent_id() : $product->get_id();
+        $brand_terms = get_the_terms($parent_id, 'product_brand');
+    }
+    $brand = (!empty($brand_terms) && !is_wp_error($brand_terms)) ? $brand_terms[0]->name : '';
+
+    $qty      = (int) WC()->session->get('mc_last_added_qty', 1);
+    $image_id = $product->get_image_id();
+
+    return [
+        'name'       => $product->get_name(),
+        'image'      => $image_id ? wp_get_attachment_image_url($image_id, 'woocommerce_thumbnail') : wc_placeholder_img_src('woocommerce_thumbnail'),
+        'price'      => html_entity_decode(wp_strip_all_tags(wc_price($product->get_price())), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+        'subtotal'   => html_entity_decode(wp_strip_all_tags(WC()->cart->get_cart_subtotal()), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+        'qty'        => $qty,
+        'attributes' => implode(', ', array_filter($attrs)),
+        'brand'      => $brand,
+        'cart_url'   => wc_get_cart_url(),
+    ];
+}
+
+// Render the modal shell and, when a page-reload add-to-cart just happened,
+// pass the product data inline so JS can open the modal immediately.
+add_action('wp_footer', 'mc_cart_modal_html');
+function mc_cart_modal_html()
+{
+    if (is_admin()) return;
+    ?>
+    <div id="mc-cart-modal-overlay" class="mc-cart-modal-overlay" aria-hidden="true">
+        <div id="mc-cart-modal" class="mc-cart-modal" role="dialog" aria-modal="true" aria-labelledby="mc-cart-modal-heading">
+            <button id="mc-cart-modal-close" class="mc-cart-modal-close" aria-label="<?php esc_attr_e('Close', 'woocommerce'); ?>">&#x2715;</button>
+            <h2 id="mc-cart-modal-heading" class="mc-cart-modal-title"><?php esc_html_e('Added to cart', 'woocommerce'); ?></h2>
+            <p id="mc-cart-modal-message" class="mc-cart-modal-message" style="display:none"></p>
+            <div class="mc-cart-modal-product">
+                <img id="mc-cart-modal-img" src="" alt="" class="mc-cart-modal-img">
+                <div class="mc-cart-modal-info">
+                    <p id="mc-cart-modal-name" class="mc-cart-modal-name"></p>
+                    <p id="mc-cart-modal-attrs" class="mc-cart-modal-attrs"></p>
+                    <p id="mc-cart-modal-brand" class="mc-cart-modal-brand"></p>
+                    <p id="mc-cart-modal-qty" class="mc-cart-modal-qty"></p>
+                </div>
+                <p id="mc-cart-modal-price" class="mc-cart-modal-price"></p>
+            </div>
+            <hr class="mc-cart-modal-divider">
+            <div class="mc-cart-modal-subtotal-row">
+                <span><?php esc_html_e('Subtotal', 'woocommerce'); ?></span>
+                <span id="mc-cart-modal-subtotal"></span>
+            </div>
+            <a id="mc-cart-modal-view-cart" href="<?php echo esc_url(wc_get_cart_url()); ?>" class="mc-cart-modal-btn"><?php esc_html_e('View cart', 'woocommerce'); ?></a>
+            <button id="mc-cart-modal-continue" class="mc-cart-modal-continue"><?php esc_html_e('Continue shopping', 'woocommerce'); ?></button>
+        </div>
+    </div>
+    <?php
+
+    // Pass nonce + AJAX URL to JS (used by the AJAX add-to-cart handler).
+    echo '<script>window.mcCart = ' . wp_json_encode([
+        'nonce'    => wp_create_nonce('mc_add_to_cart'),
+        'ajax_url' => admin_url('admin-ajax.php'),
+    ], JSON_HEX_TAG) . ';</script>';
+
+    // Page-reload fallback: if a product was just added via a non-JS POST,
+    // output its data so the modal still opens on the new page.
+    if (WC()->session && WC()->session->get('mc_modal_pending')) {
+        $product_id = (int) WC()->session->get('mc_last_added_product_id');
+        $data       = $product_id ? mc_build_cart_modal_data($product_id) : null;
+
+        WC()->session->set('mc_modal_pending', false);
+
+        if ($data) {
+            echo '<script>window.mcCartModalData = ' . wp_json_encode($data, JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) . ';</script>';
+        }
+    }
+}
+
+// Replace the default top-of-page "Product added" notice with nothing.
+add_filter('wc_add_to_cart_message_html', '__return_empty_string');
+
+
+// Detect when a sold-individually product is already in cart and the user tries
+// to add it again. Intercept BEFORE WooCommerce adds its own error notice, store
+// a session flag, and return false so WC silently aborts the add.
+add_filter('woocommerce_add_to_cart_validation', 'mc_detect_already_in_cart', 5, 3);
+function mc_detect_already_in_cart($passed, $product_id, $quantity)
+{
+    // AJAX path handles its own validation — only run this for page-reload POSTs.
+    if (!$passed || wp_doing_ajax()) return $passed;
+
+    $product = wc_get_product($product_id);
+    if (!$product || !$product->is_sold_individually()) return $passed;
+
+    foreach (WC()->cart->get_cart() as $item) {
+        if ((int) $item['product_id'] === (int) $product_id) {
+            WC()->session->set('mc_already_in_cart_id', $product_id);
+            WC()->session->set('mc_already_in_cart_pending', true);
+            return false;
+        }
+    }
+
+    return $passed;
+}
+
+// On the next page load after an "already in cart" attempt, output product data
+// for the JS modal and clear the pending flag.
+add_action('wp_footer', 'mc_already_in_cart_modal_data');
+function mc_already_in_cart_modal_data()
+{
+    if (is_admin() || !WC()->session || !WC()->session->get('mc_already_in_cart_pending')) return;
+
+    $product_id = (int) WC()->session->get('mc_already_in_cart_id');
+    WC()->session->set('mc_already_in_cart_pending', false);
+
+    if (!$product_id) return;
+
+    $data = mc_build_cart_modal_data($product_id);
+    if ($data) {
+        $data['title']   = __('Already in your cart', 'woocommerce');
+        $data['message'] = __('This item is already in your cart.', 'woocommerce');
+        echo '<script>window.mcAlreadyInCartData = ' . wp_json_encode($data, JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) . ';</script>';
+    }
+}
+
+// AJAX add-to-cart — validates stock, adds item, returns modal data as JSON.
+// JS intercepts the form submit so no page reload is needed.
+add_action('wp_ajax_mc_add_to_cart', 'mc_ajax_add_to_cart');
+add_action('wp_ajax_nopriv_mc_add_to_cart', 'mc_ajax_add_to_cart');
+function mc_ajax_add_to_cart()
+{
+    check_ajax_referer('mc_add_to_cart', 'nonce');
+
+    $product_id   = absint($_POST['product_id'] ?? 0);
+    $variation_id = absint($_POST['variation_id'] ?? 0);
+    $quantity     = max(1, absint($_POST['quantity'] ?? 1));
+
+    if (!$product_id) {
+        wp_send_json_error(['message' => __('Invalid product.', 'woocommerce')]);
+    }
+
+    $modal_id = $variation_id ?: $product_id;
+    $check    = wc_get_product($modal_id);
+    if (!$check) {
+        wp_send_json_error(['message' => __('Product not found.', 'woocommerce')]);
+    }
+
+    // Sold-individually check
+    if ($check->is_sold_individually()) {
+        foreach (WC()->cart->get_cart() as $item) {
+            $match = $variation_id ? (int) $item['variation_id'] : (int) $item['product_id'];
+            if ($match === (int) $modal_id) {
+                WC()->session->set('mc_last_added_qty', (int) $item['quantity']);
+                $data            = mc_build_cart_modal_data($modal_id) ?? [];
+                $data['title']   = __('Already in your cart', 'woocommerce');
+                $data['message'] = __('This item is already in your cart.', 'woocommerce');
+                wp_send_json_error($data);
+                return;
+            }
+        }
+    }
+
+    // Stock quantity check
+    if ($check->managing_stock()) {
+        $stock   = (int) $check->get_stock_quantity();
+        $in_cart = 0;
+        foreach (WC()->cart->get_cart() as $item) {
+            $match = $variation_id ? (int) $item['variation_id'] : (int) $item['product_id'];
+            if ($match === (int) $modal_id) {
+                $in_cart = (int) $item['quantity'];
+                break;
+            }
+        }
+        if (($in_cart + $quantity) > $stock) {
+            WC()->session->set('mc_last_added_qty', $in_cart);
+            $data            = mc_build_cart_modal_data($modal_id) ?? [];
+            $data['title']   = __('Limited stock', 'woocommerce');
+            $data['message'] = $stock === 0
+                ? __('Sorry, this item is out of stock.', 'woocommerce')
+                : sprintf(
+                    /* translators: 1: available stock 2: quantity already in cart */
+                    __('Only %1$d available — you already have %2$d in your cart.', 'woocommerce'),
+                    $stock,
+                    $in_cart
+                );
+            wp_send_json_error($data);
+            return;
+        }
+    }
+
+    // Add to cart
+    WC()->session->set('mc_last_added_qty', $quantity);
+    $key = WC()->cart->add_to_cart($product_id, $quantity, $variation_id);
+
+    if ($key === false) {
+        $notices = wc_get_notices('error');
+        wc_clear_notices();
+        $msg             = !empty($notices) ? wp_strip_all_tags($notices[0]['notice']) : __('Could not add to cart.', 'woocommerce');
+        $data            = mc_build_cart_modal_data($modal_id) ?? [];
+        $data['title']   = __('Unable to add', 'woocommerce');
+        $data['message'] = $msg;
+        wp_send_json_error($data);
+        return;
+    }
+
+    $data = mc_build_cart_modal_data($modal_id);
+    wp_send_json_success($data);
+}
 

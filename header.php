@@ -252,6 +252,9 @@
                         <div class="shopping-bag-icon">
                             <a href="<?php echo wc_get_cart_url(); ?>" aria-label="View your shopping cart">
                                 <img height="25" width="25" src="<?php echo get_stylesheet_directory_uri() . "/assets/icons/cart.svg" ?>" alt="Shopping Cart Icon" />
+                                <?php $cart_count = WC()->cart ? WC()->cart->get_cart_contents_count() : 0; if ($cart_count > 0): ?>
+                                <span class="cart-count-badge"><?php echo $cart_count; ?></span>
+                                <?php endif; ?>
                             </a>
                         </div>
                         <a href="<?php echo get_permalink(get_option('woocommerce_myaccount_page_id')); ?>" aria-label="Account">
@@ -328,6 +331,9 @@
                             <div class="shopping-bag-icon">
                                 <a href="<?php echo wc_get_cart_url(); ?>" aria-label="View your shopping cart">
                                     <img height="25" width="25" src="<?php echo get_stylesheet_directory_uri() . "/assets/icons/cart.svg" ?>" alt="Shopping Cart Icon" />
+                                    <?php $cart_count = WC()->cart ? WC()->cart->get_cart_contents_count() : 0; if ($cart_count > 0): ?>
+                                    <span class="cart-count-badge"><?php echo $cart_count; ?></span>
+                                    <?php endif; ?>
                                 </a>
                             </div>
 
