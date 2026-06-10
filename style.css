@@ -3899,6 +3899,29 @@ body.mc-modal-open {
   letter-spacing: 0.03em;
 }
 
+.mji-region-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #888;
+  background: #f5f5f3;
+  border: 1px solid #e0e0dc;
+  border-radius: 4px;
+  padding: 0.35rem 0.65rem;
+  margin: 0 0 1rem;
+}
+
+.mji-region-notice::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #bbb;
+  flex-shrink: 0;
+}
+
 /* ==============================================
    NOTIFY ME — OUT OF STOCK
    ============================================== */

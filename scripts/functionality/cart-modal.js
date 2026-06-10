@@ -119,6 +119,7 @@
 
   closeBtn?.addEventListener("click", closeModal);
   continueBtn?.addEventListener("click", closeModal);
+  document.getElementById("mc-cart-modal-view-cart")?.addEventListener("click", closeModal);
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeModal();
   });

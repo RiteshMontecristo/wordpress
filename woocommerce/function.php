@@ -1260,6 +1260,200 @@ function mji_save_brand_sellable(int $term_id): void {
 add_action('created_product_brand', 'mji_save_brand_sellable');
 add_action('edited_product_brand',  'mji_save_brand_sellable');
 
+// ─── Brand country default ─────────────────────────────────────────────────────
+
+add_action('admin_enqueue_scripts', function (): void {
+    $screen = get_current_screen();
+    if (!$screen || $screen->taxonomy !== 'product_brand') return;
+    wp_enqueue_script('wc-enhanced-select');
+    wp_enqueue_style('woocommerce_admin_styles');
+    wp_add_inline_script('wc-enhanced-select', '
+        jQuery(function ($) {
+            $("#mji_brand_allowed_countries").select2({
+                placeholder: "Search for a country…",
+                width: "100%",
+                allowClear: true
+            });
+        });
+    ');
+});
+
+add_action('product_brand_add_form_fields', function () {
+    $countries = WC()->countries->get_countries();
+    ?>
+    <div class="form-field">
+        <label for="mji_brand_allowed_countries">Allowed Countries</label>
+        <select id="mji_brand_allowed_countries" name="mji_brand_allowed_countries[]"
+                multiple class="wc-enhanced-select" style="width:100%"
+                data-placeholder="Search for a country…">
+            <?php foreach ($countries as $code => $name) : ?>
+                <option value="<?php echo esc_attr($code); ?>"><?php echo esc_html($name); ?></option>
+            <?php endforeach; ?>
+        </select>
+        <p>Leave empty to allow all countries. Only applies when "Sellable online" is checked.</p>
+    </div>
+    <?php
+}, 15);
+
+add_action('product_brand_edit_form_fields', function (WP_Term $term) {
+    $countries = WC()->countries->get_countries();
+    $saved     = get_term_meta($term->term_id, 'mji_brand_allowed_countries', true) ?: [];
+    ?>
+    <tr class="form-field">
+        <th scope="row"><label for="mji_brand_allowed_countries">Allowed Countries</label></th>
+        <td>
+            <select id="mji_brand_allowed_countries" name="mji_brand_allowed_countries[]"
+                    multiple class="wc-enhanced-select" style="width:100%"
+                    data-placeholder="Search for a country…">
+                <?php foreach ($countries as $code => $name) : ?>
+                    <option value="<?php echo esc_attr($code); ?>" <?php selected(in_array($code, (array) $saved, true)); ?>>
+                        <?php echo esc_html($name); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <p class="description">Leave empty to allow all countries. Only applies when "Sellable online" is checked.</p>
+        </td>
+    </tr>
+    <?php
+}, 15);
+
+function mji_save_brand_countries(int $term_id): void {
+    if (!current_user_can('manage_woocommerce')) return;
+    $countries = isset($_POST['mji_brand_allowed_countries'])
+        ? array_map('sanitize_text_field', (array) $_POST['mji_brand_allowed_countries'])
+        : [];
+    update_term_meta($term_id, 'mji_brand_allowed_countries', array_values(array_filter($countries)));
+}
+add_action('created_product_brand', 'mji_save_brand_countries');
+add_action('edited_product_brand',  'mji_save_brand_countries');
+
+// ─── Product-level country override ───────────────────────────────────────────
+
+add_action('add_meta_boxes', function () {
+    add_meta_box(
+        'mji_country_availability',
+        'Country Availability',
+        'mji_render_country_metabox',
+        'product',
+        'normal',
+        'default'
+    );
+});
+
+function mji_render_country_metabox(WP_Post $post): void {
+    $override  = get_post_meta($post->ID, 'mji_country_override', true) ?: 'default';
+    $saved     = (array) (get_post_meta($post->ID, 'mji_product_allowed_countries', true) ?: []);
+    $countries = WC()->countries->get_countries();
+    wp_nonce_field('mji_country_availability', 'mji_country_nonce');
+    ?>
+    <p style="margin-bottom:8px">
+        <label style="display:block;margin-bottom:4px">
+            <input type="radio" name="mji_country_override" value="default" <?php checked($override, 'default'); ?>>
+            Use brand default
+        </label>
+        <label style="display:block;margin-bottom:4px">
+            <input type="radio" name="mji_country_override" value="worldwide" <?php checked($override, 'worldwide'); ?>>
+            Available worldwide
+        </label>
+        <label style="display:block">
+            <input type="radio" name="mji_country_override" value="specific" <?php checked($override, 'specific'); ?>>
+            Specific countries only
+        </label>
+    </p>
+    <div id="mji-country-select" style="<?php echo $override !== 'specific' ? 'display:none' : ''; ?>margin-top:8px">
+        <select id="mji_product_allowed_countries"
+                name="mji_product_allowed_countries[]"
+                multiple
+                class="wc-enhanced-select"
+                data-placeholder="Search for a country…"
+                style="width:100%">
+            <?php foreach ($countries as $code => $name) : ?>
+                <option value="<?php echo esc_attr($code); ?>" <?php selected(in_array($code, $saved, true)); ?>>
+                    <?php echo esc_html($name); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <script>
+    (function () {
+        var radios = document.querySelectorAll('input[name="mji_country_override"]');
+        var wrap   = document.getElementById('mji-country-select');
+
+        radios.forEach(function (r) {
+            r.addEventListener('change', function () {
+                var show = r.value === 'specific';
+                wrap.style.display = show ? '' : 'none';
+                if (show && typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+                    jQuery('#mji_product_allowed_countries').select2({
+                        placeholder: 'Search for a country…',
+                        width: '100%',
+                        allowClear: true
+                    });
+                }
+            });
+        });
+
+        // Init immediately if already set to specific on page load
+        if (wrap.style.display !== 'none' && typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+            jQuery('#mji_product_allowed_countries').select2({
+                placeholder: 'Search for a country…',
+                width: '100%',
+                allowClear: true
+            });
+        }
+    })();
+    </script>
+    <?php
+}
+
+add_action('save_post_product', function (int $post_id): void {
+    if (!isset($_POST['mji_country_nonce']) ||
+        !wp_verify_nonce($_POST['mji_country_nonce'], 'mji_country_availability')) {
+        return;
+    }
+    if (!current_user_can('edit_post', $post_id)) return;
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+
+    $override = sanitize_text_field($_POST['mji_country_override'] ?? 'default');
+    if (!in_array($override, ['default', 'worldwide', 'specific'], true)) $override = 'default';
+    update_post_meta($post_id, 'mji_country_override', $override);
+
+    if ($override === 'specific') {
+        $countries = array_map('sanitize_text_field', (array) ($_POST['mji_product_allowed_countries'] ?? []));
+        update_post_meta($post_id, 'mji_product_allowed_countries', array_values(array_filter($countries)));
+    } else {
+        delete_post_meta($post_id, 'mji_product_allowed_countries');
+    }
+});
+
+// ─── Checkout hard-block ───────────────────────────────────────────────────────
+
+add_action('woocommerce_checkout_process', function (): void {
+    // Use shipping country; fall back to billing if "ship to same address" is checked.
+    $ship_to_billing = !isset($_POST['ship_to_different_address']) || !$_POST['ship_to_different_address'];
+    $country = $ship_to_billing
+        ? sanitize_text_field(wp_unslash($_POST['billing_country'] ?? ''))
+        : sanitize_text_field(wp_unslash($_POST['shipping_country'] ?? ''));
+
+    if (empty($country)) return;
+
+    foreach (WC()->cart->get_cart() as $item) {
+        $product    = $item['data'];
+        $product_id = $product->get_parent_id() ?: $product->get_id();
+        $allowed    = mji_get_product_allowed_countries($product_id);
+
+        if (empty($allowed) || in_array($country, $allowed, true)) continue;
+
+        wc_add_notice(
+            sprintf(
+                '"%s" is not available for delivery to your country. Please remove it from your cart to continue.',
+                esc_html($product->get_name())
+            ),
+            'error'
+        );
+    }
+});
+
 // =============================================
 // ADD TO CART MODAL
 // =============================================
@@ -1491,6 +1685,10 @@ function mc_ajax_add_to_cart()
         wp_send_json_error($data);
         return;
     }
+
+    // AJAX handles the modal itself — clear the page-reload flag so the cart
+    // page doesn't reopen the modal when the user clicks "View Cart".
+    WC()->session->set('mc_modal_pending', false);
 
     $data = mc_build_cart_modal_data($modal_id);
     wp_send_json_success($data);

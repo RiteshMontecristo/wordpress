@@ -244,6 +244,34 @@ function change_sku_number_for_variant()
 <?php }
 }
 
+// Show a region notice when the brand is sellable online but this customer's country is restricted.
+add_action('woocommerce_single_product_summary', function () {
+    global $product;
+    if (!$product) return;
+
+    $product_id    = $product->get_parent_id() ?: $product->get_id();
+    $brand_term_id = (int) get_post_meta($product_id, 'rank_math_primary_product_brand', true);
+    if (!$brand_term_id) return;
+    if (get_term_meta($brand_term_id, 'mji_sellable_online', true) !== '1') return;
+
+    $allowed = mji_get_product_allowed_countries($product_id);
+    if (empty($allowed)) return; // worldwide — no restriction
+
+    $country = '';
+    if (WC()->customer) {
+        $country = WC()->customer->get_shipping_country()
+            ?: WC()->customer->get_billing_country();
+    }
+    if (empty($country)) {
+        $geo     = WC_Geolocation::geolocate_ip();
+        $country = $geo['country'] ?? '';
+    }
+
+    if (empty($country) || in_array($country, $allowed, true)) return;
+
+    echo '<p class="mji-region-notice">Currently unavailable in your region.</p>';
+}, 28);
+
 // When a product is not purchasable, WooCommerce skips its stock HTML entirely.
 // Re-attach it just before the add-to-cart action so it always shows.
 add_action('woocommerce_single_product_summary', function () {
@@ -256,14 +284,31 @@ add_action('woocommerce_single_product_summary', function () {
 // Single product purchasability is controlled by the brand's "sellable online" flag.
 // Managed under Products > Brands in WP admin. No brand assigned = not purchasable.
 add_filter('woocommerce_is_purchasable', function (bool $purchasable, WC_Product $product): bool {
-    if (!$purchasable) {
-        return false;
-    }
+    if (!$purchasable) return false;
+
     $product_id    = $product->get_parent_id() ?: $product->get_id();
     $brand_term_id = (int) get_post_meta($product_id, 'rank_math_primary_product_brand', true);
-    if (!$brand_term_id) {
-        return false;
-    }
+    if (!$brand_term_id) return false;
+
     $sellable = get_term_meta($brand_term_id, 'mji_sellable_online', true);
-    return $sellable === '1';
+    if ($sellable !== '1') return false;
+
+    $allowed = mji_get_product_allowed_countries($product_id);
+    if (empty($allowed)) return true; // worldwide — no restriction
+
+    // Determine the visitor's country via WC customer session or geolocation.
+    // Shipping country takes priority — restrictions are about where the item ships to.
+    $country = '';
+    if (WC()->customer) {
+        $country = WC()->customer->get_shipping_country()
+            ?: WC()->customer->get_billing_country();
+    }
+    if (empty($country)) {
+        $geo     = WC_Geolocation::geolocate_ip();
+        $country = $geo['country'] ?? '';
+    }
+
+    if (empty($country)) return true; // can't determine — don't silently block
+
+    return in_array($country, $allowed, true);
 }, 10, 2);
