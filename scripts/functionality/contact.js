@@ -248,8 +248,19 @@ const contactModal = document.getElementById("contact-modal-overlay");
 if (contactModal) {
   const openBtns = document.querySelectorAll(".open-contact-modal");
   const closeBtns = contactModal.querySelectorAll(".contact-modal-close");
+  const headerTitle = contactModal.querySelector(".contact-modal-header span");
+  const defaultTitle = headerTitle ? headerTitle.textContent : "Contact Us";
+  const inquiryTypeInput = contactModal.querySelector("#contact-inquiry-type");
+  const modalForm = contactModal.querySelector("#contactUsForm");
+  const modalSuccess = contactModal.querySelector("#contactSuccess");
 
-  const openModal = () => {
+  const openModal = (trigger = null) => {
+    if (headerTitle) {
+      headerTitle.textContent = trigger?.dataset?.modalTitle || defaultTitle;
+    }
+    if (inquiryTypeInput) {
+      inquiryTypeInput.value = trigger?.dataset?.inquiryType || "contact";
+    }
     contactModal.removeAttribute("hidden");
     document.body.style.overflow = "hidden";
     const firstFocusable = contactModal.querySelector(
@@ -261,9 +272,22 @@ if (contactModal) {
   const closeModal = () => {
     contactModal.setAttribute("hidden", "");
     document.body.style.overflow = "";
+    if (headerTitle) headerTitle.textContent = defaultTitle;
+    if (modalForm) {
+      modalForm.reset();
+      modalForm.style.display = "";
+      modalForm.querySelectorAll(".error").forEach((el) => el.classList.add("hidden"));
+      modalForm.querySelector("#serverError").innerHTML = "";
+      const submitBtn = modalForm.querySelector("#send-message");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Send Message";
+      }
+    }
+    if (modalSuccess) modalSuccess.style.display = "";
   };
 
-  openBtns.forEach((btn) => btn.addEventListener("click", openModal));
+  openBtns.forEach((btn) => btn.addEventListener("click", () => openModal(btn)));
   closeBtns.forEach((btn) => btn.addEventListener("click", closeModal));
 
   contactModal.addEventListener("click", (e) => {

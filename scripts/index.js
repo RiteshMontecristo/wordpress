@@ -17,8 +17,8 @@ if (path.includes("blog")) {
   import("./functionality/favourite.js");
 }
 
-// Load notify-me JS on single product pages with the notify form
-if (document.querySelector(".mji-notify-wrap")) {
+// Load notify-me JS only when an out-of-stock product has the trigger button
+if (document.querySelector(".mji-open-notify-modal")) {
   import("./functionality/notify-me.js");
 }
 
@@ -26,6 +26,10 @@ if (document.querySelector(".mji-notify-wrap")) {
 // (e.g. single product pages)
 if (document.getElementById("contact-modal-overlay")) {
   import("./functionality/contact.js");
+}
+
+if (document.getElementById("appointment-modal-overlay")) {
+  import("./functionality/appointment-modal.js");
 }
 
 // Youtube video player

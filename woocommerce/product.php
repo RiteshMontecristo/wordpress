@@ -36,11 +36,20 @@ function get_brand_name()
     return $brand_name;
 }
 
+
 function add_brand_name()
 {
     $brand_name = get_brand_name();
     echo "<h2 class='brand'>" . esc_html($brand_name) . "</h2>";
+
+    if ($brand_name === 'Montecristo') {
+        $sub_brand = get_montecristo_sub_brand();
+        if ($sub_brand) {
+            echo "<p class='montecristo-sub-brand'>" . esc_html($sub_brand) . "</p>";
+        }
+    }
 }
+
 add_action("woocommerce_single_product_summary", "add_brand_name", 4);
 
 function custom_single_product_title($title, $id)
@@ -63,7 +72,8 @@ function price_container()
 
     // Option A: Get from attribute 'pa_model'
     $model_number = $product->get_sku();
-    if ($model_number) {
+    $brand_name   = get_brand_name();
+    if ($model_number && $brand_name !== 'Montecristo') {
         echo '<div class="product-model-number">' . esc_html($model_number) . '</div>';
     }
     echo "<div class='price_container'>";
@@ -77,7 +87,7 @@ function custom_price_zero_message($price, $product)
 
     if ($brand_name === 'Montecristo' || $raw_price === '' || $raw_price == 0) {
         return is_product()
-            ? '<span class="mji-price-enquire">Contact us for pricing</span>'
+            ? '<span class="mji-price-enquire">Inquire for pricing</span>'
             : '';
     }
 
@@ -142,22 +152,43 @@ add_action("woocommerce_single_product_summary", "close_price_container", 11);
 function single_page_contact()
 {
     $brand_name = get_brand_name();
-
-    if ($brand_name == 'Omega') {
-        $contact = "tel:+1-604-325-2116";
-    } else {
-        $contact = "tel:+1-604-263-3611";
-    }
-    if ($brand_name === 'Montecristo') {
     ?>
-        <div class="montecristo-category">
-            <a href="/customize-your-jewellery" class="btn btn-customize">Customize Jewellery</a>
-            <button type="button" class="btn btn-contact open-contact-modal">Contact Us</button>
+    <div class="product-cta-wrap">
+
+        <button type="button" class="btn btn-contact open-contact-modal">Inquire</button>
+
+        <div class="product-icon-links">
+
+            <button type="button" class="product-icon-link open-call-modal">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.07 12 19.79 19.79 0 0 1 1 3.18 2 2 0 0 1 3 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16h1z"/>
+                </svg>
+                <span>Call Us</span>
+            </button>
+
+            <button type="button" class="product-icon-link open-appointment-modal">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span>Book Appointment</span>
+            </button>
+
+            <?php if ($brand_name === 'Montecristo') : ?>
+            <button type="button" class="product-icon-link open-contact-modal" data-modal-title="Handcraft Your Custom Jewellery" data-inquiry-type="custom_jewellery">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                </svg>
+                <span>Customize</span>
+            </button>
+            <?php endif; ?>
+
         </div>
-    <?php } else { ?>
-        <button type="button" class="btn btn-contact open-contact-modal">Contact Us</button>
-        <button type="button" class="btn btn-call open-call-modal">Call Us</button>
-    <?php }
+    </div>
+    <?php
 }
 
 add_action("woocommerce_single_product_summary", "single_page_contact", 31);

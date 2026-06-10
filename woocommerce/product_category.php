@@ -291,6 +291,15 @@ function prepend_brand_to_product_title($title, $id)
     return str_replace("Watch", "", $title);
 }
 
+// Display Montecristo sub-brand above the title on listing pages
+add_action('woocommerce_before_shop_loop_item_title', function () {
+    global $product;
+    if (!$product || !has_term('montecristo', 'product_cat', $product->get_id())) return;
+    $sub_brand = get_montecristo_sub_brand($product->get_id());
+    if (!$sub_brand) return;
+    echo '<p class="montecristo-sub-brand-loop">' . esc_html($sub_brand) . '</p>';
+}, 20);
+
 // Display model number below product title on shop/category pages
 add_action('woocommerce_after_shop_loop_item_title', 'display_product_model_number', 5);
 function display_product_model_number()
@@ -298,9 +307,11 @@ function display_product_model_number()
     global $product;
 
     $model_number = $product->get_sku();
-    if ($model_number) {
-        echo '<div class="product-model-number">' . esc_html($model_number) . '</div>';
-    }
+    if (!$model_number) return;
+
+    if (has_term('montecristo', 'product_cat', $product->get_id())) return;
+
+    echo '<div class="product-model-number">' . esc_html($model_number) . '</div>';
 }
 
 // removing add to cart button

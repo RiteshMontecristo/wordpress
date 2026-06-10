@@ -1,6 +1,22 @@
 <?php
 
 require_once get_stylesheet_directory() . '/woocommerce/helper_functions.php';
+
+// Returns the direct child category of 'montecristo' that a product belongs to.
+function get_montecristo_sub_brand(int $product_id = 0): string
+{
+    if (!$product_id) $product_id = get_the_ID();
+    $parent = get_term_by('slug', 'montecristo', 'product_cat');
+    if (!$parent) return '';
+    $terms = wp_get_post_terms($product_id, 'product_cat');
+    if (is_wp_error($terms)) return '';
+    foreach ($terms as $term) {
+        if ((int) $term->parent === (int) $parent->term_id) {
+            return $term->name;
+        }
+    }
+    return '';
+}
 require_once ABSPATH . 'wp-admin/includes/file.php';
 
 add_filter('xmlrpc_enabled', '__return_false');
@@ -340,6 +356,7 @@ function contact_us()
     $postalCode = isset($_POST['postalCode']) ? sanitize_text_field($_POST['postalCode']) : '';
     $country = isset($_POST['country']) ? sanitize_text_field($_POST['country']) : '';
     $customerMessage = isset($_POST['message']) ? sanitize_textarea_field($_POST['message']) : '';
+    $inquiryType = isset($_POST['inquiry_type']) && $_POST['inquiry_type'] === 'custom_jewellery' ? 'custom_jewellery' : 'contact';
     $terms = isset($_POST['terms']) && $_POST['terms'] === '1';
     $captcha_token = isset($_POST['g-recaptcha-response']) ? sanitize_textarea_field($_POST['g-recaptcha-response']) : '';
     $errors = [];
@@ -395,8 +412,11 @@ function contact_us()
     if ($result['success'] && $result['action'] === 'contact_us' && ($result['score'] ?? 0) >= 0.7) {
         $to = get_option('custom_sender_email', get_option('admin_email'));
 
-        $subject = 'Contact Form Submission';
+        $subject = $inquiryType === 'custom_jewellery'
+            ? 'Custom Jewellery Enquiry'
+            : 'Contact Form Submission';
         $message = "Customer reached out to us with the following information:\r\n\r\n";
+        $message .= "Enquiry Type: " . ($inquiryType === 'custom_jewellery' ? 'Handcraft Your Custom Jewellery' : 'General Contact') . "\r\n";
         $message .= "Name: $title $firstName $lastName\r\n";
         $message .= "Preferred Contact: $preferredContact\r\n";
         if ($preferredContact === 'store' && isset($store_labels[$preferredStore])) {
@@ -589,6 +609,89 @@ function appointment()
 
 add_action('wp_ajax_appointment', 'appointment'); // For logged-in users
 add_action('wp_ajax_nopriv_appointment', 'appointment'); // For non-logged-in user
+
+// =============================================
+// APPOINTMENT MODAL
+// =============================================
+
+add_action('wp_ajax_mji_appointment_modal', 'mji_appointment_modal');
+add_action('wp_ajax_nopriv_mji_appointment_modal', 'mji_appointment_modal');
+function mji_appointment_modal()
+{
+    if (!check_ajax_referer('mji_appointment_modal_nonce', 'nonce', false)) {
+        wp_send_json_error(['message' => 'Security check failed.']);
+    }
+
+    if (!mji_check_rate_limit('appointment_modal')) {
+        wp_send_json_error(['message' => 'Too many requests. Please try again later.']);
+    }
+
+    $firstName       = sanitize_text_field($_POST['firstName'] ?? '');
+    $lastName        = sanitize_text_field($_POST['lastName'] ?? '');
+    $appointmentType = sanitize_text_field($_POST['appointmentType'] ?? '');
+    $store           = sanitize_text_field($_POST['store'] ?? '');
+    $date            = sanitize_text_field($_POST['date'] ?? '');
+    $time            = sanitize_text_field($_POST['time'] ?? '');
+    $email           = sanitize_email($_POST['email'] ?? '');
+    $phone           = sanitize_text_field($_POST['phone'] ?? '');
+    $message         = sanitize_textarea_field($_POST['message'] ?? '');
+
+    $errors = [];
+
+    if (empty($firstName))  $errors[] = 'First name is required.';
+    if (empty($lastName))   $errors[] = 'Last name is required.';
+    if (!in_array($appointmentType, ['in-store', 'virtual'], true)) $errors[] = 'Please select an appointment type.';
+    if ($appointmentType === 'in-store' && empty($store)) $errors[] = 'Please select a store.';
+    if (empty($date))       $errors[] = 'Preferred date is required.';
+    if (empty($time))       $errors[] = 'Preferred time is required.';
+    if (!is_email($email))  $errors[] = 'A valid email address is required.';
+    if (empty($phone))      $errors[] = 'Phone number is required.';
+
+    if (!empty($errors)) {
+        wp_send_json_error(['errors' => $errors]);
+    }
+
+    $type_label  = $appointmentType === 'in-store' ? 'In-Store' : 'Virtual';
+    $store_names = [
+        'downtown'  => 'Downtown Vancouver',
+        'richmond'  => 'Richmond Centre',
+        'metrotown' => 'Metropolis at Metrotown',
+    ];
+    $store_label = $appointmentType === 'in-store' ? ($store_names[$store] ?? $store) : '';
+
+    $admin_body  = "A customer has requested a {$type_label} appointment:\r\n\r\n";
+    $admin_body .= "Name: {$firstName} {$lastName}\r\n";
+    $admin_body .= "Type: {$type_label}\r\n";
+    if ($store_label) $admin_body .= "Store: {$store_label}\r\n";
+    $admin_body .= "Date: {$date}\r\n";
+    $admin_body .= "Time: {$time}\r\n";
+    $admin_body .= "Email: {$email}\r\n";
+    $admin_body .= "Phone: {$phone}\r\n";
+    if ($message) $admin_body .= "Message: {$message}\r\n";
+
+    $store_email = get_option('custom_sender_email', get_option('admin_email'));
+    $headers     = [
+        'Content-Type: text/plain; charset=UTF-8',
+        "From: Montecristo Jewellers <{$store_email}>",
+    ];
+
+    $mail_sent = wp_mail($store_email, "Appointment Request - {$type_label}", $admin_body, $headers);
+
+    if (!$mail_sent) {
+        wp_send_json_error(['message' => 'Server error. Please try again later.']);
+        return;
+    }
+
+    $cust_body  = "Dear {$firstName} {$lastName},\r\n\r\n";
+    $cust_body .= "Thank you for requesting a {$type_label} appointment with Montecristo Jewellers. ";
+    $cust_body .= "One of our team members will confirm your appointment details with you shortly.\r\n\r\n";
+    if ($store_label) $cust_body .= "Store: {$store_label}\r\n";
+    $cust_body .= "Requested Date: {$date}\r\nRequested Time: {$time}\r\n\r\n";
+    $cust_body .= "Best regards,\r\nMontecristo Jewellers";
+
+    wp_mail($email, 'Appointment Request Received - Montecristo Jewellers', $cust_body, $headers);
+    wp_send_json_success();
+}
 
 // CUSTOMIZE PAGE
 function customize_contact_us()
@@ -1397,37 +1500,23 @@ function mc_ajax_add_to_cart()
 // NOTIFY ME — OUT OF STOCK
 // =============================================
 
-// Render "Notify Me" button + inline form on the single product page for out-of-stock items.
-// Priority 31 places it immediately after the add-to-cart / out-of-stock area.
-add_action('woocommerce_single_product_summary', 'mji_single_notify_me_button', 31);
+// Remove WC add-to-cart for out-of-stock products so our button replaces it at the same slot.
+add_action('woocommerce_single_product_summary', function () {
+    global $product;
+    if (!$product || $product->is_in_stock()) return;
+    remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
+}, 5);
+
+// Render a "Notify Me" trigger button at priority 30 (the add-to-cart slot).
+add_action('woocommerce_single_product_summary', 'mji_single_notify_me_button', 30);
 function mji_single_notify_me_button()
 {
     global $product;
     if (!$product || $product->is_in_stock()) return;
-    echo mji_notify_me_html((int) $product->get_id());
-}
-
-function mji_notify_me_html(int $product_id): string
-{
-    ob_start();
-    ?>
-    <div class="mji-notify-wrap">
-        <p class="mji-notify-text">
-            <?php esc_html_e('Would you like us to reach out when this item is back in stock? Leave your email address below and we\'ll let you know as soon as it\'s available.', 'woocommerce'); ?>
-        </p>
-        <div class="mji-notify-form" data-product="<?php echo esc_attr($product_id); ?>">
-            <div class="mji-notify-field">
-                <input type="email" class="mji-notify-email"
-                       placeholder="<?php esc_attr_e('Your email address', 'woocommerce'); ?>">
-                <button type="button" class="mji-notify-submit">
-                    <?php esc_html_e('Notify Me', 'woocommerce'); ?>
-                </button>
-            </div>
-            <p class="mji-notify-message"></p>
-        </div>
-    </div>
-    <?php
-    return ob_get_clean();
+    $product_id = (int) $product->get_id();
+    echo '<button type="button" class="button alt mji-open-notify-modal" data-product="' . esc_attr($product_id) . '">'
+        . esc_html__('Notify Me', 'woocommerce')
+        . '</button>';
 }
 
 // AJAX handler — rate-limited, validates email, emails the store.
