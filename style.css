@@ -1666,7 +1666,7 @@ sidebar .filter-hide h3::after {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #2c2c2c;
+  color: #21453a;
   margin: 0 0 2px;
 }
 
@@ -1877,8 +1877,6 @@ sidebar .filter-hide h3::after {
 .montecristo-sub-brand {
   font-size: 1.15rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
   color: #555;
   margin: 0.2rem 0 0;
 }
@@ -1958,15 +1956,9 @@ button[data-favourite="false"]:hover svg {
 .product_cat-montecristo .stock {
   display: none !important;
 }
-montecristo-category
-  .single-product
-  .summary.entry-summary
-  .stock.out-of-stock {
-  margin: 0;
-}
 
 .single-product .summary.entry-summary form.cart {
-  margin: 0;
+  margin: 0 0 10px;
   padding: 0;
 }
 
@@ -1979,14 +1971,14 @@ montecristo-category
   max-width: 400px;
   font-family: "lato";
   font-weight: 400;
-  background-color: #000 !important;
-  border-color: #000 !important;
+  background-color: #B08D57 !important;
+  border-color: #B08D57 !important;
   color: #fff !important;
 }
 
 .single-product .summary.entry-summary form.cart .single_add_to_cart_button:hover {
-  background-color: #222 !important;
-  border-color: #222 !important;
+  background-color: #8D7146 !important;
+  border-color: #8D7146 !important;
 }
 
 .single-product .summary.entry-summary .mji-open-notify-modal {
@@ -1995,14 +1987,15 @@ montecristo-category
   max-width: 400px;
   font-family: "lato";
   font-weight: 400;
-  background-color: #000 !important;
-  border-color: #000 !important;
+  background-color: #B08D57 !important;
+  border-color: #B08D57 !important;
   color: #fff !important;
+  margin-top: 10px;
 }
 
 .single-product .summary.entry-summary .mji-open-notify-modal:hover {
-  background-color: #222 !important;
-  border-color: #222 !important;
+  background-color: #8D7146 !important;
+  border-color: #8D7146 !important;
 }
 
 .single-product .summary.entry-summary .btn {
@@ -2016,7 +2009,6 @@ montecristo-category
   color: white;
   width: 100%;
   font-weight: normal;
-  margin: 10px 0;
 
   &:hover {
     background-color: #2c5b4e;
@@ -2029,10 +2021,14 @@ montecristo-category
   max-width: 400px;
 }
 
+.product_cat-montecristo .summary.entry-summary .product-cta-wrap {
+  margin-top: 10px;
+}
+
 .single-product .summary.entry-summary .product-icon-links {
   display: flex;
   justify-content: space-around;
-  margin-top: 0.75rem;
+  margin-top: 10px;
 }
 
 .single-product .summary.entry-summary .product-icon-link {
@@ -3900,7 +3896,6 @@ body.mc-modal-open {
 }
 
 .mji-region-notice {
-  display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.82rem;
@@ -3909,17 +3904,13 @@ body.mc-modal-open {
   border: 1px solid #e0e0dc;
   border-radius: 4px;
   padding: 0.35rem 0.65rem;
-  margin: 0 0 1rem;
+  margin: 0 0 10px;
+  max-width: 400px;
 }
 
-.mji-region-notice::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #bbb;
-  flex-shrink: 0;
+
+.single-product .summary.entry-summary .stock {
+  margin: 0 0 10px;
 }
 
 /* ==============================================
@@ -3974,7 +3965,7 @@ body.mc-modal-open {
   font-size: 0.8rem;
   white-space: nowrap;
   margin: 0;
-  background-color: #2c2d33;
+  background-color: #B08D57;
   color: #fff;
   border: none;
   border-radius: 3px;
@@ -3982,7 +3973,7 @@ body.mc-modal-open {
 }
 
 .mji-notify-submit:hover {
-  background-color: #1a1b1f;
+  background-color: #8D7146;
   color: #fff;
 }
 

@@ -1355,9 +1355,13 @@ function mji_render_country_metabox(WP_Post $post): void {
             <input type="radio" name="mji_country_override" value="worldwide" <?php checked($override, 'worldwide'); ?>>
             Available worldwide
         </label>
-        <label style="display:block">
+        <label style="display:block;margin-bottom:4px">
             <input type="radio" name="mji_country_override" value="specific" <?php checked($override, 'specific'); ?>>
             Specific countries only
+        </label>
+        <label style="display:block">
+            <input type="radio" name="mji_country_override" value="not_online" <?php checked($override, 'not_online'); ?>>
+            <strong>Not available online</strong> <span style="color:#c0392b">— hides Add to Cart for this product regardless of brand</span>
         </label>
     </p>
     <div id="mji-country-select" style="<?php echo $override !== 'specific' ? 'display:none' : ''; ?>margin-top:8px">
@@ -1415,7 +1419,7 @@ add_action('save_post_product', function (int $post_id): void {
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
 
     $override = sanitize_text_field($_POST['mji_country_override'] ?? 'default');
-    if (!in_array($override, ['default', 'worldwide', 'specific'], true)) $override = 'default';
+    if (!in_array($override, ['default', 'worldwide', 'specific', 'not_online'], true)) $override = 'default';
     update_post_meta($post_id, 'mji_country_override', $override);
 
     if ($override === 'specific') {
@@ -1705,16 +1709,15 @@ add_action('woocommerce_single_product_summary', function () {
     remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
 }, 5);
 
-// Render a "Notify Me" trigger button at priority 30 (the add-to-cart slot).
+// Output "Out of stock" availability text at priority 30 for purchasable out-of-stock products.
+// The "Notify When Back in Stock" button itself is rendered inside single_page_contact()
+// in product.php, placed between Contact Us and the icon links.
 add_action('woocommerce_single_product_summary', 'mji_single_notify_me_button', 30);
 function mji_single_notify_me_button()
 {
     global $product;
-    if (!$product || $product->is_in_stock()) return;
-    $product_id = (int) $product->get_id();
-    echo '<button type="button" class="button alt mji-open-notify-modal" data-product="' . esc_attr($product_id) . '">'
-        . esc_html__('Notify Me', 'woocommerce')
-        . '</button>';
+    if (!$product || $product->is_in_stock() || !$product->is_purchasable()) return;
+    echo wp_kses_post(wc_get_stock_html($product));
 }
 
 // AJAX handler — rate-limited, validates email, emails the store.
@@ -1752,3 +1755,77 @@ function mji_notify_me()
     wp_mail($to, $subject, $body, ['Content-Type: text/plain; charset=UTF-8']);
     wp_send_json_success();
 }
+
+// =============================================
+// CHECKOUT: REMOVE CART ITEMS NOT SHIPPABLE TO SELECTED COUNTRY
+// =============================================
+
+/**
+ * Checks every cart item against the given country code.
+ * Removes ineligible items and returns their names so a notice can be shown.
+ */
+function mji_remove_ineligible_cart_items(string $country): array {
+    if (!$country || !WC()->cart) return [];
+
+    $removed = [];
+
+    foreach (WC()->cart->get_cart() as $key => $item) {
+        /** @var WC_Product $product */
+        $product    = $item['data'];
+        $product_id = $product->get_parent_id() ?: $product->get_id();
+
+        // Skip items with no country restrictions (worldwide).
+        $allowed = mji_get_product_allowed_countries($product_id);
+        if (empty($allowed)) continue;
+
+        if (!in_array($country, $allowed, true)) {
+            $removed[] = $product->get_name();
+            WC()->cart->remove_cart_item($key);
+        }
+    }
+
+    return $removed;
+}
+
+// Note: the store-API and check-cart-items auto-removal hooks have been removed.
+// Country restrictions are now enforced only at checkout (woocommerce_checkout_process above),
+// so customers can keep restricted items in their cart and ship to a recipient in an allowed country.
+
+/**
+ * Display the session notice (set by the Store API hook above) on the next render.
+ * The checkout block doesn't support wc_add_notice mid-request, so we queue it
+ * in the session and output it on the next page render via wp_footer.
+ */
+add_action('wp_footer', function (): void {
+    if (!is_checkout() || !WC()->session) return;
+
+    $removed = WC()->session->get('mji_checkout_removed_items');
+    if (empty($removed)) return;
+
+    WC()->session->set('mji_checkout_removed_items', null);
+
+    $country = WC()->customer
+        ? (WC()->customer->get_shipping_country() ?: WC()->customer->get_billing_country())
+        : '';
+    $country_name = $country
+        ? (WC()->countries->countries[$country] ?? $country)
+        : 'your region';
+
+    $names = implode(', ', array_map('esc_html', $removed));
+    $message = sprintf(
+        'The following item(s) were removed because they cannot be shipped to %s: <strong>%s</strong>.',
+        esc_html($country_name),
+        $names
+    );
+
+    echo '<script>
+    (function() {
+        var notice = document.createElement("div");
+        notice.className = "woocommerce-error mji-shipping-notice";
+        notice.style.cssText = "margin:1rem 0;padding:1rem 1.5rem;background:#fdf2f2;border-left:4px solid #c0392b;color:#333;border-radius:4px";
+        notice.innerHTML = ' . wp_json_encode($message) . ';
+        var checkout = document.querySelector(".wp-block-woocommerce-checkout, .woocommerce-checkout");
+        if (checkout) checkout.prepend(notice);
+    })();
+    </script>';
+});

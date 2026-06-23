@@ -45,7 +45,7 @@ function add_brand_name()
     if ($brand_name === 'Montecristo') {
         $sub_brand = get_montecristo_sub_brand();
         if ($sub_brand) {
-            echo "<p class='montecristo-sub-brand'>" . esc_html($sub_brand) . "</p>";
+            echo "<p class='montecristo-sub-brand'>" . esc_html($sub_brand) . " Collection</p>";
         }
     }
 }
@@ -70,13 +70,23 @@ function price_container()
 {
     global $product;
 
-    // Option A: Get from attribute 'pa_model'
     $model_number = $product->get_sku();
     $brand_name   = get_brand_name();
+    $product_id   = $product->get_id();
+    $raw_price    = $product->get_price();
+
+    $no_price = has_term('montecristo', 'product_cat', $product_id)
+             || has_term('mikimoto', 'product_cat', $product_id)
+             || $raw_price === ''
+             || $raw_price == 0;
+
     if ($model_number && $brand_name !== 'Montecristo') {
         echo '<div class="product-model-number">' . esc_html($model_number) . '</div>';
     }
-    echo "<div class='price_container'>";
+
+    if (!$no_price) {
+        echo "<div class='price_container'>";
+    }
 }
 add_action("woocommerce_single_product_summary", "price_container", 9);
 
@@ -86,9 +96,7 @@ function custom_price_zero_message($price, $product)
     $raw_price  = $product->get_price();
 
     if ($brand_name === 'Montecristo' || $raw_price === '' || $raw_price == 0) {
-        return is_product()
-            ? '<span class="mji-price-enquire">Inquire for pricing</span>'
-            : '';
+        return '';
     }
 
     // Remove the default currency symbol (e.g. $)
@@ -119,7 +127,6 @@ function close_price_container()
     //     $is_favourite =  "true";
     // }
     if (has_term('montecristo', 'product_cat', $product_id) || has_term('mikimoto', 'product_cat', $product_id)) {
-        echo '</div>';
         return;
     }
 
@@ -127,7 +134,6 @@ function close_price_container()
     $raw_price = $product ? $product->get_price() : '';
 
     if ($raw_price === '' || $raw_price == 0) {
-        echo '</div>';
         return;
     }
     ?>
@@ -151,11 +157,20 @@ add_action("woocommerce_single_product_summary", "close_price_container", 11);
 
 function single_page_contact()
 {
-    $brand_name = get_brand_name();
+    global $product;
+    $brand_name  = get_brand_name();
+    $show_notify = $product && !$product->is_in_stock() && $product->is_purchasable();
+    $product_id  = $product ? (int) $product->get_id() : 0;
     ?>
     <div class="product-cta-wrap">
 
-        <button type="button" class="btn btn-contact open-contact-modal">Inquire</button>
+        <button type="button" class="btn btn-contact open-contact-modal">Contact Us</button>
+
+        <?php if ($show_notify) : ?>
+        <button type="button" class="button alt mji-open-notify-modal" data-product="<?php echo esc_attr($product_id); ?>">
+            <?php esc_html_e('Notify When Back in Stock', 'woocommerce'); ?>
+        </button>
+        <?php endif; ?>
 
         <div class="product-icon-links">
 
@@ -244,12 +259,19 @@ function change_sku_number_for_variant()
 <?php }
 }
 
-// Show a region notice when the brand is sellable online but this customer's country is restricted.
+// Show a region notice when the brand is sellable online but this customer's country is restricted,
+// or when the product is individually marked "not available online".
 add_action('woocommerce_single_product_summary', function () {
     global $product;
     if (!$product) return;
 
     $product_id    = $product->get_parent_id() ?: $product->get_id();
+
+    if (mji_is_product_not_online($product_id)) {
+        echo '<p class="mji-region-notice">This product is not available for online purchase. Please inquire us to order.</p>';
+        return;
+    }
+
     $brand_term_id = (int) get_post_meta($product_id, 'rank_math_primary_product_brand', true);
     if (!$brand_term_id) return;
     if (get_term_meta($brand_term_id, 'mji_sellable_online', true) !== '1') return;
@@ -269,11 +291,12 @@ add_action('woocommerce_single_product_summary', function () {
 
     if (empty($country) || in_array($country, $allowed, true)) return;
 
-    echo '<p class="mji-region-notice">Currently unavailable in your region.</p>';
+    echo '<p class="mji-region-notice">Note: shipping to your region may not be available for this item.</p>';
 }, 28);
 
 // When a product is not purchasable, WooCommerce skips its stock HTML entirely.
-// Re-attach it just before the add-to-cart action so it always shows.
+// Re-attach it just before the add-to-cart slot so stock status always shows
+// (e.g. "In Stock" or "Out of stock" alongside the region notice).
 add_action('woocommerce_single_product_summary', function () {
     global $product;
     if ($product && !$product->is_purchasable()) {
@@ -281,34 +304,30 @@ add_action('woocommerce_single_product_summary', function () {
     }
 }, 29);
 
-// Single product purchasability is controlled by the brand's "sellable online" flag.
-// Managed under Products > Brands in WP admin. No brand assigned = not purchasable.
+// Variable products render their add-to-cart form regardless of purchasability;
+// remove it early when our filter has made the product non-purchasable.
+add_action('woocommerce_single_product_summary', function () {
+    global $product;
+    if (!$product || $product->is_purchasable()) return;
+    remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
+}, 5);
+
+// Purchasability is controlled by the brand's "sellable online" flag and the product-level
+// "not available online" override. Country restrictions are enforced at checkout only —
+// customers can add items to cart regardless of their current location (e.g. to buy as a gift
+// and ship to a recipient in an allowed country).
 add_filter('woocommerce_is_purchasable', function (bool $purchasable, WC_Product $product): bool {
     if (!$purchasable) return false;
 
-    $product_id    = $product->get_parent_id() ?: $product->get_id();
+    $product_id = $product->get_parent_id() ?: $product->get_id();
+
+    if (mji_is_product_not_online($product_id)) return false;
+
     $brand_term_id = (int) get_post_meta($product_id, 'rank_math_primary_product_brand', true);
     if (!$brand_term_id) return false;
 
     $sellable = get_term_meta($brand_term_id, 'mji_sellable_online', true);
     if ($sellable !== '1') return false;
 
-    $allowed = mji_get_product_allowed_countries($product_id);
-    if (empty($allowed)) return true; // worldwide — no restriction
-
-    // Determine the visitor's country via WC customer session or geolocation.
-    // Shipping country takes priority — restrictions are about where the item ships to.
-    $country = '';
-    if (WC()->customer) {
-        $country = WC()->customer->get_shipping_country()
-            ?: WC()->customer->get_billing_country();
-    }
-    if (empty($country)) {
-        $geo     = WC_Geolocation::geolocate_ip();
-        $country = $geo['country'] ?? '';
-    }
-
-    if (empty($country)) return true; // can't determine — don't silently block
-
-    return in_array($country, $allowed, true);
+    return true;
 }, 10, 2);

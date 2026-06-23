@@ -9,7 +9,7 @@
 	<div class="contact-modal-inner">
 
 		<div class="contact-modal-header">
-			<span>Inquire</span>
+			<span>Contact Us</span>
 			<button class="contact-modal-close" aria-label="Close contact form">&times;</button>
 		</div>
 

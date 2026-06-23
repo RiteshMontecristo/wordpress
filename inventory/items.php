@@ -1081,7 +1081,7 @@ function items_sync_wc_to_units(int $product_id): void
     $brand_post_id = $is_variation ? $product->get_parent_id() : $product_id;
     $brand_terms   = get_the_terms($brand_post_id, 'product_brand');
     if ($brand_terms && !is_wp_error($brand_terms)) {
-        $brand_name = sanitize_text_field($brand_terms[0]->name);
+        $brand_name = html_entity_decode(sanitize_text_field($brand_terms[0]->name), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         if ($brand_name !== '') {
             $brand_id = (int) $wpdb->get_var($wpdb->prepare(
                 "SELECT id FROM {$wpdb->prefix}mji_brands WHERE name = %s LIMIT 1",
