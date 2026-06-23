@@ -196,6 +196,7 @@ function getFilterValues() {
     gemstone: selectedGemstoneCategories.join(","),
     gift: selectedGiftCategories.join(","),
     brand: parentBrand,
+    stockStatus: selectedStockStatuses.join(","),
   });
 
   if (search) {
@@ -211,10 +212,6 @@ function getFilterValues() {
 
   if (maxPrice !== "" && maxPrice !== null && maxPrice !== undefined) {
     queryParams.append("max_price", maxPrice);
-  }
-
-  if (selectedStockStatuses.length > 0) {
-    queryParams.append("stockStatus", selectedStockStatuses.join(","));
   }
 
   return queryParams;
@@ -278,10 +275,6 @@ resetFilter?.addEventListener("click", () => {
 
   allPrice.forEach((el) => {
     el.value = "";
-  });
-
-  allStockStatus.forEach((el) => {
-    el.checked = false;
   });
 
   filterProducts();

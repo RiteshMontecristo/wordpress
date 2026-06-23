@@ -8,7 +8,10 @@
 <div id="contact-modal-overlay" class="contact-modal-overlay" role="dialog" aria-modal="true" aria-label="Contact Us" hidden>
 	<div class="contact-modal-inner">
 
-		<button class="contact-modal-close" aria-label="Close contact form">&times;</button>
+		<div class="contact-modal-header">
+			<span>Contact Us</span>
+			<button class="contact-modal-close" aria-label="Close contact form">&times;</button>
+		</div>
 
 		<div class="contact-form-container">
 
@@ -19,6 +22,7 @@
 				</div>
 
 				<input type="hidden" name="contact_us_nonce" id="contact_us_nonce" value="<?php echo wp_create_nonce( 'contact_us_nonce' ); ?>" />
+				<input type="hidden" name="inquiry_type" id="contact-inquiry-type" value="contact">
 				<!-- HONEYPOT (invisible to humans) -->
 				<input
 					type="text"
@@ -95,7 +99,7 @@
 				</div>
 
 				<div class="street">
-					<label for="street">Street Address *</label>
+					<label for="street">Street Address</label>
 					<input type="text" id="street" name="street" placeholder="Your street address">
 					<span class="error hidden" id="streetError">Street address is required</span>
 				</div>
@@ -113,9 +117,9 @@
 				</div>
 
 				<div class="postalCode">
-					<label for="postalCode">Postal Code *</label>
-					<input type="text" id="postalCode" name="postalCode" placeholder="Your postalCode">
-					<span class="error hidden" id="postalCodeError">Postal Code is required</span>
+					<label for="postalCode">Postal Code</label>
+					<input type="text" id="postalCode" name="postalCode" placeholder="Your postal code">
+					<span class="error hidden" id="postalCodeError">Please enter a valid postal code</span>
 				</div>
 
 				<div class="country">

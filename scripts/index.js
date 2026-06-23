@@ -1,4 +1,5 @@
 import "./functionality/header.js";
+import "./functionality/cart-modal.js";
 import "./functionality/products.js";
 import "./functionality/homepage.js";
 import "./functionality/cookie.js";
@@ -16,10 +17,19 @@ if (path.includes("blog")) {
   import("./functionality/favourite.js");
 }
 
+// Load notify-me JS only when an out-of-stock product has the trigger button
+if (document.querySelector(".mji-open-notify-modal")) {
+  import("./functionality/notify-me.js");
+}
+
 // Load contact form JS whenever the contact modal is present in the page
 // (e.g. single product pages)
 if (document.getElementById("contact-modal-overlay")) {
   import("./functionality/contact.js");
+}
+
+if (document.getElementById("appointment-modal-overlay")) {
+  import("./functionality/appointment-modal.js");
 }
 
 // Youtube video player

@@ -36,11 +36,20 @@ function get_brand_name()
     return $brand_name;
 }
 
+
 function add_brand_name()
 {
     $brand_name = get_brand_name();
     echo "<h2 class='brand'>" . esc_html($brand_name) . "</h2>";
+
+    if ($brand_name === 'Montecristo') {
+        $sub_brand = get_montecristo_sub_brand();
+        if ($sub_brand) {
+            echo "<p class='montecristo-sub-brand'>" . esc_html($sub_brand) . " Collection</p>";
+        }
+    }
 }
+
 add_action("woocommerce_single_product_summary", "add_brand_name", 4);
 
 function custom_single_product_title($title, $id)
@@ -56,31 +65,40 @@ function custom_single_product_title($title, $id)
 }
 add_filter('the_title', 'custom_single_product_title', 10, 2);
 
-// Remove quantity input field from product pages
-add_filter('woocommerce_is_sold_individually', '__return_true');
 
 function price_container()
 {
     global $product;
 
-    // Option A: Get from attribute 'pa_model'
     $model_number = $product->get_sku();
-    if ($model_number) {
+    $brand_name   = get_brand_name();
+    $product_id   = $product->get_id();
+    $raw_price    = $product->get_price();
+
+    $no_price = has_term('montecristo', 'product_cat', $product_id)
+             || has_term('mikimoto', 'product_cat', $product_id)
+             || $raw_price === ''
+             || $raw_price == 0;
+
+    if ($model_number && $brand_name !== 'Montecristo') {
         echo '<div class="product-model-number">' . esc_html($model_number) . '</div>';
     }
-    echo "<div class='price_container'>";
+
+    if (!$no_price) {
+        echo "<div class='price_container'>";
+    }
 }
 add_action("woocommerce_single_product_summary", "price_container", 9);
 
 function custom_price_zero_message($price, $product)
 {
     $brand_name = get_brand_name();
-    if ($brand_name === 'Montecristo') {
-        return;
+    $raw_price  = $product->get_price();
+
+    if ($brand_name === 'Montecristo' || $raw_price === '' || $raw_price == 0) {
+        return '';
     }
-    if ($product->get_price() == 0) {
-        return '<span class="price-upon-request"><i>Price upon request</i></span>';
-    }
+
     // Remove the default currency symbol (e.g. $)
     $price = preg_replace('/<span class="woocommerce-Price-currencySymbol">.*?<\/span>/i', '', $price);
 
@@ -109,9 +127,13 @@ function close_price_container()
     //     $is_favourite =  "true";
     // }
     if (has_term('montecristo', 'product_cat', $product_id) || has_term('mikimoto', 'product_cat', $product_id)) {
-?> </div>
+        return;
+    }
 
-    <?php
+    $product   = wc_get_product($product_id);
+    $raw_price = $product ? $product->get_price() : '';
+
+    if ($raw_price === '' || $raw_price == 0) {
         return;
     }
     ?>
@@ -135,23 +157,53 @@ add_action("woocommerce_single_product_summary", "close_price_container", 11);
 
 function single_page_contact()
 {
-    $brand_name = get_brand_name();
-
-    if ($brand_name == 'Omega') {
-        $contact = "tel:+1-604-325-2116";
-    } else {
-        $contact = "tel:+1-604-263-3611";
-    }
-    if ($brand_name === 'Montecristo') {
+    global $product;
+    $brand_name  = get_brand_name();
+    $show_notify = $product && !$product->is_in_stock() && $product->is_purchasable();
+    $product_id  = $product ? (int) $product->get_id() : 0;
     ?>
-        <div class="montecristo-category">
-            <a href="/customize-your-jewellery" class="btn btn-customize">Customize Jewellery</a>
-            <button type="button" class="btn btn-contact open-contact-modal">Contact Us</button>
-        </div>
-    <?php } else { ?>
+    <div class="product-cta-wrap">
+
         <button type="button" class="btn btn-contact open-contact-modal">Contact Us</button>
-        <button type="button" class="btn btn-call open-call-modal">Call Us</button>
-    <?php }
+
+        <?php if ($show_notify) : ?>
+        <button type="button" class="button alt mji-open-notify-modal" data-product="<?php echo esc_attr($product_id); ?>">
+            <?php esc_html_e('Notify When Back in Stock', 'woocommerce'); ?>
+        </button>
+        <?php endif; ?>
+
+        <div class="product-icon-links">
+
+            <button type="button" class="product-icon-link open-call-modal">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.07 12 19.79 19.79 0 0 1 1 3.18 2 2 0 0 1 3 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16h1z"/>
+                </svg>
+                <span>Call Us</span>
+            </button>
+
+            <button type="button" class="product-icon-link open-appointment-modal">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span>Book Appointment</span>
+            </button>
+
+            <?php if ($brand_name === 'Montecristo') : ?>
+            <button type="button" class="product-icon-link open-contact-modal" data-modal-title="Handcraft Your Custom Jewellery" data-inquiry-type="custom_jewellery">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                </svg>
+                <span>Customize</span>
+            </button>
+            <?php endif; ?>
+
+        </div>
+    </div>
+    <?php
 }
 
 add_action("woocommerce_single_product_summary", "single_page_contact", 31);
@@ -207,8 +259,44 @@ function change_sku_number_for_variant()
 <?php }
 }
 
+// Show a region notice when the brand is sellable online but this customer's country is restricted,
+// or when the product is individually marked "not available online".
+add_action('woocommerce_single_product_summary', function () {
+    global $product;
+    if (!$product) return;
+
+    $product_id    = $product->get_parent_id() ?: $product->get_id();
+
+    if (mji_is_product_not_online($product_id)) {
+        echo '<p class="mji-region-notice">This product is not available for online purchase. Please inquire us to order.</p>';
+        return;
+    }
+
+    $brand_term_id = (int) get_post_meta($product_id, 'rank_math_primary_product_brand', true);
+    if (!$brand_term_id) return;
+    if (get_term_meta($brand_term_id, 'mji_sellable_online', true) !== '1') return;
+
+    $allowed = mji_get_product_allowed_countries($product_id);
+    if (empty($allowed)) return; // worldwide — no restriction
+
+    $country = '';
+    if (WC()->customer) {
+        $country = WC()->customer->get_shipping_country()
+            ?: WC()->customer->get_billing_country();
+    }
+    if (empty($country)) {
+        $geo     = WC_Geolocation::geolocate_ip();
+        $country = $geo['country'] ?? '';
+    }
+
+    if (empty($country) || in_array($country, $allowed, true)) return;
+
+    echo '<p class="mji-region-notice">Note: shipping to your region may not be available for this item.</p>';
+}, 28);
+
 // When a product is not purchasable, WooCommerce skips its stock HTML entirely.
-// Re-attach it just before the add-to-cart action so it always shows.
+// Re-attach it just before the add-to-cart slot so stock status always shows
+// (e.g. "In Stock" or "Out of stock" alongside the region notice).
 add_action('woocommerce_single_product_summary', function () {
     global $product;
     if ($product && !$product->is_purchasable()) {
@@ -216,17 +304,30 @@ add_action('woocommerce_single_product_summary', function () {
     }
 }, 29);
 
-// Single product purchasability is controlled by the brand's "sellable online" flag.
-// Managed under Products > Brands in WP admin. No brand assigned = not purchasable.
+// Variable products render their add-to-cart form regardless of purchasability;
+// remove it early when our filter has made the product non-purchasable.
+add_action('woocommerce_single_product_summary', function () {
+    global $product;
+    if (!$product || $product->is_purchasable()) return;
+    remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
+}, 5);
+
+// Purchasability is controlled by the brand's "sellable online" flag and the product-level
+// "not available online" override. Country restrictions are enforced at checkout only —
+// customers can add items to cart regardless of their current location (e.g. to buy as a gift
+// and ship to a recipient in an allowed country).
 add_filter('woocommerce_is_purchasable', function (bool $purchasable, WC_Product $product): bool {
-    if (!$purchasable) {
-        return false;
-    }
-    $product_id    = $product->get_parent_id() ?: $product->get_id();
+    if (!$purchasable) return false;
+
+    $product_id = $product->get_parent_id() ?: $product->get_id();
+
+    if (mji_is_product_not_online($product_id)) return false;
+
     $brand_term_id = (int) get_post_meta($product_id, 'rank_math_primary_product_brand', true);
-    if (!$brand_term_id) {
-        return false;
-    }
+    if (!$brand_term_id) return false;
+
     $sellable = get_term_meta($brand_term_id, 'mji_sellable_online', true);
-    return $sellable === '1';
+    if ($sellable !== '1') return false;
+
+    return true;
 }, 10, 2);

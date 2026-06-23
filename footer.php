@@ -123,6 +123,9 @@ wp_footer();
 <?php if ( ! is_page( 'contact' ) ) : ?>
     <?php get_template_part( 'template-parts/contact-modal' ); ?>
 
+    <?php get_template_part('template-parts/notify-me-modal'); ?>
+    <?php get_template_part('template-parts/appointment-modal'); ?>
+
     <!-- Call Us modal (triggered by .open-call-modal on product pages) -->
     <div id="call-us-overlay" hidden role="dialog" aria-modal="true" aria-label="Call Us">
         <div class="call-us-modal">
@@ -133,10 +136,12 @@ wp_footer();
             <div class="call-us-body">
                 <a href="tel:6048998866" class="store-call-option">
                     <strong>Downtown Vancouver</strong>
+                    <small>406 Hornby St, Vancouver, BC V6C 0A6</small>
                     <span>(604) 899-8866</span>
                 </a>
                 <a href="tel:6042633611" class="store-call-option">
                     <strong>Richmond</strong>
+                    <small>6551 Number 3 Rd Unit 1564, Richmond, BC V6Y 2B6</small>
                     <span>(604) 263-3611</span>
                 </a>
             </div>

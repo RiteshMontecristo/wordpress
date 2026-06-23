@@ -10,6 +10,7 @@ require_once get_stylesheet_directory() . '/inventory/product_units.php';
 require_once get_stylesheet_directory() . '/inventory/find.php';
 require_once get_stylesheet_directory() . '/inventory/reports.php';
 require_once get_stylesheet_directory() . '/inventory/items.php';
+require_once get_stylesheet_directory() . '/inventory/online.php';
 
 // Create the table when theme activated
 function mji_create_all_tables()
@@ -971,6 +972,17 @@ function create_inventory_menu()
         'reports-management',
         'reports_page'
     );
+
+    // Submenu: Online Settings
+    add_submenu_page(
+        'inventory-management',
+        'Online Order Settings',
+        'Online Settings',
+        'manage_options',
+        'mji-online-settings',
+        'mji_online_settings_page'
+    );
+
 }
 add_action('admin_menu', 'create_inventory_menu');
 
@@ -1016,24 +1028,6 @@ function my_enqueue_scripts()
 }
 add_action('admin_enqueue_scripts', 'my_enqueue_scripts');
 
-
-// ORDER ITEM REDUCTION
-add_action('woocommerce_checkout_order_processed', 'adjust_stock_after_order', 10, 3);
-
-// TODO: CHANGE THE RECENT SKU TO SOLD WHEN ORDER PLACED ONLINE 
-function adjust_stock_after_order($order_id, $posted_data, $order)
-{
-    global $wpdb;
-    $sku_error = array();
-
-    foreach ($order->get_items() as $item_id => $item) {
-
-        // Get product details
-        $product_id = $item->get_product_id();       // Main product ID (parent ID for variations)
-        $variation_id = $item->get_variation_id();   // Variation ID (0 if it's not a variation)
-
-    }
-}
 
 // Add Cost Price field to simple products
 add_action('woocommerce_product_options_general_product_data', 'add_cost_price_field');

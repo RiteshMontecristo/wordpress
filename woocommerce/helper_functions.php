@@ -1,5 +1,39 @@
 <?php
 
+/**
+ * Returns the list of ISO country codes a product may be sold to.
+ * Empty array = no restriction (worldwide).
+ * Checks product-level override first; falls back to brand default.
+ */
+function mji_get_product_allowed_countries(int $product_id): array {
+    $override = get_post_meta($product_id, 'mji_country_override', true) ?: 'default';
+
+    // Sentinel value — callers must check this separately via mji_is_product_not_online().
+    if ($override === 'not_online') return [];
+
+    if ($override === 'worldwide') return [];
+
+    if ($override === 'specific') {
+        $countries = get_post_meta($product_id, 'mji_product_allowed_countries', true);
+        return is_array($countries) ? array_values(array_filter($countries)) : [];
+    }
+
+    // 'default' — inherit from brand term
+    $brand_term_id = (int) get_post_meta($product_id, 'rank_math_primary_product_brand', true);
+    if (!$brand_term_id) return [];
+
+    $countries = get_term_meta($brand_term_id, 'mji_brand_allowed_countries', true);
+    return is_array($countries) ? array_values(array_filter($countries)) : [];
+}
+
+/**
+ * Returns true if the product has been explicitly marked "not available online"
+ * at the individual product level, regardless of its brand setting.
+ */
+function mji_is_product_not_online(int $product_id): bool {
+    return get_post_meta($product_id, 'mji_country_override', true) === 'not_online';
+}
+
 function toggleFavourite()
 {
     if (isset($_POST["productId"]) && isset($_POST["favourite"])) {
