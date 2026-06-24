@@ -1028,6 +1028,35 @@ function my_enqueue_scripts()
 }
 add_action('admin_enqueue_scripts', 'my_enqueue_scripts');
 
+// Prevent browser autofill from spilling saved credentials into product form fields
+// (e.g. username landing in Attributes/GTIN/Tags). Chrome ignores autocomplete="off"
+// on forms it considers login-adjacent, but consistently skips fields marked
+// autocomplete="new-password". We apply that to every non-interactive text input
+// in #poststuff, including dynamically added ones (WC renders attributes via JS).
+add_action('admin_footer', function () {
+    $screen = get_current_screen();
+    if (!$screen || $screen->base !== 'post' || $screen->post_type !== 'product') return;
+    ?>
+    <script>
+    (function () {
+        var sel = '#poststuff input:not([type="hidden"]):not([type="submit"])'
+                + ':not([type="button"]):not([type="checkbox"]):not([type="radio"])'
+                + ':not([type="password"])';
+
+        function lockAutofill() {
+            document.querySelectorAll(sel).forEach(function (el) {
+                el.setAttribute('autocomplete', 'new-password');
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', lockAutofill);
+        // WooCommerce attributes and variations are injected dynamically
+        setTimeout(lockAutofill, 600);
+        setTimeout(lockAutofill, 2000);
+    }());
+    </script>
+    <?php
+});
 
 // Add Cost Price field to simple products
 add_action('woocommerce_product_options_general_product_data', 'add_cost_price_field');

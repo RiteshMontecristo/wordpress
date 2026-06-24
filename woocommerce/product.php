@@ -59,7 +59,16 @@ function custom_single_product_title($title, $id)
         // Modify the title as needed
         $brand_name = get_brand_name();
 
-        $title = trim(str_replace($brand_name, "", $title));
+        $decoded_brand = html_entity_decode($brand_name, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $title = trim(str_replace(
+            [
+                $decoded_brand,
+                htmlspecialchars($decoded_brand, ENT_QUOTES, 'UTF-8'),
+                str_replace('&', '&#038;', $decoded_brand),
+            ],
+            '',
+            $title
+        ));
     }
     return $title;
 }
