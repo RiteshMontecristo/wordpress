@@ -45,7 +45,7 @@ function add_brand_name()
     if ($brand_name === 'Montecristo') {
         $sub_brand = get_montecristo_sub_brand();
         if ($sub_brand) {
-            echo "<p class='montecristo-sub-brand'>" . esc_html($sub_brand) . " Collection</p>";
+            echo "<p class='montecristo-sub-brand'>" . esc_html($sub_brand) . "</p>";
         }
     }
 }
