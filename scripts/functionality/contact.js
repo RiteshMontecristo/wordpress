@@ -135,6 +135,7 @@ if (contactUsFormContainer) {
         const data = new FormData(contactUsForm);
         data.set("terms", terms.checked ? "1" : "0");
         data.set("action", "contact_us");
+        data.set("product_url", window.location.href);
         data.set("g-recaptcha-response", token);
 
         fetch(ajax_object_another.ajax_url, {
@@ -443,6 +444,7 @@ if (customizeContainer) {
         data.append("material", material.value);
         data.append("gemstone", gemstone.value);
         data.append("inspiration", inspiration.value);
+        data.append("product_url", window.location.href);
         data.append("action", "customize_contact_us");
         data.append("customize_nonce", customize_nonce.value);
         data.append("honeypot", document.querySelector("#website")?.value ?? "");

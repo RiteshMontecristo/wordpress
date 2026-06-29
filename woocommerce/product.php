@@ -63,16 +63,30 @@ function custom_single_product_title($title, $id)
             $title
         ));
 
-        if ($brand_name === 'Montecristo') {
-            $sub_brand = get_montecristo_sub_brand();
-            if ($sub_brand) {
-                $title = '<span class="montecristo-sub-brand">' . esc_html($sub_brand) . '</span> ' . $title;
-            }
-        }
     }
     return $title;
 }
 add_filter('the_title', 'custom_single_product_title', 10, 2);
+
+// Replace WC's default title with our own so sub-brand only appears inside
+// .entry-summary and never in breadcrumbs (which also call the_title).
+add_action('woocommerce_before_single_product_summary', function () {
+    remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_title', 5);
+}, 1);
+
+add_action('woocommerce_single_product_summary', 'mji_single_product_title', 5);
+function mji_single_product_title()
+{
+    $brand_name = get_brand_name();
+    echo '<h1 itemprop="name" class="product_title entry-title">';
+    if ($brand_name === 'Montecristo') {
+        $sub_brand = get_montecristo_sub_brand();
+        if ($sub_brand) {
+            echo '<span class="montecristo-sub-brand">' . esc_html($sub_brand) . '</span> ';
+        }
+    }
+    echo esc_html(get_the_title()) . '</h1>';
+}
 
 
 function price_container()

@@ -1661,6 +1661,12 @@ sidebar .filter-hide h3::after {
   color: #555555;
 }
 
+.product-model-label {
+  color: #21453a;
+  font-size: 0.9em;
+  font-weight: 700;
+}
+
 .products-container
   ul.products
   li.product.product_cat-montecristo
@@ -2023,10 +2029,6 @@ button[data-favourite="false"]:hover svg {
   display: flex;
   flex-direction: column;
   max-width: 400px;
-}
-
-.product_cat-montecristo .summary.entry-summary .product-cta-wrap {
-  margin-top: 10px;
 }
 
 .single-product .summary.entry-summary .product-icon-links {

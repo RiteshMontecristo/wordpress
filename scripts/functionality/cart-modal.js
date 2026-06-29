@@ -14,7 +14,11 @@
     if (img) { img.src = data.image || ""; img.alt = data.name || ""; }
 
     const nameEl = document.getElementById("mc-cart-modal-name");
-    if (nameEl) nameEl.textContent = data.name || "";
+    if (nameEl) {
+      nameEl.textContent = data.sub_brand
+        ? data.sub_brand + " " + (data.name || "")
+        : data.name || "";
+    }
 
     const attrsEl = document.getElementById("mc-cart-modal-attrs");
     if (attrsEl) attrsEl.textContent = data.attributes || "";

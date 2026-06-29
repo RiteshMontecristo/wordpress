@@ -17,6 +17,11 @@ if (path.includes("blog")) {
   import("./functionality/favourite.js");
 }
 
+// Load block cart sub-brand injection on cart/checkout when Montecristo items are present
+if (window.mjiBlockCartSubBrands) {
+  import("./functionality/block-cart-subbrand.js");
+}
+
 // Load notify-me JS only when an out-of-stock product has the trigger button
 if (document.querySelector(".mji-open-notify-modal")) {
   import("./functionality/notify-me.js");

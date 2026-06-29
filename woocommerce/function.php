@@ -357,6 +357,7 @@ function contact_us()
     $country = isset($_POST['country']) ? sanitize_text_field($_POST['country']) : '';
     $customerMessage = isset($_POST['message']) ? sanitize_textarea_field($_POST['message']) : '';
     $inquiryType = isset($_POST['inquiry_type']) && $_POST['inquiry_type'] === 'custom_jewellery' ? 'custom_jewellery' : 'contact';
+    $product_url = isset($_POST['product_url']) ? esc_url_raw($_POST['product_url']) : '';
     $terms = isset($_POST['terms']) && $_POST['terms'] === '1';
     $captcha_token = isset($_POST['g-recaptcha-response']) ? sanitize_textarea_field($_POST['g-recaptcha-response']) : '';
     $errors = [];
@@ -429,6 +430,9 @@ function contact_us()
         $message .= "Postal code: $province\r\n";
         $message .= "Country: $country\r\n";
 
+        if ($product_url) {
+            $message .= "Product URL: $product_url\r\n";
+        }
         $message .= "\r\nMessage:\r\n$customerMessage\r\n\r\n";
         $message .= "--\r\n";
         $message .= "This message was sent via the Montecristo Jewellers contact form.";
@@ -447,6 +451,9 @@ function contact_us()
                     $message .= "Thank you for reaching out to us. We look forward to seeing you at our " . $store_labels[$preferredStore] . " location. One of our team members will be in touch to confirm.\r\n\r\n";
                 } else {
                     $message .= "Thank you for reaching out to us. One of our agents will get in touch with you via $preferredContact as soon as possible.\r\n\r\n";
+                }
+                if ($inquiryType === 'custom_jewellery' && $product_url) {
+                    $message .= "Product you enquired about: $product_url\r\n\r\n";
                 }
                 $message .= "Best regards,\r\n";
                 $message .= "Montecristo Jewellers";
@@ -722,6 +729,7 @@ function customize_contact_us()
     $jewelleryPiece = isset($_POST['jewelleryPiece']) ? sanitize_text_field($_POST['jewelleryPiece']) : '';
     $inspiration = isset($_POST['inspiration']) ? sanitize_textarea_field($_POST['inspiration']) : '';
     $montecristoPiece = isset($_POST['montecristoPiece']) ? sanitize_text_field($_POST['montecristoPiece']) : '';
+    $product_url      = isset($_POST['product_url']) ? esc_url_raw($_POST['product_url']) : '';
     $material = isset($_POST['material']) ? sanitize_text_field($_POST['material']) : '';
     $gemstone = isset($_POST['gemstone']) ? sanitize_text_field($_POST['gemstone']) : '';
     $title = isset($_POST['title']) ? sanitize_text_field($_POST['title']) : '';
@@ -787,6 +795,9 @@ function customize_contact_us()
             $message .= "Preferred Store: " . $store_labels[$preferredStore] . "\r\n";
         }
         $message .= "Montecristo Piece: $montecristoPiece\r\n";
+        if ($product_url) {
+            $message .= "Product URL: $product_url\r\n";
+        }
         $message .= "Material: $material\r\n";
         $message .= "Gemstone: $gemstone\r\n";
         $message .= "Design Inspiration: $inspiration\r\n";
@@ -800,6 +811,9 @@ function customize_contact_us()
 
             $message = "Dear $title $firstName $lastName,\r\n\r\n";
             $message .= "Thank you for reaching out to us to create your customized jewellery. One of our agents will get in touch with you as soon as possible.\r\n\r\n";
+            if ($product_url) {
+                $message .= "Product you enquired about: $product_url\r\n\r\n";
+            }
             $message .= "Best regards,\r\n";
             $message .= "Montecristo Jewellers";
 
@@ -1462,6 +1476,41 @@ add_action('woocommerce_checkout_process', function (): void {
 // ADD TO CART MODAL
 // =============================================
 
+// Prepend Montecristo sub-brand before the product name in the classic cart template.
+add_filter('woocommerce_cart_item_name', function ($name, $cart_item, $cart_item_key) {
+    $sub_brand = get_montecristo_sub_brand((int) $cart_item['product_id']);
+    if (!$sub_brand) return $name;
+    return '<span class="montecristo-sub-brand">' . esc_html($sub_brand) . '</span> ' . $name;
+}, 10, 3);
+
+// Output a JS map for block-cart-subbrand.js. Keyed two ways so both the cart
+// block (href match) and the checkout order summary (name match fallback) work:
+//   paths: { '/product/black-bay': 'Tudor' }
+//   names: { 'tudor black bay pro': 'Tudor' }
+add_action('wp_footer', function () {
+    if (!WC()->cart || WC()->cart->is_empty()) return;
+
+    $paths = [];
+    $names = [];
+    foreach (WC()->cart->get_cart() as $cart_item) {
+        $product_id = (int) $cart_item['product_id'];
+        $sub_brand  = get_montecristo_sub_brand($product_id);
+        if (!$sub_brand) continue;
+        $product = wc_get_product($product_id);
+        if (!$product) continue;
+        $parsed = wp_parse_url($product->get_permalink());
+        $path   = rtrim($parsed['path'] ?? '', '/');
+        if ($path) $paths[$path] = $sub_brand;
+        $names[strtolower($product->get_name())] = $sub_brand;
+    }
+
+    if (empty($paths) && empty($names)) return;
+    echo '<script>window.mjiBlockCartSubBrands = ' . wp_json_encode(
+        ['paths' => $paths, 'names' => $names],
+        JSON_HEX_TAG | JSON_UNESCAPED_UNICODE
+    ) . ';</script>';
+}, 5);
+
 // Capture the last added product in the WC session and flag that the modal
 // should be shown on the next page load (since add-to-cart uses a full POST).
 add_action('woocommerce_add_to_cart', 'mc_store_last_added_product', 10, 6);
@@ -1494,8 +1543,10 @@ function mc_build_cart_modal_data(int $product_id): ?array
     }
     $brand = (!empty($brand_terms) && !is_wp_error($brand_terms)) ? $brand_terms[0]->name : '';
 
-    $qty      = (int) WC()->session->get('mc_last_added_qty', 1);
-    $image_id = $product->get_image_id();
+    $qty        = (int) WC()->session->get('mc_last_added_qty', 1);
+    $image_id   = $product->get_image_id();
+    $parent_id  = ($product instanceof WC_Product_Variation) ? $product->get_parent_id() : $product->get_id();
+    $sub_brand  = get_montecristo_sub_brand($parent_id);
 
     return [
         'name'       => $product->get_name(),
@@ -1505,6 +1556,7 @@ function mc_build_cart_modal_data(int $product_id): ?array
         'qty'        => $qty,
         'attributes' => implode(', ', array_filter($attrs)),
         'brand'      => $brand,
+        'sub_brand'  => $sub_brand,
         'cart_url'   => wc_get_cart_url(),
     ];
 }
