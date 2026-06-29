@@ -42,12 +42,6 @@ function add_brand_name()
     $brand_name = get_brand_name();
     echo "<h2 class='brand'>" . esc_html($brand_name) . "</h2>";
 
-    if ($brand_name === 'Montecristo') {
-        $sub_brand = get_montecristo_sub_brand();
-        if ($sub_brand) {
-            echo "<p class='montecristo-sub-brand'>" . esc_html($sub_brand) . "</p>";
-        }
-    }
 }
 
 add_action("woocommerce_single_product_summary", "add_brand_name", 4);
@@ -56,7 +50,6 @@ function custom_single_product_title($title, $id)
 {
     // Only on single product pages
     if (is_product() && get_the_ID() === $id) {
-        // Modify the title as needed
         $brand_name = get_brand_name();
 
         $decoded_brand = html_entity_decode($brand_name, ENT_QUOTES | ENT_HTML5, 'UTF-8');
@@ -69,6 +62,13 @@ function custom_single_product_title($title, $id)
             '',
             $title
         ));
+
+        if ($brand_name === 'Montecristo') {
+            $sub_brand = get_montecristo_sub_brand();
+            if ($sub_brand) {
+                $title = '<span class="montecristo-sub-brand">' . esc_html($sub_brand) . '</span> ' . $title;
+            }
+        }
     }
     return $title;
 }
@@ -84,13 +84,12 @@ function price_container()
     $product_id   = $product->get_id();
     $raw_price    = $product->get_price();
 
-    $no_price = has_term('montecristo', 'product_cat', $product_id)
-             || has_term('mikimoto', 'product_cat', $product_id)
+    $no_price = has_term('mikimoto', 'product_cat', $product_id)
              || $raw_price === ''
              || $raw_price == 0;
 
-    if ($model_number && $brand_name !== 'Montecristo') {
-        echo '<div class="product-model-number">' . esc_html($model_number) . '</div>';
+    if ($model_number) {
+        echo '<div class="product-model-number"><span class="product-model-label">Style No.</span> ' . esc_html($model_number) . '</div>';
     }
 
     if (!$no_price) {
@@ -104,7 +103,7 @@ function custom_price_zero_message($price, $product)
     $brand_name = get_brand_name();
     $raw_price  = $product->get_price();
 
-    if ($brand_name === 'Montecristo' || $raw_price === '' || $raw_price == 0) {
+    if ($raw_price === '' || $raw_price == 0) {
         return '';
     }
 
@@ -135,7 +134,7 @@ function close_price_container()
     // } else {
     //     $is_favourite =  "true";
     // }
-    if (has_term('montecristo', 'product_cat', $product_id) || has_term('mikimoto', 'product_cat', $product_id)) {
+    if (has_term('mikimoto', 'product_cat', $product_id)) {
         return;
     }
 

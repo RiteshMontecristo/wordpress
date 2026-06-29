@@ -1661,7 +1661,10 @@ sidebar .filter-hide h3::after {
   color: #555555;
 }
 
-.products-container ul.products li.product.product_cat-montecristo .montecristo-sub-brand-loop {
+.products-container
+  ul.products
+  li.product.product_cat-montecristo
+  .montecristo-sub-brand-loop {
   font-size: 1.1rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -1691,7 +1694,6 @@ sidebar .filter-hide h3::after {
   left: 50%;
   transform: translateX(-50%);
 }
-
 
 /* product taxonomies page with no sidebar */
 .product_width .products-container {
@@ -1872,13 +1874,12 @@ sidebar .filter-hide h3::after {
   color: #555555;
   line-height: 1.1;
   margin: 10px 0 0;
+  letter-spacing: 0.1px;
 }
 
 .montecristo-sub-brand {
-  font-size: 1.15rem;
   font-weight: 700;
-  color: #555;
-  margin: 0.2rem 0 0;
+  color: #333;
 }
 
 .product_cat-montecristo .summary.entry-summary .entry-title {
@@ -1971,14 +1972,17 @@ button[data-favourite="false"]:hover svg {
   max-width: 400px;
   font-family: "lato";
   font-weight: 400;
-  background-color: #B08D57 !important;
-  border-color: #B08D57 !important;
+  background-color: #b08d57 !important;
+  border-color: #b08d57 !important;
   color: #fff !important;
 }
 
-.single-product .summary.entry-summary form.cart .single_add_to_cart_button:hover {
-  background-color: #8D7146 !important;
-  border-color: #8D7146 !important;
+.single-product
+  .summary.entry-summary
+  form.cart
+  .single_add_to_cart_button:hover {
+  background-color: #8d7146 !important;
+  border-color: #8d7146 !important;
 }
 
 .single-product .summary.entry-summary .mji-open-notify-modal {
@@ -1987,15 +1991,15 @@ button[data-favourite="false"]:hover svg {
   max-width: 400px;
   font-family: "lato";
   font-weight: 400;
-  background-color: #B08D57 !important;
-  border-color: #B08D57 !important;
+  background-color: #b08d57 !important;
+  border-color: #b08d57 !important;
   color: #fff !important;
   margin-top: 10px;
 }
 
 .single-product .summary.entry-summary .mji-open-notify-modal:hover {
-  background-color: #8D7146 !important;
-  border-color: #8D7146 !important;
+  background-color: #8d7146 !important;
+  border-color: #8d7146 !important;
 }
 
 .single-product .summary.entry-summary .btn {
@@ -3500,7 +3504,6 @@ form.contact-us .contact-footer .terms {
   letter-spacing: 1px;
 }
 
-
 .call-us-body {
   padding: 1rem;
   display: flex;
@@ -3600,7 +3603,6 @@ form.contact-us .contact-footer .terms {
   font-weight: 600;
   letter-spacing: 1px;
 }
-
 
 .appt-form-container {
   padding: 1.5rem;
@@ -3908,7 +3910,6 @@ body.mc-modal-open {
   max-width: 400px;
 }
 
-
 .single-product .summary.entry-summary .stock {
   margin: 0 0 10px;
 }
@@ -3965,7 +3966,7 @@ body.mc-modal-open {
   font-size: 0.8rem;
   white-space: nowrap;
   margin: 0;
-  background-color: #B08D57;
+  background-color: #b08d57;
   color: #fff;
   border: none;
   border-radius: 3px;
@@ -3973,7 +3974,7 @@ body.mc-modal-open {
 }
 
 .mji-notify-submit:hover {
-  background-color: #8D7146;
+  background-color: #8d7146;
   color: #fff;
 }
 
@@ -3983,8 +3984,12 @@ body.mc-modal-open {
   min-height: 1em;
 }
 
-.mji-notify-message.success { color: #2e7d32; }
-.mji-notify-message.error   { color: #c62828; }
+.mji-notify-message.success {
+  color: #2e7d32;
+}
+.mji-notify-message.error {
+  color: #c62828;
+}
 
 #mji-notify-modal-overlay {
   position: fixed;
@@ -4025,7 +4030,6 @@ body.mc-modal-open {
   letter-spacing: 1px;
 }
 
-
 .mji-notify-modal-body {
   padding: 1.25rem;
 }
@@ -4044,7 +4048,6 @@ body.mc-modal-open {
 /* ==============================================
    WOOCOMMERCE BLOCK CART OVERRIDES
    ============================================== */
-
 
 /* Hide metadata and details */
 .wc-block-components-product-metadata,
@@ -4118,7 +4121,9 @@ body.mc-modal-open {
 /* Product name */
 .wc-block-cart__cross-sells ul.products li.product h2,
 .cross-sells ul.products li.product h2 {
-  font-family: "Source Sans Pro", "HelveticaNeue-Light", "Helvetica Neue Light", Helvetica, Arial, sans-serif;
+  font-family:
+    "Source Sans Pro", "HelveticaNeue-Light", "Helvetica Neue Light", Helvetica,
+    Arial, sans-serif;
   color: #6d6d6d;
   line-height: 135%;
   font-size: 0.95rem;
@@ -4152,5 +4157,3 @@ body.mc-modal-open {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 }
-
-
