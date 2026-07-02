@@ -147,9 +147,7 @@ function items_list_view(): void
                             <td><span class="items-status items-status--<?= esc_attr($unit->status) ?>"><?= esc_html($unit->status) ?></span></td>
                             <td class="items-actions">
                                 <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=view&id={$unit->id}")) ?>" class="button button-small">View</a>
-                                <?php if ($unit->status !== 'sold'): ?>
                                     <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=edit&id={$unit->id}")) ?>" class="button button-small">Edit</a>
-                                <?php endif; ?>
                                 <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=add&duplicate_from={$unit->id}")) ?>" class="button button-small">Duplicate</a>
                                 <div class="print-dropdown" style="display:inline-block;position:relative;">
                                     <button type="button" class="button button-small print-dropdown-toggle">Print &#9660;</button>
@@ -270,10 +268,10 @@ function items_edit_form(): void
         wp_die('Unit not found.');
     }
 
-    if ($unit->status === 'sold') {
-        wp_redirect(admin_url("admin.php?page=items-management&action=view&id={$id}"));
-        exit;
-    }
+    // if ($unit->status === 'sold') {
+    //     wp_redirect(admin_url("admin.php?page=items-management&action=view&id={$id}"));
+    //     exit;
+    // }
 
     // Handle POST
     if (isset($_POST['items_edit'])) {
@@ -508,9 +506,9 @@ function items_view_form(): void
 
 function items_handle_update(int $id, string $old_status): void
 {
-    if ($old_status === 'sold') {
-        wp_die('Sold units cannot be edited.');
-    }
+    // if ($old_status === 'sold') {
+    //     wp_die('Sold units cannot be edited.');
+    // }
 
     global $wpdb;
 
