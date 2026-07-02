@@ -1478,8 +1478,7 @@ ul.products li.product .woocommerce-LoopProduct-link img {
 
 .products-container sidebar .filter-container {
   position: absolute;
-  overflow-y: scroll;
-  scrollbar-width: none;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   top: 0;
@@ -1671,7 +1670,7 @@ sidebar .filter-hide h3::after {
   ul.products
   li.product.product_cat-montecristo
   .montecristo-sub-brand-loop {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1680,7 +1679,7 @@ sidebar .filter-hide h3::after {
 }
 
 .products-container ul.products li.product.product_cat-montecristo h2 {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 400;
   color: #777;
   margin-top: 0;
