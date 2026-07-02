@@ -148,7 +148,7 @@ function items_list_view(): void
                             <td class="items-actions">
                                 <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=view&id={$unit->id}")) ?>" class="button button-small">View</a>
                                 <?php if ($unit->status !== 'sold'): ?>
-                                <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=edit&id={$unit->id}")) ?>" class="button button-small">Edit</a>
+                                    <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=edit&id={$unit->id}")) ?>" class="button button-small">Edit</a>
                                 <?php endif; ?>
                                 <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=add&duplicate_from={$unit->id}")) ?>" class="button button-small">Duplicate</a>
                                 <div class="print-dropdown" style="display:inline-block;position:relative;">
@@ -309,15 +309,15 @@ function items_edit_form(): void
         <h1>Edit Unit — <?= esc_html($unit->sku) ?></h1>
         <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
         <div id="items-unit-print" style="display:inline-block;margin-left:8px;"
-             data-sku="<?= esc_attr($unit->sku) ?>"
-             data-serial="<?= esc_attr($unit->serial ?? '') ?>"
-             data-brand-name="<?= esc_attr($unit->brand_name ?? '') ?>"
-             data-model-name="<?= esc_attr($unit->model_name ?? '') ?>"
-             data-retail-price="<?= esc_attr($unit->retail_price ?? '0') ?>"
-             data-spec-1="<?= esc_attr($unit->spec_1 ?? '') ?>"
-             data-spec-2="<?= esc_attr($unit->spec_2 ?? '') ?>"
-             data-image-url="<?= esc_attr($print_image_url) ?>"
-             data-description="<?= esc_attr($unit->description ?? '') ?>">
+            data-sku="<?= esc_attr($unit->sku) ?>"
+            data-serial="<?= esc_attr($unit->serial ?? '') ?>"
+            data-brand-name="<?= esc_attr($unit->brand_name ?? '') ?>"
+            data-model-name="<?= esc_attr($unit->model_name ?? '') ?>"
+            data-retail-price="<?= esc_attr($unit->retail_price ?? '0') ?>"
+            data-spec-1="<?= esc_attr($unit->spec_1 ?? '') ?>"
+            data-spec-2="<?= esc_attr($unit->spec_2 ?? '') ?>"
+            data-image-url="<?= esc_attr($print_image_url) ?>"
+            data-description="<?= esc_attr($unit->description ?? '') ?>">
             <div class="print-dropdown" style="display:inline-block;position:relative;">
                 <button type="button" class="button print-dropdown-toggle">Print &#9660;</button>
                 <div class="print-dropdown-menu" hidden style="position:absolute;z-index:100;background:#fff;border:1px solid #ccc;min-width:110px;">
@@ -445,15 +445,15 @@ function items_view_form(): void
         <h1>View Unit — <?= esc_html($unit->sku) ?></h1>
         <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
         <div id="items-unit-print" style="display:inline-block;margin-left:8px;"
-             data-sku="<?= esc_attr($unit->sku) ?>"
-             data-serial="<?= esc_attr($unit->serial ?? '') ?>"
-             data-brand-name="<?= esc_attr($unit->brand_name ?? '') ?>"
-             data-model-name="<?= esc_attr($unit->model_name ?? '') ?>"
-             data-retail-price="<?= esc_attr($unit->retail_price ?? '0') ?>"
-             data-spec-1="<?= esc_attr($unit->spec_1 ?? '') ?>"
-             data-spec-2="<?= esc_attr($unit->spec_2 ?? '') ?>"
-             data-image-url="<?= esc_attr($print_image_url) ?>"
-             data-description="<?= esc_attr($unit->description ?? '') ?>">
+            data-sku="<?= esc_attr($unit->sku) ?>"
+            data-serial="<?= esc_attr($unit->serial ?? '') ?>"
+            data-brand-name="<?= esc_attr($unit->brand_name ?? '') ?>"
+            data-model-name="<?= esc_attr($unit->model_name ?? '') ?>"
+            data-retail-price="<?= esc_attr($unit->retail_price ?? '0') ?>"
+            data-spec-1="<?= esc_attr($unit->spec_1 ?? '') ?>"
+            data-spec-2="<?= esc_attr($unit->spec_2 ?? '') ?>"
+            data-image-url="<?= esc_attr($print_image_url) ?>"
+            data-description="<?= esc_attr($unit->description ?? '') ?>">
             <div class="print-dropdown" style="display:inline-block;position:relative;">
                 <button type="button" class="button print-dropdown-toggle">Print &#9660;</button>
                 <div class="print-dropdown-menu" hidden style="position:absolute;z-index:100;background:#fff;border:1px solid #ccc;min-width:110px;">
@@ -610,220 +610,221 @@ function items_render_form_fields(?object $unit, bool $is_new, string $wc_produc
     $suppliers = mji_get_suppliers();
 ?>
     <?php if ($readonly): ?><fieldset disabled style="border:none;padding:0;margin:0;"><?php endif; ?>
-    <div class="items-form-grid">
+        <div class="items-form-grid">
 
-        <div class="items-form-section">
-            <h3>Identification</h3>
+            <div class="items-form-section">
+                <h3>Identification</h3>
 
-            <div class="form-field">
-                <label for="sku">SKU <span class="required">*</span></label>
-                <input type="text" id="sku" name="sku" value="<?= $sku ?>" class="regular-text" required>
+                <div class="form-field">
+                    <label for="sku">SKU <span class="required">*</span></label>
+                    <input type="text" id="sku" name="sku" value="<?= $sku ?>" class="regular-text" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="serial">Serial Number</label>
+                    <input type="text" id="serial" name="serial" value="<?= $serial ?>" class="regular-text">
+                </div>
+
+                <div class="form-field">
+                    <label>Status</label>
+                    <?php if ($is_new): ?>
+                        <input type="hidden" name="status" value="in_stock">
+                        <span class="items-status items-status--in_stock">in_stock</span>
+                    <?php else: ?>
+                        <span class="items-status items-status--<?= esc_attr($status) ?>"><?= esc_html($status) ?></span>
+                        <p class="description" style="margin-top:4px;">Use "Change Status" to update.</p>
+                    <?php endif; ?>
+                </div>
+
+                <div class="form-field">
+                    <label for="invoice_date">Invoice Date <span class="required">*</span></label>
+                    <input type="date" id="invoice_date" name="invoice_date" value="<?= $invoice_date ?>" required>
+                </div>
             </div>
 
-            <div class="form-field">
-                <label for="serial">Serial Number</label>
-                <input type="text" id="serial" name="serial" value="<?= $serial ?>" class="regular-text">
+            <div class="items-form-section">
+                <h3>Classification</h3>
+
+                <div class="form-field">
+                    <label for="location_id">Location <span class="required">*</span></label>
+                    <select id="location_id" name="location_id" required>
+                        <option value="">Select location</option>
+                        <?php foreach ($locations as $loc): ?>
+                            <option value="<?= esc_attr($loc->id) ?>" <?= selected($loc->id, $location_id, false) ?>><?= esc_html($loc->name) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-field">
+                    <label>Brand</label>
+                    <?php if ($wc_locked): ?>
+                        <p class="description"><?= $brand_name ?: '—' ?></p>
+                    <?php else: ?>
+                        <select id="brand_id" name="brand_id" class="brand-select">
+                            <option value="">— select or type to create —</option>
+                            <?php foreach ($brands as $b): ?>
+                                <option value="<?= esc_attr($b->id) ?>" <?= selected($b->id, $brand_id, false) ?>><?= esc_html($b->name) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php endif; ?>
+                </div>
+
+                <div class="form-field">
+                    <label>Model</label>
+                    <?php if ($wc_locked): ?>
+                        <p class="description"><?= $model_name ?: '—' ?></p>
+                    <?php else: ?>
+                        <select id="model_id" name="model_id" class="model-select">
+                            <option value="">— select or type to create —</option>
+                            <?php foreach ($models as $m): ?>
+                                <option value="<?= esc_attr($m->id) ?>" <?= selected($m->id, $model_id, false) ?>><?= esc_html($m->name) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php endif; ?>
+                </div>
+
+                <div class="form-field">
+                    <label for="supplier_id">Supplier</label>
+                    <?php mji_suppliers_dropdown(false, (int) ($unit->supplier_id ?? 0)) ?>
+                </div>
+
+                <div class="form-field">
+                    <label for="invoice_number">Invoice Number</label>
+                    <input type="text" id="invoice_number" name="invoice_number" value="<?= $invoice_number ?>" class="regular-text">
+                </div>
             </div>
 
-            <div class="form-field">
-                <label>Status</label>
-                <?php if ($is_new): ?>
-                    <input type="hidden" name="status" value="in_stock">
-                    <span class="items-status items-status--in_stock">in_stock</span>
-                <?php else: ?>
-                    <span class="items-status items-status--<?= esc_attr($status) ?>"><?= esc_html($status) ?></span>
-                    <p class="description" style="margin-top:4px;">Use "Change Status" to update.</p>
-                <?php endif; ?>
+            <div class="items-form-section">
+                <h3>Pricing</h3>
+
+                <div class="form-field">
+                    <label for="cost_price">Cost Price <span class="required">*</span></label>
+                    <input type="number" id="cost_price" name="cost_price" value="<?= $cost_price ?>" step="0.01" min="0" class="regular-text" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="true_cost">True Cost</label>
+                    <input type="number" id="true_cost" name="true_cost" value="<?= $true_cost ?>" step="0.01" min="0" class="regular-text">
+                </div>
+
+                <div class="form-field">
+                    <label for="retail_price">Retail Price <?= $wc_locked ? '' : '<span class="required">*</span>' ?></label>
+                    <?php if ($wc_locked): ?>
+                        <p class="description">$<?= number_format((float) $retail_price, 2) ?> <em>(set in WooCommerce)</em></p>
+                    <?php else: ?>
+                        <input type="number" id="retail_price" name="retail_price" value="<?= $retail_price ?>" step="0.01" min="0" class="regular-text" required>
+                    <?php endif; ?>
+                </div>
+
+                <div class="form-field">
+                    <label for="item_notes">Notes</label>
+                    <textarea id="item_notes" name="item_notes" rows="3" class="regular-text"><?= esc_textarea($notes) ?></textarea>
+                </div>
+
+                <div class="form-field">
+                    <label for="spec_1">Spec 1</label>
+                    <input type="text" id="spec_1" name="spec_1" value="<?= $spec_1 ?>" class="regular-text">
+                </div>
+
+                <div class="form-field">
+                    <label for="spec_2">Spec 2</label>
+                    <input type="text" id="spec_2" name="spec_2" value="<?= $spec_2 ?>" class="regular-text">
+                </div>
             </div>
 
-            <div class="form-field">
-                <label for="invoice_date">Invoice Date <span class="required">*</span></label>
-                <input type="date" id="invoice_date" name="invoice_date" value="<?= $invoice_date ?>" required>
-            </div>
-        </div>
+            <div class="items-form-section">
+                <h3>Details</h3>
 
-        <div class="items-form-section">
-            <h3>Classification</h3>
+                <div class="form-field">
+                    <label for="item_name">Name</label>
+                    <?php if ($wc_locked): ?>
+                        <p class="description"><?= esc_html($unit->name ?? '') ?: '—' ?></p>
+                    <?php else: ?>
+                        <input type="text" id="item_name" name="item_name" value="<?= $name ?>" class="regular-text">
+                    <?php endif; ?>
+                </div>
 
-            <div class="form-field">
-                <label for="location_id">Location <span class="required">*</span></label>
-                <select id="location_id" name="location_id" required>
-                    <option value="">Select location</option>
-                    <?php foreach ($locations as $loc): ?>
-                        <option value="<?= esc_attr($loc->id) ?>" <?= selected($loc->id, $location_id, false) ?>><?= esc_html($loc->name) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+                <div class="form-field">
+                    <label for="description">Description</label>
+                    <?php if ($readonly || $wc_locked): ?>
+                        <div class="items-readonly-editor"><?= wp_kses_post(wpautop($description)) ?></div>
+                    <?php else: ?>
+                        <?php wp_editor($description, 'description', [
+                            'textarea_name' => 'description',
+                            'textarea_rows' => 10,
+                            'media_buttons' => false,
+                        ]); ?>
+                    <?php endif; ?>
+                </div>
 
-            <div class="form-field">
-                <label>Brand</label>
-                <?php if ($wc_locked): ?>
-                    <p class="description"><?= $brand_name ?: '—' ?></p>
-                <?php else: ?>
-                <select id="brand_id" name="brand_id" class="brand-select">
-                    <option value="">— select or type to create —</option>
-                    <?php foreach ($brands as $b): ?>
-                        <option value="<?= esc_attr($b->id) ?>" <?= selected($b->id, $brand_id, false) ?>><?= esc_html($b->name) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <?php endif; ?>
-            </div>
-
-            <div class="form-field">
-                <label>Model</label>
-                <?php if ($wc_locked): ?>
-                    <p class="description"><?= $model_name ?: '—' ?></p>
-                <?php else: ?>
-                <select id="model_id" name="model_id" class="model-select">
-                    <option value="">— select or type to create —</option>
-                    <?php foreach ($models as $m): ?>
-                        <option value="<?= esc_attr($m->id) ?>" <?= selected($m->id, $model_id, false) ?>><?= esc_html($m->name) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <?php endif; ?>
+                <div class="form-field">
+                    <label>Image</label>
+                    <div class="items-image-picker">
+                        <input type="hidden" id="image_id" name="image_id" value="<?= $image_id ?>">
+                        <img id="items-image-preview" src="<?= esc_url($image_url) ?>" alt="Unit image">
+                        <?php if (!$readonly && !$wc_locked): ?>
+                            <button type="button" id="items-pick-image" class="button">Select Image</button>
+                            <button type="button" id="items-remove-image" class="button" <?= $image_id ? '' : 'style="display:none;"' ?>>Remove</button>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-field">
-                <label for="supplier_id">Supplier</label>
-                <?php mji_suppliers_dropdown(false, (int) ($unit->supplier_id ?? 0)) ?>
-            </div>
+            <div class="items-form-section items-form-section--full">
+                <h3>WooCommerce Product Link</h3>
+                <p class="description">Optional. Link this unit to a WooCommerce product for storefront display. When linked, name / price / description / image / brand / model are managed in WooCommerce.</p>
 
-            <div class="form-field">
-                <label for="invoice_number">Invoice Number</label>
-                <input type="text" id="invoice_number" name="invoice_number" value="<?= $invoice_number ?>" class="regular-text">
-            </div>
-        </div>
-
-        <div class="items-form-section">
-            <h3>Pricing</h3>
-
-            <div class="form-field">
-                <label for="cost_price">Cost Price <span class="required">*</span></label>
-                <input type="number" id="cost_price" name="cost_price" value="<?= $cost_price ?>" step="0.01" min="0" class="regular-text" required>
-            </div>
-
-            <div class="form-field">
-                <label for="true_cost">True Cost</label>
-                <input type="number" id="true_cost" name="true_cost" value="<?= $true_cost ?>" step="0.01" min="0" class="regular-text">
-            </div>
-
-            <div class="form-field">
-                <label for="retail_price">Retail Price <?= $wc_locked ? '' : '<span class="required">*</span>' ?></label>
-                <?php if ($wc_locked): ?>
-                    <p class="description">$<?= number_format((float) $retail_price, 2) ?> <em>(set in WooCommerce)</em></p>
-                <?php else: ?>
-                <input type="number" id="retail_price" name="retail_price" value="<?= $retail_price ?>" step="0.01" min="0" class="regular-text" required>
-                <?php endif; ?>
-            </div>
-
-            <div class="form-field">
-                <label for="item_notes">Notes</label>
-                <textarea id="item_notes" name="item_notes" rows="3" class="regular-text"><?= esc_textarea($notes) ?></textarea>
-            </div>
-
-            <div class="form-field">
-                <label for="spec_1">Spec 1</label>
-                <input type="text" id="spec_1" name="spec_1" value="<?= $spec_1 ?>" class="regular-text">
-            </div>
-
-            <div class="form-field">
-                <label for="spec_2">Spec 2</label>
-                <input type="text" id="spec_2" name="spec_2" value="<?= $spec_2 ?>" class="regular-text">
-            </div>
-        </div>
-
-        <div class="items-form-section">
-            <h3>Details</h3>
-
-            <div class="form-field">
-                <label for="item_name">Name</label>
-                <?php if ($wc_locked): ?>
-                    <p class="description"><?= esc_html($unit->name ?? '') ?: '—' ?></p>
-                <?php else: ?>
-                <input type="text" id="item_name" name="item_name" value="<?= $name ?>" class="regular-text">
-                <?php endif; ?>
-            </div>
-
-            <div class="form-field">
-                <label for="description">Description</label>
-                <?php if ($readonly || $wc_locked): ?>
-                    <div class="items-readonly-editor"><?= wp_kses_post(wpautop($description)) ?></div>
-                <?php else: ?>
-                    <?php wp_editor($description, 'description', [
-                        'textarea_name' => 'description',
-                        'textarea_rows' => 10,
-                        'media_buttons' => false,
-                    ]); ?>
-                <?php endif; ?>
-            </div>
-
-            <div class="form-field">
-                <label>Image</label>
-                <div class="items-image-picker">
-                    <input type="hidden" id="image_id" name="image_id" value="<?= $image_id ?>">
-                    <img id="items-image-preview" src="<?= esc_url($image_url) ?>" alt="Unit image">
-                    <?php if (!$readonly && !$wc_locked): ?>
-                    <button type="button" id="items-pick-image" class="button">Select Image</button>
-                    <button type="button" id="items-remove-image" class="button" <?= $image_id ? '' : 'style="display:none;"' ?>>Remove</button>
+                <div class="form-field">
+                    <label for="wc_product_search">Product</label>
+                    <?php if ($readonly): ?>
+                        <span><?= $wc_product_name ? esc_html($wc_product_name) : '—' ?></span>
+                    <?php else: ?>
+                        <input type="hidden" id="wc_product_id" name="wc_product_id" value="<?= $wc_product_id ?>">
+                        <input type="text" id="wc_product_search" placeholder="Type to search products…" value="<?= esc_attr($wc_product_name) ?>" class="regular-text" autocomplete="off">
+                        <div id="wc-product-results" class="items-wc-results" style="display:none;"></div>
+                        <?php if ($wc_product_id): ?>
+                            <button type="button" id="items-clear-wc" class="button">Unlink</button>
+                            <a href="<?= esc_url(admin_url('post.php?post=' . $wc_product_id . '&action=edit')) ?>"
+                                class="button" target="_blank">Edit in WooCommerce &rarr;</a>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
-        </div>
 
-        <div class="items-form-section items-form-section--full">
-            <h3>WooCommerce Product Link</h3>
-            <p class="description">Optional. Link this unit to a WooCommerce product for storefront display. When linked, name / price / description / image / brand / model are managed in WooCommerce.</p>
-
-            <div class="form-field">
-                <label for="wc_product_search">Product</label>
-                <?php if ($readonly): ?>
-                    <span><?= $wc_product_name ? esc_html($wc_product_name) : '—' ?></span>
-                <?php else: ?>
-                <input type="hidden" id="wc_product_id" name="wc_product_id" value="<?= $wc_product_id ?>">
-                <input type="text" id="wc_product_search" placeholder="Type to search products…" value="<?= esc_attr($wc_product_name) ?>" class="regular-text" autocomplete="off">
-                <div id="wc-product-results" class="items-wc-results" style="display:none;"></div>
-                <?php if ($wc_product_id): ?>
-                    <button type="button" id="items-clear-wc" class="button">Unlink</button>
-                    <a href="<?= esc_url(admin_url('post.php?post=' . $wc_product_id . '&action=edit')) ?>"
-                       class="button" target="_blank">Edit in WooCommerce &rarr;</a>
-                <?php endif; ?>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <div class="items-form-section items-form-section--full">
-            <h3>Collections</h3>
-            <?php
-            global $wpdb;
-            $all_collections = $wpdb->get_results(
-                "SELECT id, name FROM {$wpdb->prefix}mji_collections ORDER BY name"
-            );
-            $current_collections = [];
-            if ($unit && !empty($unit->id)) {
-                $rows = $wpdb->get_results($wpdb->prepare(
-                    "SELECT c.name FROM {$wpdb->prefix}mji_products_collections pc
+            <div class="items-form-section items-form-section--full">
+                <h3>Collections</h3>
+                <?php
+                global $wpdb;
+                $all_collections = $wpdb->get_results(
+                    "SELECT id, name FROM {$wpdb->prefix}mji_collections ORDER BY name"
+                );
+                $current_collections = [];
+                if ($unit && !empty($unit->id)) {
+                    $rows = $wpdb->get_results($wpdb->prepare(
+                        "SELECT c.name FROM {$wpdb->prefix}mji_products_collections pc
                      JOIN {$wpdb->prefix}mji_collections c ON c.id = pc.collection_id
                      WHERE pc.inventory_unit_id = %d",
-                    $unit->id
-                ));
-                $current_collections = wp_list_pluck($rows, 'name');
-            }
-            ?>
-            <div class="form-field">
-                <label for="collections">Collections</label>
-                <select name="collections[]" id="collections" multiple class="items-select2-multi">
-                    <?php foreach ($all_collections as $col): ?>
-                        <option value="<?= esc_attr($col->name) ?>"
-                            <?= in_array($col->name, $current_collections, true) ? 'selected' : '' ?>>
-                            <?= esc_html($col->name) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                        $unit->id
+                    ));
+                    $current_collections = wp_list_pluck($rows, 'name');
+                }
+                ?>
+                <div class="form-field">
+                    <label for="collections">Collections</label>
+                    <select name="collections[]" id="collections" multiple class="items-select2-multi">
+                        <?php foreach ($all_collections as $col): ?>
+                            <option value="<?= esc_attr($col->name) ?>"
+                                <?= in_array($col->name, $current_collections, true) ? 'selected' : '' ?>>
+                                <?= esc_html($col->name) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
-        </div>
 
-    </div>
-    <?php if ($readonly): ?></fieldset><?php endif; ?>
+        </div>
+        <?php if ($readonly): ?>
+        </fieldset><?php endif; ?>
 
 <?php
 }
@@ -1100,20 +1101,24 @@ function items_sync_wc_to_units(int $product_id): void
     }
 
     // Resolve model_id from WC SKU (model name is stored as the WC product SKU).
-    $sku = sanitize_text_field($product->get_sku());
-    if ($sku !== '') {
-        $model_id = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}mji_models WHERE name = %s LIMIT 1",
-            $sku
-        ));
-        if (!$model_id) {
-            $wpdb->insert("{$wpdb->prefix}mji_models", ['name' => $sku], ['%s']);
-            $model_id = (int) $wpdb->insert_id;
-            delete_transient('mji_models');
-        }
-        if ($model_id) {
-            $set_parts[] = '`model_id` = %d';
-            $values[]    = $model_id;
+    // Skip for variable products — their units are variation-linked and get model
+    // from the variation's own SKU via woocommerce_update_product_variation.
+    if (!$product->is_type('variable')) {
+        $sku = sanitize_text_field($product->get_sku());
+        if ($sku !== '') {
+            $model_id = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}mji_models WHERE name = %s LIMIT 1",
+                $sku
+            ));
+            if (!$model_id) {
+                $wpdb->insert("{$wpdb->prefix}mji_models", ['name' => $sku], ['%s']);
+                $model_id = (int) $wpdb->insert_id;
+                delete_transient('mji_models');
+            }
+            if ($model_id) {
+                $set_parts[] = '`model_id` = %d';
+                $values[]    = $model_id;
+            }
         }
     }
 

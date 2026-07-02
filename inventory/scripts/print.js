@@ -24,7 +24,7 @@ function buildZpl(data) {
   const priceStr = "$" + parseFloat(data.price || 0).toFixed(2);
   const lines = [];
   const xL = 0;
-  const xR = 170;  // moved left
+  const xR = 170; // moved left
   const step = 26;
 
   lines.push("^LH60,22");
@@ -32,7 +32,8 @@ function buildZpl(data) {
 
   // Left column
   let yL = 0;
-  lines.push(`^FO${xL},${yL}^CF0,22^FB160,1,0,L^FD${data.sku}^FS`); yL += step;
+  lines.push(`^FO${xL},${yL}^CF0,22^FB160,1,0,L^FD${data.sku}^FS`);
+  yL += step;
   if (data.serial) {
     lines.push(`^FO${xL},${yL}^CF0,22^FB160,1,0,L^FD${data.serial}^FS`);
     yL += step;
@@ -40,13 +41,15 @@ function buildZpl(data) {
   lines.push(`^FO${xL},${yL}^CF0,22^FD${priceStr}^FS`);
 
   // Right column — clipped in JS to prevent line-wrap overlap
-  const clip = (s) => s && s.length > 18 ? s.slice(0, 18) : s;
+  const clip = (s) => (s && s.length > 18 ? s.slice(0, 18) : s);
   let yR = 0;
   if (data.model) {
-    lines.push(`^FO${xR},${yR}^CF0,22^FD${clip(data.model)}^FS`); yR += step;
+    lines.push(`^FO${xR},${yR}^CF0,22^FD${clip(data.model)}^FS`);
+    yR += step;
   }
   if (data.spec1) {
-    lines.push(`^FO${xR},${yR}^CF0,22^FD${clip(data.spec1)}^FS`); yR += step;
+    lines.push(`^FO${xR},${yR}^CF0,22^FD${clip(data.spec1)}^FS`);
+    yR += step;
   }
   if (data.spec2) {
     lines.push(`^FO${xR},${yR}^CF0,22^FD${clip(data.spec2)}^FS`);
@@ -55,19 +58,53 @@ function buildZpl(data) {
   return ["^XA", ...lines, "^XZ"].join("\n");
 }
 
-// Close any open print dropdowns when clicking outside
+// Close any open print dropdowns when clicking outside, or on scroll
+// (since the menu is position:fixed, it won't track the button while scrolling).
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".print-dropdown")) {
-    document.querySelectorAll(".print-dropdown-menu").forEach((m) => { m.hidden = true; });
+    document.querySelectorAll(".print-dropdown-menu").forEach((m) => {
+      m.hidden = true;
+    });
   }
 });
+
+window.addEventListener(
+  "scroll",
+  () => {
+    document.querySelectorAll(".print-dropdown-menu").forEach((m) => {
+      m.hidden = true;
+    });
+  },
+  true,
+);
 
 // Shared handler — works for any table row or wrapper div that carries data-sku
 function handlePrintClick(e) {
   // Toggle dropdown
-  if (e.target.closest(".print-dropdown-toggle")) {
-    const menu = e.target.closest(".print-dropdown").querySelector(".print-dropdown-menu");
-    menu.hidden = !menu.hidden;
+  const toggleBtn = e.target.closest(".print-dropdown-toggle");
+  if (toggleBtn) {
+    e.stopPropagation(); // prevent the outside-click handler from instantly closing it
+
+    const menu = toggleBtn
+      .closest(".print-dropdown")
+      .querySelector(".print-dropdown-menu");
+    const opening = menu.hidden;
+
+    // Close any other open dropdowns first
+    document.querySelectorAll(".print-dropdown-menu").forEach((m) => {
+      m.hidden = true;
+    });
+
+    if (opening) {
+      // Position as a fixed-position element anchored to the button, so it
+      // can never be clipped by a table cell, postbox, or row overflow.
+      const rect = toggleBtn.getBoundingClientRect();
+      menu.style.position = "fixed";
+      menu.style.top = rect.bottom + "px";
+      menu.style.left = rect.left + "px";
+      menu.style.zIndex = "999999";
+      menu.hidden = false;
+    }
     return;
   }
 
@@ -75,21 +112,25 @@ function handlePrintClick(e) {
   const zebraBtn = e.target.closest(".print-zebra-tag");
   if (zebraBtn) {
     if (!window.printerDevice) {
-      alert("No Zebra printer found. Make sure the Zebra BrowserPrint desktop app is running.");
+      alert(
+        "No Zebra printer found. Make sure the Zebra BrowserPrint desktop app is running.",
+      );
       return;
     }
     const d = zebraBtn.closest("[data-sku]").dataset;
     window.printerDevice.send(
       buildZpl({
-        sku:    d.sku,
+        sku: d.sku,
         serial: d.serial,
-        price:  d.retailPrice,
-        model:  d.modelName,
-        spec1:  d['spec-1'],
-        spec2:  d['spec-2'],
+        price: d.retailPrice,
+        model: d.modelName,
+        spec1: d["spec-1"],
+        spec2: d["spec-2"],
       }),
       function () {},
-      function (err) { alert("Print error: " + err); },
+      function (err) {
+        alert("Print error: " + err);
+      },
     );
     zebraBtn.closest(".print-dropdown-menu").hidden = true;
     return;
@@ -134,11 +175,16 @@ function handlePrintClick(e) {
 }
 
 // Inventory units metabox table (WC product edit page)
-document.querySelector("#inventory-units-table")?.addEventListener("click", handlePrintClick);
+document
+  .querySelector("#inventory-units-table")
+  ?.addEventListener("click", handlePrintClick);
 
 // Items management list table
-document.querySelector("#items-list-table")?.addEventListener("click", handlePrintClick);
+document
+  .querySelector("#items-list-table")
+  ?.addEventListener("click", handlePrintClick);
 
 // Items management view / edit page (single-unit print wrapper)
-document.querySelector("#items-unit-print")?.addEventListener("click", handlePrintClick);
-
+document
+  .querySelector("#items-unit-print")
+  ?.addEventListener("click", handlePrintClick);

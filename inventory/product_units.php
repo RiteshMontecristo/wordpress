@@ -211,7 +211,8 @@ function render_inventory_units_meta_box(object $post)
                     <td data-field="location" data-value="<?= esc_html($unit['location_id']) ?>" class="editable-cell">
                         <?= esc_html($location_name_by_id[$unit['location_id']]) ?></td>
                     <td>
-                        <?= $unit['status'] !== 'sold' ? '<button class="edit-unit button">Edit</button>' : '' ?>
+                        <!-- <?= $unit['status'] !== 'sold' ? '<button class="edit-unit button">Edit</button>' : '' ?> -->
+                        <button class="edit-unit button">Edit</button>
                         <?= $unit['status'] !== 'sold' ? '<button class="edit-status button">Change Status</button>' : '' ?>
                         <button class="view-history button">View History</button>
                         <div class="print-dropdown" style="display:inline-block;position:relative;">
@@ -418,9 +419,9 @@ function generate_variation_dropdown(WC_Product_Variable $product, array &$varia
             $first_cost_price = $cost_price;
         }
 
-        $html .= "<option 
-                    value='{$variation_id}' 
-                    data-retail='{$retail_price}' 
+        $html .= "<option
+                    value='{$variation_id}'
+                    data-retail='{$retail_price}'
                     data-cost='{$cost_price}'>
                     {$attr_string}
                   </option>";
@@ -589,15 +590,7 @@ function create_inventory_units()
     $brands_table = $wpdb->prefix . 'mji_brands';
     $suppliers_table = $wpdb->prefix . 'mji_suppliers';
 
-    // Grab the model number
-    if ($variation) {
-        $model = $variation->get_sku();
-        if (empty($model)) {
-            $model = $product->get_sku();
-        }
-    } else {
-        $model = $product->get_sku();
-    }
+    $model = ($variation ? $variation->get_sku() : null) ?: $product->get_sku();
 
     $model_id = get_brand_model_id($models_table, $model);
     if ($model_id === false) {
@@ -632,11 +625,12 @@ function create_inventory_units()
         // If unit id present then update else need to create product unit
         if ($unit_id) {
             $current_status = $wpdb->get_var($wpdb->prepare(
-                "SELECT status FROM $table_name WHERE id = %d", $unit_id
+                "SELECT status FROM $table_name WHERE id = %d",
+                $unit_id
             ));
-            if ($current_status === 'sold') {
-                wp_send_json_error(['message' => 'Sold units cannot be edited.']);
-            }
+            // if ($current_status === 'sold') {
+            //     wp_send_json_error(['message' => 'Sold units cannot be edited.']);
+            // }
 
             update_unit_sku($unit_id, $sku);
 
@@ -677,6 +671,11 @@ function create_inventory_units()
                         'errors' => 'Database error: ' . $wpdb->last_error
                     ]
                 );
+            }
+
+            if ($current_status === 'sold') {
+                $wpdb->query('COMMIT');
+                wp_send_json_success($result);
             }
             // if price changed, need to change woocommerce products price and quantity change as well
             if ($variation) {
@@ -772,7 +771,7 @@ function create_inventory_units()
                 $wc_retail_price = $variation->get_price();
                 $wc_cost_price = get_post_meta($variation_id, '_cost_price', true);
                 wc_update_product_stock($variation_id, 1, 'increase');
-                WC_Product_Variable::sync_stock_status($variation->get_parent_id());
+                WC_Product_Variable::sync_stock_status($product_id);
 
                 if ($wc_retail_price !== $retail_price) {
                     update_post_meta($variation_id, '_regular_price', $retail_price);
@@ -950,7 +949,8 @@ function watch_simple_product_changes($post_id, $post, $update)
                  SET brand_id = %d
                  WHERE wc_product_id = %d
                    AND status NOT IN ('sold','rtv')",
-                $brand_id, $post_id
+                $brand_id,
+                $post_id
             ));
         }
     } elseif (isset($_POST['rank_math_primary_product_brand'])) {
@@ -994,7 +994,8 @@ function watch_simple_product_changes($post_id, $post, $update)
                  SET retail_price = %f
                  WHERE wc_product_id = %d
                    AND status NOT IN ('sold','rtv')",
-                $new_price, $post_id
+                $new_price,
+                $post_id
             ));
             if ($result === false) {
                 mji_log_admin_error('Error updating price: ' . $wpdb->last_error);
@@ -1030,7 +1031,8 @@ function watch_simple_product_changes($post_id, $post, $update)
                     "UPDATE {$table_name} SET model_id = %d
                      WHERE wc_product_id = %d
                        AND status NOT IN ('sold','rtv')",
-                    $model_id, $post_id
+                    $model_id,
+                    $post_id
                 ));
                 delete_transient('mji_models');
             }
@@ -1105,7 +1107,8 @@ function watch_variation_retail_price($variation_id, $i)
                  SET retail_price = %f
                  WHERE wc_product_variant_id = %d
                    AND status NOT IN ('sold','rtv')",
-                $new_price, $variation_id
+                $new_price,
+                $variation_id
             ));
             if ($result === false) {
                 mji_log_admin_error('Error updating price: ' . $wpdb->last_error);
@@ -1144,7 +1147,8 @@ function watch_variation_retail_price($variation_id, $i)
                 "UPDATE {$table_name} SET model_id = %d
                  WHERE wc_product_variant_id = %d
                    AND status NOT IN ('sold','rtv')",
-                $new_model_id, $variation_id
+                $new_model_id,
+                $variation_id
             ));
             delete_transient('mji_models');
         }
@@ -1454,255 +1458,3 @@ function sync_product_collections($unit_id, $collection_names)
 
     return $new_ids;
 }
-
-function migrate_product_categories_batch()
-{
-    // At the VERY start of the function:
-    $paged = (int) get_option('brand_migration_page', 1);
-    custom_log("=== Migration Started. Current Page: $paged ===");
-
-    $batch_size = 200;
-
-    $brand_terms = [
-        'OMEGA',
-        'MIDO',
-        'Longines',
-        'Glashütte Original',
-        'Girard-Perregaux',
-        'Faberge',
-        'Corum',
-        'Breguet',
-        'Blancpain',
-        'Bell & Ross',
-        'Rolex',
-        'Roger Dubuis',
-        'Harry Winston',
-        'Greubel Forsey',
-        'Roberto Coin',
-        'Pomellato',
-        'Montecristo',
-        'Mikimoto',
-        'Messika',
-        'Cammilli Firenze',
-        'Wellendorff',
-        'Piero Milano',
-        'Peroni & Parise',
-        'Gismondi',
-        'Gioielliamo',
-        'Fullord',
-        'Bulgari'
-    ];
-
-    $query = new WP_Query([
-        'post_type' => 'product',
-        'posts_per_page' => $batch_size,
-        'paged' => $paged,
-        'fields' => 'ids',
-        'no_found_rows' => true,
-        'orderby' => 'ID',
-        'order' => 'ASC',
-        'post_status' => 'any'
-    ]);
-
-    if (!$query->posts) {
-        delete_option('brand_migration_page');
-        custom_log('Brand migration completed.');
-        return;
-    }
-
-    foreach ($query->posts as $product_id) {
-
-        $categories = wp_get_post_terms($product_id, 'product_cat');
-
-        $brands = [];
-        $collections = [];
-
-        foreach ($categories as $cat) {
-
-            // Check ancestors
-            $ancestors = get_ancestors($cat->term_id, 'product_cat');
-            $is_parent_jewellery = false;
-            if (!empty($ancestors)) {
-                foreach ($ancestors as $ancestor_id) {
-                    $ancestor = get_term($ancestor_id, 'product_cat');
-                    if ($ancestor && strtolower($ancestor->slug) === 'jewellery') {
-                        $is_parent_jewellery = true;
-                        break;
-                    }
-                }
-            }
-
-            if ($is_parent_jewellery) continue;
-            $cat_name = trim($cat->name);
-            $cat_name = html_entity_decode($cat_name, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-            if ($cat_name === 'Montecristo JWL' || $cat_name === 'OCTOCRAFT' || $cat_name === 'TOSCO') {
-                $cat_name = 'Montecristo';
-            }
-
-            if ($cat_name == 'Uncategorized' || $cat_name == 'Fine Jewellery' || $cat_name == 'Jewellery' || $cat_name == 'Watches') {
-                continue;
-            }
-
-            if (in_array($cat_name, $brand_terms)) {
-
-                $brand = get_term_by('name', $cat_name, 'product_brand');
-
-                if (!$brand) {
-                    $brand = wp_insert_term($cat_name, 'product_brand');
-
-                    if (!is_wp_error($brand)) {
-                        $brand_id = $brand['term_id'];
-                    }
-                } else {
-                    $brand_id = $brand->term_id;
-                }
-
-                if (!empty($brand_id)) {
-                    $brands[] = (int) $brand_id;
-                }
-            } else {
-
-                $collection = term_exists($cat_name, 'collection');
-
-                if (!$collection) {
-                    $collection = wp_insert_term($cat_name, 'collection');
-                    if (!is_wp_error($collection)) {
-                        $collection_id = (int) $collection['term_id'];
-                    }
-                } else {
-                    $collection_id = (int) $collection['term_id'];
-                }
-
-                if (!empty($collection_id)) {
-                    $collections[] = $collection_id;
-                }
-            }
-        }
-
-        // IF we want to assign empty brands
-        // if (empty($brands)) {
-
-        //     $default_brand = term_exists('Montecristo', 'product_brand');
-
-        //     if (!$default_brand) {
-        //         $default_brand = wp_insert_term('Montecristo', 'product_brand');
-        //         if (!is_wp_error($default_brand)) {
-        //             $default_brand_id = (int) $default_brand['term_id'];
-        //         }
-        //     } else {
-        //         // term_exists returns array
-        //         $default_brand_id = (int) $collection['term_id'];
-        //     }
-
-        //     if (!empty($default_brand_id)) {
-        //         $brands[] = $default_brand_id;
-        //     }
-        // }
-
-        if (!empty($brands)) {
-
-            wp_set_object_terms($product_id, $brands, 'product_brand');
-
-            update_post_meta(
-                $product_id,
-                'rank_math_primary_product_brand',
-                $brands[0]
-            );
-
-            if (count($brands) > 1) {
-                custom_log('Multiple brands on product: ' . $product_id);
-            }
-        }
-
-        if (!empty($collections)) {
-            wp_set_object_terms($product_id, $collections, 'collection');
-        }
-    }
-
-    $next_page = $paged + 1;
-
-    update_option('brand_migration_page', $next_page, false);
-
-    custom_log('Brand migration batch completed. Page: ' . $paged);
-}
-
-add_action('init', function () {
-
-    if (!isset($_GET['run_brand_migration'])) {
-        return;
-    }
-
-    migrate_product_categories_batch();
-
-    echo "Batch processed. Refresh page to continue.";
-    exit;
-}, 11);
-
-function migrate_product_collections()
-{
-    global $wpdb;
-
-    $batch_size = 200;
-    $table_name = "{$wpdb->prefix}mji_product_inventory_units";
-    $brands_table = "{$wpdb->prefix}mji_brands";
-
-    // At the VERY start of the function:
-    $paged = (int) get_option('brand_migration_page', 1);
-    custom_log("=== Migration Started. Current Page: $paged ===");
-
-    $query = new WP_Query([
-        'post_type' => 'product',
-        'posts_per_page' => $batch_size,
-        'paged' => $paged,
-        'fields' => 'ids',
-        'no_found_rows' => true,
-        'orderby' => 'ID',
-        'order' => 'ASC',
-        'post_status' => 'any'
-    ]);
-
-    if (!$query->posts) {
-        delete_option('brand_migration_page');
-        custom_log('Collection migration completed.');
-        return;
-    }
-
-    foreach ($query->posts as $product_id) {
-        $brand_id = get_post_meta($product_id, 'rank_math_primary_product_brand', true);
-        $brand = get_term($brand_id, 'product_brand');
-        $brand = $brand->name;
-        $brand_id = get_brand_model_id($brands_table, $brand);
-        if ($brand_id === false) continue;
-
-        try {
-            $wpdb->update(
-                $table_name,
-                [
-                    'brand_id' => $brand_id,
-                ],
-                ['wc_product_id' => $product_id],
-                ['%d'],
-                ['%d']
-            );
-        } catch (Exception $e) {
-            custom_log("Error " . $e->getMessage());
-        }
-    }
-
-    $next_page = $paged + 1;
-    update_option('brand_migration_page', $next_page, false);
-    custom_log('Collection batch completed. Page: ' . $paged);
-}
-
-add_action('init', function () {
-
-    if (!isset($_GET['run_brand_db_migration'])) {
-        return;
-    }
-
-    migrate_product_collections();
-
-    echo "Batch processed. Refresh page to continue.";
-    exit;
-}, 11);
