@@ -64,7 +64,7 @@ function add_missing_alt_menu()
 }
 add_action('admin_menu', 'add_missing_alt_menu', 999);
 
-add_filter('single_product_archive_thumbnail_size', function() {
+add_filter('single_product_archive_thumbnail_size', function () {
     return 'large';
 });
 
@@ -213,7 +213,9 @@ function mji_hide_flat_rate_if_free_shipping_available($rates, $package)
 {
     $has_free = array_filter($rates, fn($rate) => $rate->method_id === 'free_shipping');
     if (!empty($has_free)) {
-        return $has_free;
+        // Keep free_shipping and local pickup — hide flat_rate only.
+        // pickup_location is the method_id used by the block checkout local pickup tab.
+        return array_filter($rates, fn($rate) => in_array($rate->method_id, ['free_shipping', 'pickup_location', 'local_pickup'], true));
     }
     return $rates;
 }
@@ -293,7 +295,7 @@ function load_more_blogs()
                 <?php endif; ?>
 
             </article>
-<?php
+    <?php
         }
     }
 
@@ -1248,13 +1250,13 @@ add_action('product_brand_add_form_fields', function () {
         <input type="checkbox" id="mji_sellable_online" name="mji_sellable_online" value="1">
         <p>Uncheck to hide the Add to Cart button for all products under this brand.</p>
     </div>
-    <?php
+<?php
 });
 
 add_action('product_brand_edit_form_fields', function (WP_Term $term) {
     $meta    = get_term_meta($term->term_id, 'mji_sellable_online', true);
     $checked = ($meta === '1') ? 'checked' : '';
-    ?>
+?>
     <tr class="form-field">
         <th scope="row"><label for="mji_sellable_online">Sellable online</label></th>
         <td>
@@ -1262,10 +1264,11 @@ add_action('product_brand_edit_form_fields', function (WP_Term $term) {
             <p class="description">Uncheck to hide the Add to Cart button for all products under this brand.</p>
         </td>
     </tr>
-    <?php
+<?php
 });
 
-function mji_save_brand_sellable(int $term_id): void {
+function mji_save_brand_sellable(int $term_id): void
+{
     if (!current_user_can('manage_woocommerce')) {
         return;
     }
@@ -1294,31 +1297,31 @@ add_action('admin_enqueue_scripts', function (): void {
 
 add_action('product_brand_add_form_fields', function () {
     $countries = WC()->countries->get_countries();
-    ?>
+?>
     <div class="form-field">
         <label for="mji_brand_allowed_countries">Allowed Countries</label>
         <select id="mji_brand_allowed_countries" name="mji_brand_allowed_countries[]"
-                multiple class="wc-enhanced-select" style="width:100%"
-                data-placeholder="Search for a country…">
+            multiple class="wc-enhanced-select" style="width:100%"
+            data-placeholder="Search for a country…">
             <?php foreach ($countries as $code => $name) : ?>
                 <option value="<?php echo esc_attr($code); ?>"><?php echo esc_html($name); ?></option>
             <?php endforeach; ?>
         </select>
         <p>Leave empty to allow all countries. Only applies when "Sellable online" is checked.</p>
     </div>
-    <?php
+<?php
 }, 15);
 
 add_action('product_brand_edit_form_fields', function (WP_Term $term) {
     $countries = WC()->countries->get_countries();
     $saved     = get_term_meta($term->term_id, 'mji_brand_allowed_countries', true) ?: [];
-    ?>
+?>
     <tr class="form-field">
         <th scope="row"><label for="mji_brand_allowed_countries">Allowed Countries</label></th>
         <td>
             <select id="mji_brand_allowed_countries" name="mji_brand_allowed_countries[]"
-                    multiple class="wc-enhanced-select" style="width:100%"
-                    data-placeholder="Search for a country…">
+                multiple class="wc-enhanced-select" style="width:100%"
+                data-placeholder="Search for a country…">
                 <?php foreach ($countries as $code => $name) : ?>
                     <option value="<?php echo esc_attr($code); ?>" <?php selected(in_array($code, (array) $saved, true)); ?>>
                         <?php echo esc_html($name); ?>
@@ -1328,10 +1331,11 @@ add_action('product_brand_edit_form_fields', function (WP_Term $term) {
             <p class="description">Leave empty to allow all countries. Only applies when "Sellable online" is checked.</p>
         </td>
     </tr>
-    <?php
+<?php
 }, 15);
 
-function mji_save_brand_countries(int $term_id): void {
+function mji_save_brand_countries(int $term_id): void
+{
     if (!current_user_can('manage_woocommerce')) return;
     $countries = isset($_POST['mji_brand_allowed_countries'])
         ? array_map('sanitize_text_field', (array) $_POST['mji_brand_allowed_countries'])
@@ -1354,12 +1358,13 @@ add_action('add_meta_boxes', function () {
     );
 });
 
-function mji_render_country_metabox(WP_Post $post): void {
+function mji_render_country_metabox(WP_Post $post): void
+{
     $override  = get_post_meta($post->ID, 'mji_country_override', true) ?: 'default';
     $saved     = (array) (get_post_meta($post->ID, 'mji_product_allowed_countries', true) ?: []);
     $countries = WC()->countries->get_countries();
     wp_nonce_field('mji_country_availability', 'mji_country_nonce');
-    ?>
+?>
     <p style="margin-bottom:8px">
         <label style="display:block;margin-bottom:4px">
             <input type="radio" name="mji_country_override" value="default" <?php checked($override, 'default'); ?>>
@@ -1380,11 +1385,11 @@ function mji_render_country_metabox(WP_Post $post): void {
     </p>
     <div id="mji-country-select" style="<?php echo $override !== 'specific' ? 'display:none' : ''; ?>margin-top:8px">
         <select id="mji_product_allowed_countries"
-                name="mji_product_allowed_countries[]"
-                multiple
-                class="wc-enhanced-select"
-                data-placeholder="Search for a country…"
-                style="width:100%">
+            name="mji_product_allowed_countries[]"
+            multiple
+            class="wc-enhanced-select"
+            data-placeholder="Search for a country…"
+            style="width:100%">
             <?php foreach ($countries as $code => $name) : ?>
                 <option value="<?php echo esc_attr($code); ?>" <?php selected(in_array($code, $saved, true)); ?>>
                     <?php echo esc_html($name); ?>
@@ -1393,40 +1398,42 @@ function mji_render_country_metabox(WP_Post $post): void {
         </select>
     </div>
     <script>
-    (function () {
-        var radios = document.querySelectorAll('input[name="mji_country_override"]');
-        var wrap   = document.getElementById('mji-country-select');
+        (function() {
+            var radios = document.querySelectorAll('input[name="mji_country_override"]');
+            var wrap = document.getElementById('mji-country-select');
 
-        radios.forEach(function (r) {
-            r.addEventListener('change', function () {
-                var show = r.value === 'specific';
-                wrap.style.display = show ? '' : 'none';
-                if (show && typeof jQuery !== 'undefined' && jQuery.fn.select2) {
-                    jQuery('#mji_product_allowed_countries').select2({
-                        placeholder: 'Search for a country…',
-                        width: '100%',
-                        allowClear: true
-                    });
-                }
+            radios.forEach(function(r) {
+                r.addEventListener('change', function() {
+                    var show = r.value === 'specific';
+                    wrap.style.display = show ? '' : 'none';
+                    if (show && typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+                        jQuery('#mji_product_allowed_countries').select2({
+                            placeholder: 'Search for a country…',
+                            width: '100%',
+                            allowClear: true
+                        });
+                    }
+                });
             });
-        });
 
-        // Init immediately if already set to specific on page load
-        if (wrap.style.display !== 'none' && typeof jQuery !== 'undefined' && jQuery.fn.select2) {
-            jQuery('#mji_product_allowed_countries').select2({
-                placeholder: 'Search for a country…',
-                width: '100%',
-                allowClear: true
-            });
-        }
-    })();
+            // Init immediately if already set to specific on page load
+            if (wrap.style.display !== 'none' && typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+                jQuery('#mji_product_allowed_countries').select2({
+                    placeholder: 'Search for a country…',
+                    width: '100%',
+                    allowClear: true
+                });
+            }
+        })();
     </script>
-    <?php
+<?php
 }
 
 add_action('save_post_product', function (int $post_id): void {
-    if (!isset($_POST['mji_country_nonce']) ||
-        !wp_verify_nonce($_POST['mji_country_nonce'], 'mji_country_availability')) {
+    if (
+        !isset($_POST['mji_country_nonce']) ||
+        !wp_verify_nonce($_POST['mji_country_nonce'], 'mji_country_availability')
+    ) {
         return;
     }
     if (!current_user_can('edit_post', $post_id)) return;
@@ -1567,7 +1574,7 @@ add_action('wp_footer', 'mc_cart_modal_html');
 function mc_cart_modal_html()
 {
     if (is_admin()) return;
-    ?>
+?>
     <div id="mc-cart-modal-overlay" class="mc-cart-modal-overlay" aria-hidden="true">
         <div id="mc-cart-modal" class="mc-cart-modal" role="dialog" aria-modal="true" aria-labelledby="mc-cart-modal-heading">
             <button id="mc-cart-modal-close" class="mc-cart-modal-close" aria-label="<?php esc_attr_e('Close', 'woocommerce'); ?>">&#x2715;</button>
@@ -1592,7 +1599,7 @@ function mc_cart_modal_html()
             <button id="mc-cart-modal-continue" class="mc-cart-modal-continue"><?php esc_html_e('Continue shopping', 'woocommerce'); ?></button>
         </div>
     </div>
-    <?php
+<?php
 
     // Pass nonce + AJAX URL to JS (used by the AJAX add-to-cart handler).
     echo '<script>window.mcCart = ' . wp_json_encode([
@@ -1816,7 +1823,8 @@ function mji_notify_me()
  * Checks every cart item against the given country code.
  * Removes ineligible items and returns their names so a notice can be shown.
  */
-function mji_remove_ineligible_cart_items(string $country): array {
+function mji_remove_ineligible_cart_items(string $country): array
+{
     if (!$country || !WC()->cart) return [];
 
     $removed = [];
@@ -1880,4 +1888,94 @@ add_action('wp_footer', function (): void {
         if (checkout) checkout.prepend(notice);
     })();
     </script>';
+});
+
+// =============================================
+// CHECKOUT: ESTIMATED DELIVERY DATE ON SHIPPING METHODS (BLOCK CHECKOUT)
+// =============================================
+
+/**
+ * Calculates an estimated delivery date range skipping weekends.
+ * Returns e.g. "July 4–8" or "June 30 – July 3".
+ */
+function mji_estimated_delivery(int $min_days, int $max_days): string
+{
+    $tz  = new DateTimeZone('America/Vancouver');
+    $now = new DateTime('now', $tz);
+
+    $add_business_days = function (DateTime $date, int $days): DateTime {
+        $d = clone $date;
+        $added = 0;
+        while ($added < $days) {
+            $d->modify('+1 day');
+            if ((int) $d->format('N') < 6) $added++; // skip Sat=6, Sun=7
+        }
+        return $d;
+    };
+
+    $from = $add_business_days($now, $min_days);
+    $to   = $add_business_days($now, $max_days);
+
+    return $from->format('M') === $to->format('M')
+        ? $from->format('M j') . '–' . $to->format('j')
+        : $from->format('M j') . ' – ' . $to->format('M j');
+}
+
+/**
+ * Pass shipping method → delivery date mapping to JS so MutationObserver
+ * can inject the label into the React-rendered block checkout.
+ * Keyed by the shipping rate ID prefix (e.g. "flat_rate", "free_shipping").
+ */
+add_action('wp_footer', function (): void {
+    if (!is_checkout()) return;
+
+    $tz  = new DateTimeZone('America/Vancouver');
+    $now = new DateTime('now', $tz);
+
+    // Shipping method estimated delivery ranges.
+    $estimates = [
+        'flat_rate'     => [3, 5],
+        'free_shipping' => [3, 5],
+    ];
+
+    $shipping_data = [];
+    foreach ($estimates as $method_id => [$min, $max]) {
+        $shipping_data[$method_id] = mji_estimated_delivery($min, $max);
+    }
+
+    // ── Pickup locations ──────────────────────────────────────────────────────
+    // open_days: PHP date('N') values — 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
+    // To update hours or open days, edit this array only.
+    $pickup_locations = [
+        'Montecristo Richmond' => [
+            'hours'     => 'Sun–Sat &nbsp;10:00 AM – 6:00 PM',
+            'open_days' => [1, 2, 3, 4, 5, 6, 7], // open every day
+        ],
+        'Montecristo Downtown' => [
+            'hours'     => 'Tue–Sat &nbsp;10:30 AM – 5:00 PM',
+            'open_days' => [2, 3, 4, 5, 6], // Tue–Sat
+        ],
+    ];
+
+    // Returns the next date the location is open (skipping days not in open_days).
+    $next_open = function (array $open_days) use ($now): string {
+        $d = clone $now;
+        do {
+            $d->modify('+1 day');
+        } while (!in_array((int) $d->format('N'), $open_days, true));
+        return $d->format('l, M j') . ', After 12:30 PM';
+    };
+
+    $pickup_data = [];
+    foreach ($pickup_locations as $name => $loc) {
+        $pickup_data[$name] = [
+            'hours' => $loc['hours'],
+            'ready' => $next_open($loc['open_days']),
+        ];
+    }
+
+    echo '<script>'
+        . 'window.mjiShippingEstimates = ' . wp_json_encode($shipping_data) . ';'
+        . 'window.mjiPickupData = '        . wp_json_encode($pickup_data)   . ';'
+        . '</script>';
 });

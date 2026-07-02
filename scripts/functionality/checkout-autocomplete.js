@@ -8,6 +8,114 @@
 
 const attached = new Set();
 
+// ── Estimated delivery dates ──────────────────────────────────────────────────
+// window.mjiShippingEstimates is set by PHP in wp_footer, e.g.:
+// { flat_rate: "July 4–8", free_shipping: "July 4–8" }
+//
+// The checkout block renders shipping options as radio inputs whose `value`
+// attribute is the full rate ID, e.g. "flat_rate:1". We watch for those
+// inputs, match them to our estimates map, and append the date below the label.
+
+function injectDeliveryDates() {
+  const estimates = window.mjiShippingEstimates;
+  if (!estimates) return;
+
+  // Search within the shipping rates section only
+  const shippingSection = document.querySelector(
+    ".wc-block-components-shipping-rates-control, " +
+      '[data-block-name="woocommerce/checkout-shipping-methods-block"]',
+  );
+  if (!shippingSection) return;
+
+  shippingSection.querySelectorAll('input[type="radio"]').forEach((input) => {
+    if (input.dataset.mjDeliveryInjected) return;
+
+    // Rate value is e.g. "flat_rate:1" — match on prefix
+    const methodType = (input.value || "").split(":")[0];
+    const dateRange = estimates[methodType];
+    if (!dateRange) return;
+
+    // Use label[for=id] — works regardless of block markup changes
+    const label =
+      (input.id &&
+        document.querySelector(`label[for="${CSS.escape(input.id)}"]`)) ||
+      input.closest("li, div")?.querySelector("label");
+    if (!label) return;
+
+    const dateEl = document.createElement("span");
+    dateEl.className = "mji-delivery-estimate";
+    dateEl.textContent = "Estimated delivery: " + dateRange;
+    dateEl.style.cssText =
+      "display:block;font-size:0.8em;color:#666;margin-top:2px;font-weight:400";
+    label.appendChild(dateEl);
+
+    input.dataset.mjDeliveryInjected = "1";
+  });
+}
+
+// ── Pickup location hours + ready date ───────────────────────────────────────
+// window.mjiPickupData is set by PHP, keyed by the exact location name:
+// { "Montecristo Richmond": { hours: "...", ready: "Tuesday, July 1" }, ... }
+
+function injectPickupInfo() {
+  const data = window.mjiPickupData;
+  if (!data) return;
+
+  document
+    .querySelectorAll(
+      ".wc-block-checkout__pickup-options .wc-block-components-radio-control__option",
+    )
+    .forEach((option) => {
+      if (option.dataset.mjPickupInjected) return;
+
+      // Location name is in the __label span
+      const nameEl = option.querySelector(
+        ".wc-block-components-radio-control__label",
+      );
+      if (!nameEl) return;
+
+      const locationName = Object.keys(data).find(
+        (key) => nameEl.textContent.trim() === key,
+      );
+      if (!locationName) return;
+
+      const { hours, ready } = data[locationName];
+
+      // Append after the address description group
+      const descGroup = option.querySelector(
+        ".wc-block-components-radio-control__description-group",
+      );
+      if (!descGroup) return;
+
+      const clockSvg =
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" ` +
+        `fill="none" stroke="#666666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ` +
+        `style="vertical-align:-2px;margin-right:4px">` +
+        `<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+
+      const info = document.createElement("div");
+      info.className = "mji-pickup-info";
+      info.style.cssText = "margin-top:6px;";
+      info.innerHTML =
+        `<span style="display:block;font-size:0.8em;color:#666">` +
+        `${clockSvg}${hours}</span>` +
+        `<span style="display:block;font-size:0.8em;color:#21453a;font-weight:500;margin-top:2px">` +
+        `Ready for pickup: ${ready}</span>`;
+
+      descGroup.after(info);
+      option.dataset.mjPickupInjected = "1";
+    });
+}
+
+// Watch for the shipping/pickup blocks to render (React mounts them asynchronously).
+const deliveryObserver = new MutationObserver(() => {
+  injectDeliveryDates();
+  injectPickupInfo();
+});
+deliveryObserver.observe(document.body, { childList: true, subtree: true });
+injectDeliveryDates();
+injectPickupInfo();
+
 // Called by the Google Maps JS API once it has finished loading.
 window.initMJIAutocomplete = function () {
   tryAttach();
