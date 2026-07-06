@@ -1305,32 +1305,6 @@ function handle_stock_adjustment_based_on_status_change($old, $new, $product_id)
     }
 }
 
-function block_product_deletion_if_in_inventory($post_id)
-{
-    if (get_post_type($post_id) !== 'product') return;
-
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'mji_product_inventory_units';
-
-    $exists = $wpdb->get_var(
-        $wpdb->prepare(
-            "SELECT COUNT(*) FROM $table_name WHERE wc_product_id = %d",
-            $post_id
-        )
-    );
-
-    if ($exists > 0) {
-        $redirect_url = add_query_arg(
-            'delete_blocked',
-            $post_id,
-            admin_url('edit.php?post_type=product')
-        );
-        wp_safe_redirect($redirect_url);
-        exit;
-    }
-}
-add_action('wp_trash_post', 'block_product_deletion_if_in_inventory');
-
 add_action('set_object_terms', 'watch_product_collection_changes', 10, 6);
 function watch_product_collection_changes($object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids)
 {
