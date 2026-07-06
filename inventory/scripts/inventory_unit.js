@@ -152,6 +152,9 @@ saveModal?.addEventListener("click", (e) => {
     })
     .catch((error) => {
       console.error("Error:", error);
+      errorDiv.innerHTML = "An unexpected error occurred. Please try again.";
+      errorDiv.style.display = "block";
+      saveModal.removeAttribute("disabled");
     });
 });
 

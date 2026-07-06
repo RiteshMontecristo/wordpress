@@ -44,10 +44,11 @@ function items_list_view(): void
     $offset      = ($current_page - 1) * $per_page;
 
     $base_select = "
-        SELECT DISTINCT piu.id, piu.sku, piu.name, piu.serial, piu.status, piu.created_date,
+        SELECT piu.id, piu.sku, piu.name, piu.serial, piu.status, piu.created_date,
             piu.retail_price, piu.spec_1, piu.spec_2, piu.image_id,
             piu.wc_product_id, piu.wc_product_variant_id, piu.description,
-            b.name AS brand_name, m.name AS model_name, l.name AS location_name
+            b.name AS brand_name, m.name AS model_name, l.name AS location_name,
+            GROUP_CONCAT(c.name ORDER BY c.name SEPARATOR ', ') AS collection_names
         FROM {$units_table} piu
         LEFT JOIN {$brands_table}      b  ON b.id  = piu.brand_id
         LEFT JOIN {$models_table}      m  ON m.id  = piu.model_id
@@ -115,10 +116,12 @@ function items_list_view(): void
             <table id="items-list-table" class="wp-list-table widefat fixed striped items-table">
                 <thead>
                     <tr>
+                        <th style="width:60px;"></th>
                         <th>SKU</th>
                         <th>Name</th>
                         <th>Brand</th>
                         <th>Model</th>
+                        <th>Collections</th>
                         <th>Location</th>
                         <th>Serial</th>
                         <th>Status</th>
@@ -138,10 +141,18 @@ function items_list_view(): void
                             data-spec-2="<?= esc_attr($unit->spec_2 ?? '') ?>"
                             data-image-url="<?= esc_attr($row_image_url) ?>"
                             data-description="<?= esc_attr($unit->description ?? '') ?>">
+                            <td style="width:60px;">
+                                <?php if ($row_image_url): ?>
+                                    <img src="<?= esc_url($row_image_url) ?>" alt="" style="width:50px;height:50px;object-fit:cover;border-radius:4px;">
+                                <?php else: ?>
+                                    <span style="display:inline-block;width:50px;height:50px;background:#f0f0f0;border-radius:4px;"></span>
+                                <?php endif; ?>
+                            </td>
                             <td><?= esc_html($unit->sku) ?></td>
                             <td><?= esc_html($unit->name ?? '—') ?></td>
                             <td><?= esc_html($unit->brand_name ?? '—') ?></td>
                             <td><?= esc_html($unit->model_name ?? '—') ?></td>
+                            <td><?= esc_html($unit->collection_names ?? '—') ?></td>
                             <td><?= esc_html($unit->location_name ?? '—') ?></td>
                             <td><?= esc_html($unit->serial ?? '—') ?></td>
                             <td><span class="items-status items-status--<?= esc_attr($unit->status) ?>"><?= esc_html($unit->status) ?></span></td>
@@ -199,10 +210,18 @@ function items_add_form(): void
     }
 
     $back_url = esc_url(admin_url('admin.php?page=items-management'));
+    $form_error = get_transient('items_form_error_' . get_current_user_id());
+    if ($form_error) {
+        delete_transient('items_form_error_' . get_current_user_id());
+    }
 ?>
     <div class="wrap items-management">
         <h1><?= $prefill ? 'Duplicate Unit' : 'Add Unit' ?></h1>
         <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
+
+        <?php if ($form_error): ?>
+            <div class="notice notice-error"><p><?= esc_html($form_error) ?></p></div>
+        <?php endif; ?>
 
         <form method="post" class="items-form">
             <?php wp_nonce_field('items_add', 'items_nonce') ?>
@@ -227,8 +246,11 @@ function items_handle_insert(): void
 
     $result = $wpdb->insert("{$wpdb->prefix}mji_product_inventory_units", $data, $formats);
     if ($result === false) {
-        custom_log('Items insert failed: ' . $wpdb->last_error);
-        wp_die('Failed to save unit. Please go back and try again.');
+        $db_error = $wpdb->last_error;
+        custom_log('Items insert failed: ' . $db_error);
+        set_transient('items_form_error_' . get_current_user_id(), 'Failed to save unit: ' . $db_error, 60);
+        wp_redirect(admin_url('admin.php?page=items-management&action=add'));
+        exit;
     }
 
     $unit_id = $wpdb->insert_id;
@@ -302,10 +324,19 @@ function items_edit_form(): void
     $back_url = esc_url(admin_url('admin.php?page=items-management'));
 
     $print_image_url = mji_get_unit_image_url($unit, 'medium');
+
+    $form_error = get_transient('items_form_error_' . get_current_user_id());
+    if ($form_error) {
+        delete_transient('items_form_error_' . get_current_user_id());
+    }
 ?>
     <div class="wrap items-management">
         <h1>Edit Unit — <?= esc_html($unit->sku) ?></h1>
         <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
+
+        <?php if ($form_error): ?>
+            <div class="notice notice-error"><p><?= esc_html($form_error) ?></p></div>
+        <?php endif; ?>
         <div id="items-unit-print" style="display:inline-block;margin-left:8px;"
             data-sku="<?= esc_attr($unit->sku) ?>"
             data-serial="<?= esc_attr($unit->serial ?? '') ?>"
@@ -545,8 +576,11 @@ function items_handle_update(int $id, string $old_status): void
     );
 
     if ($result === false) {
-        custom_log('Items update failed for id ' . $id . ': ' . $wpdb->last_error);
-        wp_die('Failed to update unit. Please go back and try again.');
+        $db_error = $wpdb->last_error;
+        custom_log('Items update failed for id ' . $id . ': ' . $db_error);
+        set_transient('items_form_error_' . get_current_user_id(), 'Failed to update unit: ' . $db_error, 60);
+        wp_redirect(admin_url("admin.php?page=items-management&action=edit&id={$id}"));
+        exit;
     }
 
     $new_wc_product_id = (int) ($data['wc_product_id'] ?? 0);

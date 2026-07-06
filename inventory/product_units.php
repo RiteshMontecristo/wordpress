@@ -663,14 +663,13 @@ function create_inventory_units()
             );
 
             if ($result === false) {
-                custom_log('Database error: ' . $wpdb->last_error);
+                $db_error = $wpdb->last_error;
+                custom_log('Database error: ' . $db_error);
                 $wpdb->query('ROLLBACK');
-                wp_send_json_error(
-                    [
-                        'message' => 'Please fix the following errors:',
-                        'errors' => 'Database error: ' . $wpdb->last_error
-                    ]
-                );
+                wp_send_json_error([
+                    'message' => 'Please fix the following errors:',
+                    'errors'  => 'Database error: ' . $db_error,
+                ]);
             }
 
             if ($current_status === 'sold') {
@@ -746,24 +745,24 @@ function create_inventory_units()
             );
 
             if ($result === false) {
-                custom_log('Database error: ' . $wpdb->last_error);
+                $db_error = $wpdb->last_error;
+                custom_log('Database error: ' . $db_error);
                 $wpdb->query('ROLLBACK');
-                wp_send_json_error(
-                    [
-                        'message' => 'Please fix the following errors:',
-                        'errors' => 'Database error: ' . $wpdb->last_error
-                    ]
-                );
+                wp_send_json_error([
+                    'message' => 'Please fix the following errors:',
+                    'errors'  => 'Database error: ' . $db_error,
+                ]);
             }
 
             $inventory_unit_id = $wpdb->insert_id;
 
             if (!mji_insert_unit_history($inventory_unit_id, null, 'in_stock', 'Initial status on creation', $invoice_date)) {
-                custom_log('Status history insert error: ' . $wpdb->last_error);
+                $db_error = $wpdb->last_error;
+                custom_log('Status history insert error: ' . $db_error);
                 $wpdb->query('ROLLBACK');
                 wp_send_json_error([
                     'message' => 'Inventory inserted but failed to create status history',
-                    'errors'  => 'Database error: ' . $wpdb->last_error,
+                    'errors'  => 'Database error: ' . $db_error,
                 ]);
             }
             // if price changed, need to change woocommerce products price and quantity change as well
