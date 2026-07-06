@@ -290,7 +290,6 @@
                                         <li><a href="/designer/faberge">Fabergé</a></li>
                                         <li><a href="/designer/messika">Messika</a></li>
                                         <li><a href="/designer/mikimoto">Mikimoto</a></li>
-                                        <li><a href="/designer/pomellato">Pomellato</a></li>
                                         <li><a href="/designer/roberto-coin">Roberto Coin</a></li>
                                         <li><a href="/wellendorff">Wellendorff</a></li>
                                     </ul>
