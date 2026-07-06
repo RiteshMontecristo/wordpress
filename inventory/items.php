@@ -1075,6 +1075,7 @@ function items_sync_wc_to_units(int $product_id): void
     if (!$product) return;
 
     $is_variation = $product->get_type() === 'variation';
+    $parent_id    = $is_variation ? $product->get_parent_id() : 0;
 
     // Build SET clause dynamically — skip any field that has no value so we
     // never coerce null to '' / 0.00 / 0 via prepare() placeholders.
@@ -1087,8 +1088,11 @@ function items_sync_wc_to_units(int $product_id): void
         $values[]    = $name;
     }
 
+    // Variations without their own description inherit the parent's short description
     $description = $is_variation
-        ? (get_post_meta($product_id, '_variation_description', true) ?: null)
+        ? (get_post_meta($product_id, '_variation_description', true)
+            ?: get_post_field('post_excerpt', $parent_id)
+            ?: null)
         : ($product->get_short_description() ?: null);
     if ($description !== null) {
         $set_parts[] = '`description` = %s';
@@ -1101,7 +1105,11 @@ function items_sync_wc_to_units(int $product_id): void
         $values[]    = (float) $price_raw;
     }
 
+    // Variations without their own image inherit the parent product image
     $image_id = (int) get_post_thumbnail_id($product_id) ?: null;
+    if ($image_id === null && $is_variation) {
+        $image_id = (int) get_post_thumbnail_id($parent_id) ?: null;
+    }
     if ($image_id !== null) {
         $set_parts[] = '`image_id` = %d';
         $values[]    = $image_id;
@@ -1154,20 +1162,31 @@ function items_sync_wc_to_units(int $product_id): void
         }
     }
 
-    if (!$set_parts) return;
+    if ($set_parts) {
+        // Only sold and rtv are frozen — all other statuses stay in sync with WC
+        $values[] = $product_id;
+        $where_col = $is_variation ? 'wc_product_variant_id' : 'wc_product_id';
+        // Non-variation saves must not touch variant-linked units — their name,
+        // image and model come from the variation itself (synced below).
+        $where_variant = $is_variation ? '' : ' AND wc_product_variant_id IS NULL';
+        $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$wpdb->prefix}mji_product_inventory_units
+                 SET " . implode(', ', $set_parts) . "
+                 WHERE {$where_col} = %d
+                   AND status NOT IN ('sold', 'rtv')" . $where_variant,
+                $values
+            )
+        );
+    }
 
-    // Only sold and rtv are frozen — all other statuses stay in sync with WC
-    $values[] = $product_id;
-    $where_col = $is_variation ? 'wc_product_variant_id' : 'wc_product_id';
-    $wpdb->query(
-        $wpdb->prepare(
-            "UPDATE {$wpdb->prefix}mji_product_inventory_units
-             SET " . implode(', ', $set_parts) . "
-             WHERE {$where_col} = %d
-               AND status NOT IN ('sold', 'rtv')",
-            $values
-        )
-    );
+    // A parent save can change data variants inherit (name, image, brand), so
+    // re-sync each variation's units through the variation-level logic above.
+    if ($product->is_type('variable')) {
+        foreach ($product->get_children() as $child_id) {
+            items_sync_wc_to_units((int) $child_id);
+        }
+    }
 }
 add_action('woocommerce_update_product',           'items_sync_wc_to_units');
 add_action('woocommerce_update_product_variation', 'items_sync_wc_to_units');
