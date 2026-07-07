@@ -30,10 +30,17 @@ const MONTECRISTO_CATEGORY = 408;
 // Loop through the product categories
 if ($terms && ! is_wp_error($terms)) {
 
-	$lastChild;
+	$lastChild = null;
+	$brandTerm = null;
+	$brandDepth = -1;
 
 	// If the category has no children, that means its the last category and we need to get products related to this item
 	foreach ($terms as $term) {
+		// skip the storewide catch-alls — they'd make the section random
+		if ($term->term_id == MONTECRISTO_CATEGORY || $term->term_id == JEWELLERY_CATEGORY) {
+			continue;
+		}
+
 		$children = get_term_children($term->term_id, 'product_cat');
 		$parentTerm = $term->parent;
 		// since we have two categories for some products, want to remove child category of jewellery
@@ -41,9 +48,26 @@ if ($terms && ! is_wp_error($terms)) {
 			$lastChild = $term;
 			break;
 		}
+
+		// Brand-level fallback when the product isn't assigned to any sub-brand.
+		// Among assigned categories with children, keep the DEEPEST one so
+		// "Brand A" (child of Watches) wins over "Watches" itself.
+		if (!empty($children) && $parentTerm != JEWELLERY_CATEGORY) {
+			$depth = count(get_ancestors($term->term_id, 'product_cat', 'taxonomy'));
+			if ($depth > $brandDepth) {
+				$brandTerm  = $term;
+				$brandDepth = $depth;
+			}
+		}
 	}
 
-	$termQuery = empty($lastChild) ? MONTECRISTO_CATEGORY : $lastChild->term_id;
+	if ($lastChild) {
+		$termQuery = $lastChild->term_id;
+	} elseif ($brandTerm) {
+		$termQuery = $brandTerm->term_id;
+	} else {
+		$termQuery = MONTECRISTO_CATEGORY;
+	}
 	$args = array(
 		'post_type' => 'product',
 		'posts_per_page' => 3, // Limit to 3 products
