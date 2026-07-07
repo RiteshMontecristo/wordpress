@@ -360,7 +360,7 @@ function render_inventory_units_meta_box(object $post)
                         id="password"
                         name="password"
                         required
-                        autocomplete="current-password" />
+                        autocomplete="new-password" />
                 </div>
 
                 <p id="error" class="alert hidden">Sorry there was an issue, Please try again later!!</p>

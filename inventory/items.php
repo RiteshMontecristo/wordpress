@@ -382,7 +382,7 @@ function items_edit_form(): void
                 </label>
                 <label>Date <input type="date" id="items-modal-date" value="<?= esc_attr(date('Y-m-d')) ?>"></label>
                 <label>Notes <textarea id="items-modal-notes"></textarea></label>
-                <label>Admin Password <input type="password" id="items-modal-password" autocomplete="off"></label>
+                <label>Admin Password <input type="password" id="items-modal-password" autocomplete="new-password"></label>
                 <p id="items-modal-error" style="color:red;display:none;"></p>
                 <div class="items-modal-actions">
                     <button type="button" id="items-modal-confirm" class="button button-primary">Confirm</button>
