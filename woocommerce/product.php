@@ -249,6 +249,10 @@ function add_sku_to_variation_data($variation_data)
     return $variation_data;
 }
 
+// WC omits price_html when all variations share the same price, which would blank
+// our price swap in change_sku_number_for_variant(). Always send it.
+add_filter('woocommerce_show_variation_price', '__return_true');
+
 add_action('wp_footer', 'change_sku_number_for_variant');
 function change_sku_number_for_variant()
 {
@@ -263,18 +267,26 @@ function change_sku_number_for_variant()
             jQuery(function($) {
 
                 var originalSKU = '<?= esc_js($original_sku); ?>';
-                var originalPrice = '<?= wp_json_encode($original_price); ?>';
+                var originalPrice = <?= wp_json_encode($original_price); ?>;
+
+                // The summary <p class="price"> is only wrapped in .price_container for
+                // priced non-Mikimoto products — target it directly so the swap also
+                // works when the wrapper is absent.
+                function summaryPrice() {
+                    return $(".summary p.price").first();
+                }
 
                 $('form.variations_form').on('found_variation', function(event, variation) {
                     $(".product-model-number").text(variation.sku);
-                    $(".price_container .price").html(variation.price_html);
+                    if (variation.price_html) {
+                        summaryPrice().html(variation.price_html);
+                    }
                 });
 
                 // When variations are reset (clear selection)
                 $('form.variations_form .reset_variations').on('click', function() {
-                    console.log("User clicked Clear button");
                     $(".product-model-number").text(originalSKU);
-                    $(".price_container .price").html(originalPrice);
+                    summaryPrice().html(originalPrice);
                 });
             });
         </script>
@@ -326,11 +338,17 @@ add_action('woocommerce_single_product_summary', function () {
     }
 }, 29);
 
-// Variable products render their add-to-cart form regardless of purchasability;
-// remove it early when our filter has made the product non-purchasable.
+// When our filter has made the product non-purchasable, strip the purchase UI.
+// For variable products the add-to-cart template also contains the attribute
+// dropdowns, so keep the form (variant browsing, image/price switching) and
+// remove only the add-to-cart button inside it.
 add_action('woocommerce_single_product_summary', function () {
     global $product;
     if (!$product || $product->is_purchasable()) return;
+    if ($product->is_type('variable')) {
+        remove_action('woocommerce_single_variation', 'woocommerce_single_variation_add_to_cart_button', 20);
+        return;
+    }
     remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
 }, 5);
 

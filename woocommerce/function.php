@@ -1,6 +1,7 @@
 <?php
 
 require_once get_stylesheet_directory() . '/woocommerce/helper_functions.php';
+require_once get_stylesheet_directory() . '/woocommerce/pickup-settings.php';
 
 // Returns the direct child category of 'montecristo' that a product belongs to.
 function get_montecristo_sub_brand(int $product_id = 0): string
@@ -1762,9 +1763,15 @@ function mc_ajax_add_to_cart()
 // =============================================
 
 // Remove WC add-to-cart for out-of-stock products so our button replaces it at the same slot.
+// Variable products keep their form — the attribute dropdowns live inside it and must stay
+// browsable; only the add-to-cart button inside the form is removed.
 add_action('woocommerce_single_product_summary', function () {
     global $product;
     if (!$product || $product->is_in_stock()) return;
+    if ($product->is_type('variable')) {
+        remove_action('woocommerce_single_variation', 'woocommerce_single_variation_add_to_cart_button', 20);
+        return;
+    }
     remove_action('woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30);
 }, 5);
 
@@ -1944,31 +1951,26 @@ add_action('wp_footer', function (): void {
     }
 
     // ── Pickup locations ──────────────────────────────────────────────────────
-    // open_days: PHP date('N') values — 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
-    // To update hours or open days, edit this array only.
-    $pickup_locations = [
-        'Montecristo Richmond' => [
-            'hours'     => 'Sun–Sat &nbsp;10:00 AM – 6:00 PM',
-            'open_days' => [1, 2, 3, 4, 5, 6, 7], // open every day
-        ],
-        'Montecristo Downtown' => [
-            'hours'     => 'Tue–Sat &nbsp;10:30 AM – 5:00 PM',
-            'open_days' => [2, 3, 4, 5, 6], // Tue–Sat
-        ],
-    ];
+    // Managed via WooCommerce → Pickup Settings in the admin.
+    $pickup_settings  = mji_get_pickup_settings();
+    $holidays         = $pickup_settings['holidays'];
+    $pickup_locations = $pickup_settings['locations'];
 
-    // Returns the next date the location is open (skipping days not in open_days).
-    $next_open = function (array $open_days) use ($now): string {
+    // Returns the next date the location is open, skipping closed days and holidays.
+    $next_open = function (array $open_days) use ($now, $holidays): string {
         $d = clone $now;
         do {
             $d->modify('+1 day');
-        } while (!in_array((int) $d->format('N'), $open_days, true));
+        } while (
+            !in_array((int) $d->format('N'), $open_days, true) ||
+            in_array($d->format('Y-m-d'), $holidays, true)
+        );
         return $d->format('l, M j') . ', After 12:30 PM';
     };
 
     $pickup_data = [];
-    foreach ($pickup_locations as $name => $loc) {
-        $pickup_data[$name] = [
+    foreach ($pickup_locations as $loc) {
+        $pickup_data[$loc['name']] = [
             'hours' => $loc['hours'],
             'ready' => $next_open($loc['open_days']),
         ];
