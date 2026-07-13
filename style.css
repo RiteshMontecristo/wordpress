@@ -1401,6 +1401,11 @@ ul.products li.product .woocommerce-LoopProduct-link img {
   margin: 0;
   text-align: left;
   font-size: 1.75rem;
+  white-space: nowrap;
+}
+
+.category-description p {
+  margin: 0;
 }
 
 .category-description img {
@@ -1712,6 +1717,15 @@ sidebar .filter-hide h3::after {
   .products-container .products {
     padding: 0 0 4rem 3rem;
   }
+
+  .term-glashutte-original .category-description {
+    column-gap: 3rem;
+  }
+
+  .term-girard-perregaux .category-description {
+    column-gap: 4rem;
+  }
+
   .category-description {
     flex-direction: row;
     column-gap: 10rem;
@@ -1968,8 +1982,10 @@ button[data-favourite="false"]:hover svg {
   padding: 0;
 }
 
+/* !important: WC's variation JS calls .show() on the qty input (inline style)
+   whenever a variation is selected — this must still win. */
 .single-product .summary.entry-summary form.cart .quantity {
-  display: none;
+  display: none !important;
 }
 
 .single-product .summary.entry-summary form.cart .single_add_to_cart_button {
