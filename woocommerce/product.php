@@ -117,7 +117,7 @@ function custom_price_zero_message($price, $product)
     $brand_name = get_brand_name();
     $raw_price  = $product->get_price();
 
-    if ($raw_price === '' || $raw_price == 0) {
+    if ($price === '' || $raw_price === '' || $raw_price == 0) {
         return '';
     }
 

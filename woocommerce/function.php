@@ -1981,3 +1981,12 @@ add_action('wp_footer', function (): void {
         . 'window.mjiPickupData = '        . wp_json_encode($pickup_data)   . ';'
         . '</script>';
 });
+
+// ─── Hide price for Montecristo brand products ────────────────────────────────
+add_filter('woocommerce_get_price_html', function (string $price, WC_Product $product): string {
+    $brands = wp_get_post_terms($product->get_id(), 'product_brand', ['fields' => 'slugs']);
+    if (!is_wp_error($brands) && in_array('montecristo', $brands, true)) {
+        return '';
+    }
+    return $price;
+}, 10, 2);
