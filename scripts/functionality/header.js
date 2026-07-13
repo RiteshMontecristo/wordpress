@@ -5,9 +5,25 @@ const searchField = document.querySelector(
   "#woocommerce-product-search-field-0"
 );
 
-headerSearchBtn?.addEventListener("click", () => {
-  searchForm.classList.toggle("hidden");
-  searchField.focus();
+headerSearchBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const isHidden = searchForm.classList.toggle("hidden");
+  headerSearchBtn.setAttribute("aria-expanded", isHidden ? "false" : "true");
+  if (!isHidden) {
+    searchField.focus();
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (
+    searchForm &&
+    !searchForm.classList.contains("hidden") &&
+    !searchForm.contains(e.target) &&
+    e.target !== headerSearchBtn
+  ) {
+    searchForm.classList.add("hidden");
+    headerSearchBtn?.setAttribute("aria-expanded", "false");
+  }
 });
 
 

@@ -51,8 +51,11 @@ function my_load_scripts()
     );
 
     wp_localize_script('normal-script', 'ajax_object_another', array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('toggle_favourite_nonce')
+        'ajax_url'          => admin_url('admin-ajax.php'),
+        'nonce'             => wp_create_nonce('toggle_favourite_nonce'),
+        'add_to_cart_nonce' => wp_create_nonce('mc_add_to_cart'),
+        'notify_nonce'      => wp_create_nonce('mji_notify_me_nonce'),
+        'search_nonce'      => wp_create_nonce('mji_live_product_search_nonce'),
     ));
 }
 add_action('wp_enqueue_scripts', 'my_load_scripts');

@@ -87,7 +87,7 @@
     const qty         = parseInt(form.querySelector('[name="quantity"]')?.value) || 1;
     const variationId = parseInt(form.querySelector('[name="variation_id"]')?.value) || 0;
 
-    if (!productId || !window.mcCart?.ajax_url) {
+    if (!productId || !ajax_object_another?.ajax_url) {
       form.submit(); // no config — fall back to normal POST
       return;
     }
@@ -95,12 +95,12 @@
     if (btn) btn.disabled = true;
 
     try {
-      const res  = await fetch(window.mcCart.ajax_url, {
+      const res  = await fetch(ajax_object_another.ajax_url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
           action:       "mc_add_to_cart",
-          nonce:        window.mcCart.nonce,
+          nonce:        ajax_object_another.add_to_cart_nonce,
           product_id:   productId,
           quantity:     qty,
           variation_id: variationId,

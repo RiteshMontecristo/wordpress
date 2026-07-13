@@ -325,6 +325,16 @@
                             </ul>
                         </div>
 
+                        <div class="search-container">
+                            <button id="headerSearchBtn" type="button" aria-label="Search products" aria-controls="searchForm" aria-expanded="false">
+                                <img height="20" width="20" src="<?php echo get_stylesheet_directory_uri() . "/assets/icons/search.svg" ?>" alt="" />
+                            </button>
+                            <div id="searchForm" class="search-form hidden">
+                                <?php echo get_product_search_form(); ?>
+                                <div id="searchResults" class="search-results hidden" aria-live="polite"></div>
+                            </div>
+                        </div>
+
                         <!-- <div class="menu-icons" role="navigation" aria-label="Menu Icons"> -->
                         <!-- <div class="shopping-bag-icon">
                                 <a href="<?php echo wc_get_cart_url(); ?>" aria-label="View your shopping cart">

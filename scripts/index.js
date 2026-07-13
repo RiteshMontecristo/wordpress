@@ -1,4 +1,5 @@
 import "./functionality/header.js";
+import "./functionality/live-search.js";
 import "./functionality/cart-modal.js";
 import "./functionality/products.js";
 import "./functionality/homepage.js";

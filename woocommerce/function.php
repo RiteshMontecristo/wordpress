@@ -1602,13 +1602,6 @@ function mc_cart_modal_html()
     </div>
 <?php
 
-    // Pass nonce + AJAX URL to JS (used by the AJAX add-to-cart handler).
-    echo '<script>window.mcCart = ' . wp_json_encode([
-        'nonce'        => wp_create_nonce('mc_add_to_cart'),
-        'notify_nonce' => wp_create_nonce('mji_notify_me_nonce'),
-        'ajax_url'     => admin_url('admin-ajax.php'),
-    ], JSON_HEX_TAG) . ';</script>';
-
     // Page-reload fallback: if a product was just added via a non-JS POST,
     // output its data so the modal still opens on the new page.
     if (WC()->session && WC()->session->get('mc_modal_pending')) {
@@ -1784,6 +1777,59 @@ function mji_single_notify_me_button()
     global $product;
     if (!$product || $product->is_in_stock() || !$product->is_purchasable()) return;
     echo wp_kses_post(wc_get_stock_html($product));
+}
+
+// AJAX handler — live header search dropdown, rate-limited.
+add_action('wp_ajax_mji_live_product_search', 'mji_live_product_search');
+add_action('wp_ajax_nopriv_mji_live_product_search', 'mji_live_product_search');
+function mji_live_product_search()
+{
+    check_ajax_referer('mji_live_product_search_nonce', 'nonce');
+
+    if (!mji_check_rate_limit('live_product_search', 60)) {
+        wp_send_json_error(['message' => __('Too many requests. Please try again later.', 'woocommerce')]);
+    }
+
+    $term = sanitize_text_field(wp_unslash($_POST['term'] ?? ''));
+
+    if (mb_strlen($term) < 2) {
+        wp_send_json_success(['products' => []]);
+    }
+
+    $visibility_terms = wc_get_product_visibility_term_ids();
+
+    $query = new WP_Query([
+        'post_type'              => 'product',
+        'post_status'            => 'publish',
+        's'                      => $term,
+        'posts_per_page'         => 8,
+        'no_found_rows'          => true,
+        'update_post_meta_cache' => false,
+        'tax_query'              => [[
+            'taxonomy' => 'product_visibility',
+            'field'    => 'term_taxonomy_id',
+            'terms'    => [$visibility_terms['exclude-from-search']],
+            'operator' => 'NOT IN',
+        ]],
+    ]);
+
+    $products = [];
+    foreach ($query->posts as $post) {
+        $product = wc_get_product($post);
+        if (!$product) {
+            continue;
+        }
+
+        $image_id = $product->get_image_id();
+        $products[] = [
+            'name'      => $product->get_name(),
+            'url'       => get_permalink($product->get_id()),
+            'image'     => $image_id ? wp_get_attachment_image_url($image_id, 'thumbnail') : wc_placeholder_img_src('thumbnail'),
+            'priceHtml' => wp_kses_post($product->get_price_html()),
+        ];
+    }
+
+    wp_send_json_success(['products' => $products]);
 }
 
 // AJAX handler — rate-limited, validates email, emails the store.

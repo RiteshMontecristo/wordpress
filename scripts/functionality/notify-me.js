@@ -46,17 +46,17 @@ async function handleSubmit() {
     return;
   }
 
-  if (!window.mcCart?.ajax_url) return;
+  if (!ajax_object_another?.ajax_url) return;
 
   submitBtn.disabled = true;
 
   try {
-    const res  = await fetch(window.mcCart.ajax_url, {
+    const res  = await fetch(ajax_object_another.ajax_url, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         action:     "mji_notify_me",
-        nonce:      window.mcCart.notify_nonce,
+        nonce:      ajax_object_another.notify_nonce,
         email,
         product_id: productId,
       }),

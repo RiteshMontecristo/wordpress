@@ -287,6 +287,7 @@ form label {
   align-items: center;
   justify-content: space-between;
   margin: 1rem auto;
+  position: relative;
 }
 
 .storefront-primary-navigation .primary-navigation {
@@ -390,11 +391,6 @@ form label {
   font-size: 0.8rem;
 }
 
-.search-container {
-  display: flex;
-  position: relative;
-}
-
 .search-container button {
   margin: 0;
   padding: 0;
@@ -405,14 +401,102 @@ form label {
   position: absolute;
   top: calc(100% + 1rem);
   right: 0;
+  width: 320px;
 }
 
 .search-container .search-form form {
+  position: relative;
   margin: 0;
 }
 
 .search-container .search-form #woocommerce-product-search-field-0 {
-  width: fit-content;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  border: 1px solid rgb(180 158 103 / var(--tw-border-opacity, 1));
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.search-container .search-form form button[type="submit"] {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent url("assets/icons/search.svg") no-repeat center / 16px 16px;
+  color: transparent;
+  font-size: 0;
+  cursor: pointer;
+}
+
+.search-results {
+  width: 100%;
+  box-sizing: border-box;
+  max-height: 400px;
+  overflow-y: auto;
+  margin-top: 0.5rem;
+  background-color: white;
+  border: 1px solid rgb(180 158 103 / var(--tw-border-opacity, 1));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.search-results.hidden {
+  display: none;
+}
+
+.search-results-message {
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+  color: black;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover,
+.search-result-item:focus {
+  background-color: rgb(180 158 103 / 0.1);
+}
+
+.search-result-item img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.search-result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.search-result-name {
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-result-price {
+  font-size: 0.85rem;
+  color: #666;
 }
 
 /* menu icon */

@@ -105,7 +105,7 @@ form?.addEventListener("submit", async (e) => {
     message:         overlay.querySelector("#appt-message")?.value.trim() ?? "",
   });
 
-  const ajaxUrl = window.mcCart?.ajax_url ?? window.ajax_object_another?.ajax_url;
+  const ajaxUrl = ajax_object_another?.ajax_url;
 
   try {
     const res  = await fetch(ajaxUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
