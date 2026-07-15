@@ -288,6 +288,7 @@
                                         </li>
                                         <li><a href="/designer/cammillifirenze">Cammilli Firenze</a></li>
                                         <li><a href="/designer/faberge">Fabergé</a></li>
+                                        <li><a href="/designer/gioielliamo">Gioielliamo</a></li>
                                         <li><a href="/designer/gismondi">Gismondi</a></li>
                                         <li><a href="/designer/messika">Messika</a></li>
                                         <li><a href="/designer/mikimoto">Mikimoto</a></li>
@@ -331,7 +332,7 @@
                             </button>
                             <div id="searchForm" class="search-form hidden">
                                 <?php echo get_product_search_form(); ?>
-                                <div id="searchResults" class="search-results hidden" aria-live="polite"></div>
+                                <div id="searchResults" class="mji-search-results hidden" aria-live="polite"></div>
                             </div>
                         </div>
 
@@ -354,13 +355,19 @@
 
                 <nav>
                     <button id="mobileMenuCloseBtn" class="mobile-menu-close-btn" aria-label="close menu"></button>
+
+                    <a class="mobile-logo" href="<?php echo esc_url(home_url('/')); ?>" class="custom-logo-link" rel="home" aria-current="page"><img src="<?php echo get_stylesheet_directory_uri() . "/assets/logo.webp" ?> " class="custom-logo" title="Montecristo Jewellers" alt="Montecristo Jewellers" decoding="async"></a>
+
                     <?php
                     wp_nav_menu(array(
                         'theme_location' => 'primary',
                         'container_class' => 'mobile-primary-navigation',
                     )); ?>
 
-                    <a class="mobile-logo" href="<?php echo esc_url(home_url('/')); ?>" class="custom-logo-link" rel="home" aria-current="page"><img src="<?php echo get_stylesheet_directory_uri() . "/assets/logo.webp" ?> " class="custom-logo" title="Montecristo Jewellers" alt="Montecristo Jewellers" decoding="async"></a>
+                    <div class="mobile-search-container">
+                        <?php echo get_product_search_form(); ?>
+                        <div id="mobileSearchResults" class="mji-search-results hidden" aria-live="polite"></div>
+                    </div>
                 </nav>
 
             </div>

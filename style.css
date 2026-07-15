@@ -391,6 +391,10 @@ form label {
   font-size: 0.8rem;
 }
 
+.search-container {
+  display: none;
+}
+
 .search-container button {
   margin: 0;
   padding: 0;
@@ -433,7 +437,7 @@ form label {
   cursor: pointer;
 }
 
-.search-results {
+.mji-search-results {
   width: 100%;
   box-sizing: border-box;
   max-height: 400px;
@@ -444,7 +448,7 @@ form label {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.search-results.hidden {
+.mji-search-results.hidden {
   display: none;
 }
 
@@ -608,28 +612,38 @@ button.menu-toggle span::before {
   position: relative;
 }
 
-.mobile-search-container button {
+.mobile-search-container form {
+  position: relative;
   margin: 0;
-  padding: 0;
-  background: transparent;
 }
 
-.mobile-search-container button {
-  margin: 0;
-  padding: 0;
-  background: transparent;
+.mobile-search-container .search-field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  border: 1px solid rgb(180 158 103 / var(--tw-border-opacity, 1));
+  font-family: inherit;
+  font-size: 0.9rem;
 }
 
-.mobile-search-form form {
-  margin-bottom: 0;
-}
-
-/* .mobile-search-form {
+.mobile-search-container form button[type="submit"] {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 0.5rem);
-} */
+  top: 50%;
+  right: 0.4rem;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent url("assets/icons/search.svg") no-repeat center / 16px 16px;
+  color: transparent;
+  font-size: 0;
+  cursor: pointer;
+}
+
+.mobile-search-container .mji-search-results {
+  margin-top: 0.5rem;
+}
 
 .mobile-logo img {
   height: 100%;
@@ -661,6 +675,14 @@ button.menu-toggle span::before {
 
   .storefront-primary-navigation nav.main-navigation .menu-icons {
     display: flex;
+  }
+
+  .search-container {
+    display: block;
+  }
+
+  .mobile-search-container {
+    display: none;
   }
 }
 

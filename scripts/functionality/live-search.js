@@ -1,11 +1,14 @@
-// Live product search dropdown in the header search form.
-const searchField = document.querySelector("#woocommerce-product-search-field-0");
-const searchResults = document.querySelector("#searchResults");
-
+// Live product search dropdown, wired up for both the header search form
+// and the mobile sidebar search form.
 const MIN_TERM_LENGTH = 2;
 const DEBOUNCE_MS = 300;
 
-if (searchField && searchResults) {
+function initLiveSearch(fieldSelector, resultsSelector) {
+  const searchField = document.querySelector(fieldSelector);
+  const searchResults = document.querySelector(resultsSelector);
+
+  if (!searchField || !searchResults) return;
+
   let debounceTimer;
   let abortController;
 
@@ -121,3 +124,6 @@ if (searchField && searchResults) {
     }
   });
 }
+
+initLiveSearch("#woocommerce-product-search-field-0", "#searchResults");
+initLiveSearch("#woocommerce-product-search-field-1", "#mobileSearchResults");
