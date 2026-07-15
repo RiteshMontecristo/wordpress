@@ -37,6 +37,7 @@ function items_list_view(): void
     $locations_table   = $wpdb->prefix . 'mji_locations';
     $pc_table          = $wpdb->prefix . 'mji_products_collections';
     $collections_table = $wpdb->prefix . 'mji_collections';
+    $history_table     = $wpdb->prefix . 'mji_product_sku_history';
 
     $search      = sanitize_text_field($_GET['search'] ?? '');
     $per_page    = max(1, absint($_GET['per_page'] ?? 10));
@@ -45,23 +46,25 @@ function items_list_view(): void
 
     $base_select = "
         SELECT piu.id, piu.sku, piu.name, piu.serial, piu.status, piu.created_date,
-            piu.retail_price, piu.spec_1, piu.spec_2, piu.image_id,
+            piu.retail_price, piu.spec_1, piu.spec_2, piu.image_id, h.old_sku,
             piu.wc_product_id, piu.wc_product_variant_id, piu.description,
             b.name AS brand_name, m.name AS model_name, l.name AS location_name,
-            GROUP_CONCAT(c.name ORDER BY c.name SEPARATOR ', ') AS collection_names
+            GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', ') AS collection_names
         FROM {$units_table} piu
         LEFT JOIN {$brands_table}      b  ON b.id  = piu.brand_id
         LEFT JOIN {$models_table}      m  ON m.id  = piu.model_id
         LEFT JOIN {$locations_table}   l  ON l.id  = piu.location_id
         LEFT JOIN {$pc_table}          pc ON pc.inventory_unit_id = piu.id
         LEFT JOIN {$collections_table} c  ON c.id  = pc.collection_id
+        LEFT JOIN {$history_table}     h  ON h.unit_id = piu.id
     ";
 
     if ($search !== '') {
         $like    = '%' . $wpdb->esc_like($search) . '%';
-        $where   = "WHERE piu.sku LIKE %s OR piu.name LIKE %s OR m.name LIKE %s OR c.name LIKE %s OR piu.serial LIKE %s";
+        $where   = "WHERE piu.sku LIKE %s or h.old_sku LIKE %s OR piu.name LIKE %s OR m.name LIKE %s OR c.name LIKE %s OR piu.serial LIKE %s";
         $units   = $wpdb->get_results($wpdb->prepare(
             $base_select . $where . " GROUP BY piu.id ORDER BY piu.created_date DESC LIMIT %d OFFSET %d",
+            $like,
             $like,
             $like,
             $like,
@@ -158,7 +161,7 @@ function items_list_view(): void
                             <td><span class="items-status items-status--<?= esc_attr($unit->status) ?>"><?= esc_html($unit->status) ?></span></td>
                             <td class="items-actions">
                                 <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=view&id={$unit->id}")) ?>" class="button button-small">View</a>
-                                    <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=edit&id={$unit->id}")) ?>" class="button button-small">Edit</a>
+                                <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=edit&id={$unit->id}")) ?>" class="button button-small">Edit</a>
                                 <a href="<?= esc_url(admin_url("admin.php?page=items-management&action=add&duplicate_from={$unit->id}")) ?>" class="button button-small">Duplicate</a>
                                 <div class="print-dropdown" style="display:inline-block;position:relative;">
                                     <button type="button" class="button button-small print-dropdown-toggle">Print &#9660;</button>
@@ -220,7 +223,9 @@ function items_add_form(): void
         <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
 
         <?php if ($form_error): ?>
-            <div class="notice notice-error"><p><?= esc_html($form_error) ?></p></div>
+            <div class="notice notice-error">
+                <p><?= esc_html($form_error) ?></p>
+            </div>
         <?php endif; ?>
 
         <form method="post" class="items-form">
@@ -335,7 +340,9 @@ function items_edit_form(): void
         <a href="<?= $back_url ?>" class="button">&larr; Back to Items</a>
 
         <?php if ($form_error): ?>
-            <div class="notice notice-error"><p><?= esc_html($form_error) ?></p></div>
+            <div class="notice notice-error">
+                <p><?= esc_html($form_error) ?></p>
+            </div>
         <?php endif; ?>
         <div id="items-unit-print" style="display:inline-block;margin-left:8px;"
             data-sku="<?= esc_attr($unit->sku) ?>"
