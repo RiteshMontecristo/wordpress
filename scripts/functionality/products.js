@@ -125,16 +125,10 @@ filterComponent.forEach((el) => {
 });
 
 function getFilterValues() {
-  let parentBrand = document.getElementById("data-selector")?.dataset?.brand;
-  let categoryBrandCheckboxes;
-
-  if (parentBrand === undefined || parentBrand === null || parentBrand === "") {
-    parentBrand = document.querySelectorAll('input[name="category[]"]:checked');
-  } else {
-    categoryBrandCheckboxes = document.querySelectorAll(
-      'input[name="category[]"]:checked'
-    );
-  }
+  let parentBrand = document.getElementById("data-selector")?.dataset?.brand ?? "";
+  const categoryBrandCheckboxes = document.querySelectorAll(
+    'input[name="category[]"]:checked'
+  );
   const typeCheckboxes = document.querySelectorAll(
     'input[name="type[]"]:checked'
   );
@@ -238,7 +232,7 @@ function filterProducts() {
   })
     .then((response) => response.json())
     .then((data) => {
-      const container = document.querySelector(".products.columns-3");
+      const container = document.querySelector(".products-container .products");
       container.innerHTML = data.html;
 
       if (data.total_products <= PAGE_PER_POST) {
@@ -292,7 +286,7 @@ loadMoreProducts?.addEventListener("click", (el) => {
   })
     .then((response) => response.json())
     .then((data) => {
-      const container = document.querySelector(".products.columns-3");
+      const container = document.querySelector(".products-container .products");
       container.insertAdjacentHTML("beforeend", data.html);
 
       if (data.total_products <= PAGE_PER_POST * (page + 1)) {
