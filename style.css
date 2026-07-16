@@ -1167,7 +1167,7 @@ button.menu-toggle span::before {
   display: block;
   height: 100px;
   max-width: 150px !important;
-  width: auto;
+  width: 150px;
   filter: grayscale(100%);
   opacity: 0.5;
   object-fit: contain;

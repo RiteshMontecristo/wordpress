@@ -292,6 +292,7 @@
                                         <li><a href="/designer/gismondi">Gismondi</a></li>
                                         <li><a href="/designer/messika">Messika</a></li>
                                         <li><a href="/designer/mikimoto">Mikimoto</a></li>
+                                        <li><a href="/designer/peroni-parise">Peroni & Parise</a></li>
                                         <li><a href="/designer/roberto-coin">Roberto Coin</a></li>
                                         <li><a href="/designer/tavanti">Tavanti</a></li>
                                         <li><a href="/wellendorff">Wellendorff</a></li>
