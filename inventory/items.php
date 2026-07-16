@@ -1059,7 +1059,7 @@ function items_ajax_get_wc_product_fields(): void
     $brand_name = '';
     $terms = get_the_terms($product_id, 'product_brand');
     if ($terms && !is_wp_error($terms)) {
-        $brand_name = $terms[0]->name;
+        $brand_name = html_entity_decode(sanitize_text_field($terms[0]->name), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     wp_send_json_success([
