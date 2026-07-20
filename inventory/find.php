@@ -3377,6 +3377,11 @@ function edit_sale()
         wp_send_json_error(['message' => 'Order not found.']);
     }
 
+    $order_item_unit_ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT product_inventory_unit_id FROM {$wpdb->prefix}mji_order_items WHERE order_id = %d",
+        $order_id
+    ));
+
     $payment_sum = round(array_sum($pay), 2);
     if ($payment_sum !== round((float) $order_row->total, 2)) {
         wp_send_json_error(['message' => sprintf(
@@ -3404,12 +3409,14 @@ function edit_sale()
 
     $wpdb->query('START TRANSACTION');
     try {
+        $new_date_sql = date('Y-m-d H:i:s', strtotime($date));
+
         // Update order
         $updated = $wpdb->update(
             $orders_table,
             [
                 'reference_num'  => $new_reference_num,
-                'created_at'     => date('Y-m-d H:i:s', strtotime($date)),
+                'created_at'     => $new_date_sql,
                 'salesperson_id' => $salesperson_id,
                 'notes'          => $notes,
             ],
@@ -3419,6 +3426,40 @@ function edit_sale()
         );
         if ($updated === false) {
             throw new Exception($wpdb->last_error ?: 'Failed to update order.');
+        }
+
+        $items_updated = $wpdb->update(
+            $wpdb->prefix . 'mji_order_items',
+            ['created_at' => $new_date_sql],
+            ['order_id' => $order_id],
+            ['%s'],
+            ['%d']
+        );
+        if ($items_updated === false) {
+            throw new Exception($wpdb->last_error ?: 'Failed to update order items.');
+        }
+
+        if (!empty($order_item_unit_ids)) {
+            $units_table    = $wpdb->prefix . 'mji_product_inventory_units';
+            $history_table  = $wpdb->prefix . 'mji_inventory_status_history';
+            $id_placeholders = implode(',', array_fill(0, count($order_item_unit_ids), '%d'));
+
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$units_table} SET sold_date = %s WHERE id IN ({$id_placeholders})",
+                $new_date_sql,
+                ...$order_item_unit_ids
+            ));
+            if ($wpdb->last_error) throw new Exception('Failed to update unit sold_date: ' . $wpdb->last_error);
+
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$history_table} SET created_at = %s, reference_num = %s
+                 WHERE reference_num = %s AND to_status = 'sold' AND inventory_unit_id IN ({$id_placeholders})",
+                $new_date_sql,
+                $new_reference_num,
+                $original_ref,
+                ...$order_item_unit_ids
+            ));
+            if ($wpdb->last_error) throw new Exception('Failed to update unit status history: ' . $wpdb->last_error);
         }
 
         // Cascade reference_num change to all payment rows
