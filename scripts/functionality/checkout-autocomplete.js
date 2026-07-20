@@ -1,26 +1,9 @@
-/**
- * Google Places address autocomplete for WooCommerce checkout block.
- *
- * The checkout block is React-rendered, so we use MutationObserver to detect
- * when address fields appear, and native input event dispatching to update
- * React's internal state when a place is selected.
- */
-
-const attached = new Set();
-
-// ── Estimated delivery dates ──────────────────────────────────────────────────
-// window.mjiShippingEstimates is set by PHP in wp_footer, e.g.:
-// { flat_rate: "July 4–8", free_shipping: "July 4–8" }
-//
-// The checkout block renders shipping options as radio inputs whose `value`
-// attribute is the full rate ID, e.g. "flat_rate:1". We watch for those
-// inputs, match them to our estimates map, and append the date below the label.
+const bindings = {};
 
 function injectDeliveryDates() {
   const estimates = window.mjiShippingEstimates;
   if (!estimates) return;
 
-  // Search within the shipping rates section only
   const shippingSection = document.querySelector(
     ".wc-block-components-shipping-rates-control, " +
       '[data-block-name="woocommerce/checkout-shipping-methods-block"]',
@@ -30,12 +13,10 @@ function injectDeliveryDates() {
   shippingSection.querySelectorAll('input[type="radio"]').forEach((input) => {
     if (input.dataset.mjDeliveryInjected) return;
 
-    // Rate value is e.g. "flat_rate:1" — match on prefix
     const methodType = (input.value || "").split(":")[0];
     const dateRange = estimates[methodType];
     if (!dateRange) return;
 
-    // Use label[for=id] — works regardless of block markup changes
     const label =
       (input.id &&
         document.querySelector(`label[for="${CSS.escape(input.id)}"]`)) ||
@@ -53,10 +34,6 @@ function injectDeliveryDates() {
   });
 }
 
-// ── Pickup location hours + ready date ───────────────────────────────────────
-// window.mjiPickupData is set by PHP, keyed by the exact location name:
-// { "Montecristo Richmond": { hours: "...", ready: "Tuesday, July 1" }, ... }
-
 function injectPickupInfo() {
   const data = window.mjiPickupData;
   if (!data) return;
@@ -68,7 +45,6 @@ function injectPickupInfo() {
     .forEach((option) => {
       if (option.dataset.mjPickupInjected) return;
 
-      // Location name is in the __label span
       const nameEl = option.querySelector(
         ".wc-block-components-radio-control__label",
       );
@@ -81,7 +57,6 @@ function injectPickupInfo() {
 
       const { hours, ready } = data[locationName];
 
-      // Append after the address description group
       const descGroup = option.querySelector(
         ".wc-block-components-radio-control__description-group",
       );
@@ -107,20 +82,42 @@ function injectPickupInfo() {
     });
 }
 
-// Watch for the shipping/pickup blocks to render (React mounts them asynchronously).
+function injectOrderDisclaimer() {
+  const orderSummary = document.querySelector(
+    ".wp-block-woocommerce-checkout-order-summary-block",
+  );
+  if (!orderSummary) return;
+
+  const next = orderSummary.nextElementSibling;
+  if (next && next.classList.contains("mji-order-disclaimer")) return;
+
+  document
+    .querySelectorAll(".mji-order-disclaimer")
+    .forEach((el) => el.remove());
+
+  const notice = document.createElement("p");
+  notice.className = "mji-order-disclaimer";
+  notice.style.cssText =
+    "margin-top:12px;padding:10px 12px;font-size:0.85em;color:#444;" +
+    "background:#f7f7f5;border-left:3px solid #21453a;";
+  notice.textContent =
+    "This is an estimated delivery date only. Once your order is with the courier, we're unable to guarantee delivery on this exact date.";
+  orderSummary.after(notice);
+}
+
 const deliveryObserver = new MutationObserver(() => {
   injectDeliveryDates();
   injectPickupInfo();
+  injectOrderDisclaimer();
 });
 deliveryObserver.observe(document.body, { childList: true, subtree: true });
 injectDeliveryDates();
 injectPickupInfo();
+injectOrderDisclaimer();
 
-// Called by the Google Maps JS API once it has finished loading.
 window.initMJIAutocomplete = function () {
   tryAttach();
 
-  // Watch for React re-renders (e.g. switching between shipping/billing tabs).
   const observer = new MutationObserver(tryAttach);
   observer.observe(document.body, { childList: true, subtree: true });
 };
@@ -130,15 +127,52 @@ function tryAttach() {
   attachAutocomplete("billing");
 }
 
+function trackListeners(input) {
+  if (input._mjiListeners) return;
+  input._mjiListeners = [];
+  const originalAdd = input.addEventListener.bind(input);
+  input.addEventListener = function (evType, listener, options) {
+    input._mjiListeners.push([evType, listener, options]);
+    return originalAdd(evType, listener, options);
+  };
+}
+
+function stripGoogleListeners(input) {
+  (input._mjiListeners || []).forEach(([evType, listener, options]) => {
+    input.removeEventListener(evType, listener, options);
+  });
+  if (input._mjiListeners) input._mjiListeners.length = 0;
+}
+
 function attachAutocomplete(type) {
-  // WooCommerce checkout block renders address_1 as: #shipping-address_1 / #billing-address_1
+  if (
+    typeof google === "undefined" ||
+    !google.maps ||
+    !google.maps.places
+  ) {
+    return;
+  }
+
   const input =
     document.querySelector(`#${type}-address_1`) ||
     document.querySelector(`input[autocomplete="${type} address-line1"]`);
 
-  if (!input || attached.has(input)) return;
-  attached.add(input);
+  if (!input) return;
 
+  const existing = bindings[type];
+  if (existing && existing.input === input && document.body.contains(input)) {
+    return;
+  }
+
+  if (existing) {
+    stripGoogleListeners(existing.input);
+    google.maps.event.clearInstanceListeners(existing.autocomplete);
+    existing.pacContainer?.remove();
+  }
+
+  const pacContainersBefore = new Set(document.querySelectorAll(".pac-container"));
+
+  trackListeners(input);
   const ac = new google.maps.places.Autocomplete(input, {
     types: ["address"],
     fields: ["address_components"],
@@ -147,13 +181,24 @@ function attachAutocomplete(type) {
   ac.addListener("place_changed", function () {
     const place = ac.getPlace();
     if (!place.address_components) return;
+
+    stripGoogleListeners(input);
+    google.maps.event.clearInstanceListeners(ac);
+    bindings[type]?.pacContainer?.remove();
+    delete bindings[type];
+
     fillFields(type, place.address_components, input);
+
+    attachAutocomplete(type);
   });
+
+  const pacContainer = Array.from(
+    document.querySelectorAll(".pac-container"),
+  ).find((el) => !pacContainersBefore.has(el));
+
+  bindings[type] = { input, autocomplete: ac, pacContainer };
 }
 
-// React tracks input values through its own synthetic system.
-// Setting .value directly doesn't trigger a re-render — we must use the
-// native setter + dispatch an input event so React picks up the change.
 function setInput(el, value) {
   if (!el) return;
   const setter = Object.getOwnPropertyDescriptor(
@@ -189,36 +234,28 @@ function fillFields(type, components, addressInput) {
     get(components, "postal_town") ||
     get(components, "administrative_area_level_2");
   const postcode = get(components, "postal_code");
-  const country = get(components, "country", true); // ISO 2-letter code
+  const country = get(components, "country", true);
   const state = get(components, "administrative_area_level_1", true);
 
-  // Address line 1
   setInput(addressInput, address1);
 
-  // City
   setInput(
     document.querySelector(`#${type}-city`) ||
       document.querySelector(`input[autocomplete="${type} address-level2"]`),
     city,
   );
 
-  // Postcode
-  setInput(
-    document.querySelector(`#${type}-postcode`) ||
-      document.querySelector(`input[autocomplete="${type} postal-code"]`),
-    postcode,
-  );
-
-  // Country — WooCommerce renders this as a <select>
   const countryEl =
     document.querySelector(`#${type}-country`) ||
     document.querySelector(`select[autocomplete="${type} country"]`);
   if (countryEl) setSelect(countryEl, country);
 
-  // State/Province — can be <input> or <select> depending on country
-  // WooCommerce re-renders the state field after country changes, so we
-  // wait a tick before filling it in.
   setTimeout(() => {
+    const postcodeEl =
+      document.querySelector(`#${type}-postcode`) ||
+      document.querySelector(`input[autocomplete="${type} postal-code"]`);
+    setInput(postcodeEl, postcode);
+
     const stateEl =
       document.querySelector(`#${type}-state`) ||
       document.querySelector(`input[autocomplete="${type} address-level1"]`) ||
