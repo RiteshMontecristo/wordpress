@@ -100,7 +100,8 @@ function price_container()
 
     $no_price = has_term('mikimoto', 'product_cat', $product_id)
              || $raw_price === ''
-             || $raw_price == 0;
+             || $raw_price == 0
+             || $product->get_price_html() === '';
 
     if ($model_number) {
         echo '<div class="product-model-number"><span class="product-model-label">Style No.</span> ' . esc_html($model_number) . '</div>';
@@ -152,10 +153,8 @@ function close_price_container()
         return;
     }
 
-    $product   = wc_get_product($product_id);
-    $raw_price = $product ? $product->get_price() : '';
-
-    if ($raw_price === '' || $raw_price == 0) {
+    $product = wc_get_product($product_id);
+    if (!$product || $product->get_price_html() === '') {
         return;
     }
     ?>
