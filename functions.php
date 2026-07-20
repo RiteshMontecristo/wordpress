@@ -80,12 +80,9 @@ require get_stylesheet_directory() . '/woocommerce/function.php';
 
 require get_stylesheet_directory() . '/inventory/functions.php';
 
-// Google Places autocomplete — checkout page only.
+// Checkout page — address autocomplete, delivery/pickup notices, order disclaimer.
 add_action('wp_enqueue_scripts', function () {
     if (!is_checkout()) return;
-
-    $api_key = defined('MJI_GOOGLE_PLACES_API_KEY') ? MJI_GOOGLE_PLACES_API_KEY : '';
-    if (!$api_key) return;
 
     // Our script must be defined BEFORE the Maps API loads so the callback exists.
     wp_enqueue_script(
@@ -96,10 +93,13 @@ add_action('wp_enqueue_scripts', function () {
         ['in_footer' => true]
     );
 
+    $api_key = defined('MJI_GOOGLE_PLACES_API_KEY') ? MJI_GOOGLE_PLACES_API_KEY : '';
+    if (!$api_key) return;
+
     // Google Maps JS API — loads async and calls window.initMJIAutocomplete when ready.
     wp_enqueue_script(
         'google-maps-places',
-        'https://maps.googleapis.com/maps/api/js?key=' . esc_attr($api_key) . '&libraries=places&callback=initMJIAutocomplete',
+        'https://maps.googleapis.com/maps/api/js?key=' . esc_attr($api_key) . '&libraries=places&loading=async&callback=initMJIAutocomplete',
         ['mji-checkout-autocomplete'],
         null,
         ['in_footer' => true, 'strategy' => 'async']
