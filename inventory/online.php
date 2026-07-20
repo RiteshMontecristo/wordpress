@@ -426,14 +426,39 @@ function mji_notify_online_sale($order, $sold_units, $reference_num)
         ? '<tr><td style="padding:4px 0;color:#666;">Shipping</td><td>$' . number_format($shipping_total, 2) . ' CAD</td></tr>'
         : '';
 
+    $phone = $order->get_billing_phone();
+
+    // Prefer the shipping address; fall back to billing (e.g. local pickup orders
+    // have no separate shipping address set).
+    $address_parts = array_filter([
+        $order->get_shipping_address_1(),
+        $order->get_shipping_address_2(),
+        $order->get_shipping_city(),
+        $order->get_shipping_state(),
+        $order->get_shipping_postcode(),
+        $order->get_shipping_country(),
+    ]);
+    if (!$address_parts) {
+        $address_parts = array_filter([
+            $order->get_billing_address_1(),
+            $order->get_billing_address_2(),
+            $order->get_billing_city(),
+            $order->get_billing_state(),
+            $order->get_billing_postcode(),
+            $order->get_billing_country(),
+        ]);
+    }
+    $full_address = implode(', ', $address_parts);
+
     $message = '<!DOCTYPE html><html><body style="font-family:sans-serif;color:#333;max-width:680px;">
                 <h2 style="border-bottom:2px solid #c9a96e;padding-bottom:8px;color:#222;">Online Order — Inventory Synced</h2>
                 <table style="border-collapse:collapse;width:100%;margin-bottom:20px;">
                 <tr><td style="padding:4px 0;width:150px;color:#666;">WC Order #</td><td><strong>' . esc_html($order->get_order_number()) . '</strong></td></tr>
                 <tr><td style="padding:4px 0;color:#666;">MJI Reference</td><td><strong>' . esc_html($reference_num) . '</strong></td></tr>
                 <tr><td style="padding:4px 0;color:#666;">Customer</td><td>' . esc_html($order->get_billing_first_name() . ' ' . $order->get_billing_last_name()) . '</td></tr>
-                <tr><td style="padding:4px 0;color:#666;">Province</td><td>' . esc_html($order->get_billing_state()) . '</td></tr>
+                <tr><td style="padding:4px 0;color:#666;">Phone</td><td>' . esc_html($phone ?: '—') . '</td></tr>
                 <tr><td style="padding:4px 0;color:#666;">Email</td><td>' . esc_html($order->get_billing_email()) . '</td></tr>
+                <tr><td style="padding:4px 0;color:#666;">Address</td><td>' . esc_html($full_address ?: '—') . '</td></tr>
                 <tr><td style="padding:4px 0;color:#666;">Payment</td><td>' . esc_html($order->get_payment_method_title()) . '</td></tr>
                 <tr><td style="padding:4px 0;color:#666;">WC Order Total</td><td>$' . number_format((float) $order->get_total(), 2) . ' CAD</td></tr>
                 ' . $shipping_row . '
@@ -620,9 +645,12 @@ function mji_sync_online_refund($refund_id, $args)
     );
 
     // Match WC refund line items to MJI order items by WC product/variant ID.
-    // If the admin issued an amount-only refund (no line items specified), $mji_items_to_return
-    // stays empty — inventory is left untouched and only the financial records are written.
-    // Staff must manually update unit status in that case.
+    // If the admin issued an amount-only refund (no line items specified), fall back to
+    // treating it as a full-order return only when the refund amount matches the entire
+    // order total AND nothing has been returned yet — the only case where "everything was
+    // returned" can be inferred without guessing which specific unit(s) came back. Any other
+    // amount-only refund (partial, or on an order with prior returns) is genuinely ambiguous
+    // and is left for staff to update manually.
     $mji_items_to_return = [];
     if (!empty($product_qty_map)) {
         $remaining = $product_qty_map;
@@ -635,6 +663,9 @@ function mji_sync_online_refund($refund_id, $args)
                 $remaining[$key]--;
             }
         }
+    } elseif (empty($already_returned) && abs($refund_amount - (float) $order->get_total()) < 0.01) {
+        $mji_items_to_return = $all_order_items;
+        custom_log("WC refund #{$refund_id} for order #{$order_id}: no line items specified, but refund amount matches the full order total — auto-restocking all units.");
     } else {
         custom_log("WC refund #{$refund_id} for order #{$order_id}: no line items specified — financial records written but inventory not updated. Update unit status manually if items were physically returned.");
     }
