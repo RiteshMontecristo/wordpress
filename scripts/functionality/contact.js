@@ -1,5 +1,19 @@
 import isValidEmail, { isValidPostalCode } from "../utils/index.js";
 
+const RECAPTCHA_SITE_KEY = "6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA";
+
+// Lazy-loads the reCAPTCHA script for pages where it isn't already eager-loaded
+// server-side (the site-wide contact modal, as opposed to the dedicated
+// contact/customize pages) - see conditional_recaptcha_script() in functions.php.
+let recaptchaRequested = false;
+function loadRecaptcha() {
+  if (recaptchaRequested || window.grecaptcha) return;
+  recaptchaRequested = true;
+  const script = document.createElement("script");
+  script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
+  document.head.appendChild(script);
+}
+
 // CONTACT US PAGE
 const contactUsFormContainer = document.querySelector(
   ".contact-form-container",
@@ -129,7 +143,7 @@ if (contactUsFormContainer) {
 
       grecaptcha.ready(async () => {
         const token = await grecaptcha.execute(
-          "6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA",
+          RECAPTCHA_SITE_KEY,
           { action: "contact_us" },
         );
         const data = new FormData(contactUsForm);
@@ -256,6 +270,7 @@ if (contactModal) {
   const modalSuccess = contactModal.querySelector("#contactSuccess");
 
   const openModal = (trigger = null) => {
+    loadRecaptcha();
     if (headerTitle) {
       headerTitle.textContent = trigger?.dataset?.modalTitle || defaultTitle;
     }
@@ -422,7 +437,7 @@ if (customizeContainer) {
 
       grecaptcha.ready(async () => {
         const token = await grecaptcha.execute(
-          "6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA",
+          RECAPTCHA_SITE_KEY,
           { action: "customize_contact_us" },
         );
 

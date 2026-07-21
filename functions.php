@@ -8,21 +8,12 @@ include_once get_stylesheet_directory() . '/inc/countries.php';
 
 function my_theme_enqueue_styles()
 {
-    $parent_style = 'parent-style';
-    wp_enqueue_style($parent_style, get_template_directory_uri() . '/style.css');
-
+    // Storefront's own class-storefront.php already enqueues: its css and our child css, it doesnt enqueue other css so had to manually enqueeu splide css
     wp_enqueue_style(
         'splide-style',
         get_stylesheet_directory_uri() . '/splidejs/splide-core.min.css',
         array(),
         '1.0.0'
-    );
-
-    wp_enqueue_style(
-        'child-style',
-        get_stylesheet_directory_uri() . '/style.css',
-        array($parent_style, "splide-style"),
-        wp_get_theme()->get('Version')
     );
 }
 
@@ -397,9 +388,13 @@ function add_span_to_primary_menu_items($items, $args)
 }
 add_filter('wp_nav_menu_objects', 'add_span_to_primary_menu_items', 10, 2);
 
-// Load reCAPTCHA on all pages — contact modal is now available site-wide
+// Only eager-load reCAPTCHA where a protected form is immediately visible
+// (contact page, customize-your-jewellery page). Everywhere else only the
+// hidden site-wide contact modal exists (footer.php), so reCAPTCHA is
+// lazy-loaded there instead when the modal is actually opene
 function conditional_recaptcha_script()
 {
+    if (!is_page(['contact', 'customize-your-jewellery'])) return;
     echo '<script src="https://www.google.com/recaptcha/api.js?render=6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA"></script>';
 }
 add_action('wp_footer', 'conditional_recaptcha_script');
