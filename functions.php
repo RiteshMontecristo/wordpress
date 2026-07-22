@@ -233,37 +233,43 @@ function responsive_video_shortcode($atts)
             'embed_code' => '',
         ),
         $atts,
-        'response_video'
+        'responsive_video'
     );
 
-    $maxres_url = "https://img.youtube.com/vi/{$atts['embed_code']}/maxresdefault.jpg";
-    // High-quality thumbnail URL as fallback
-    $hq_url = "https://img.youtube.com/vi/{$atts['embed_code']}/hqdefault.jpg";
+    $embed_code = $atts['embed_code'];
 
-    // Check if the max resolution thumbnail exists
+    $hq_url = "https://img.youtube.com/vi/{$embed_code}/hqdefault.jpg";
+    $sd_url = "https://img.youtube.com/vi/{$embed_code}/sddefault.jpg";
+    $maxres_url = "https://img.youtube.com/vi/{$embed_code}/maxresdefault.jpg";
+
     $context = stream_context_create(['http' => ['timeout' => 3]]);
-    $maxres_headers = get_headers($maxres_url, false, $context);
+    $maxres_headers = @get_headers($maxres_url, false, $context);
+    $has_maxres = $maxres_headers && strpos($maxres_headers[0], '200') !== false;
 
-    // If max resolution thumbnail exists, return it, otherwise use hqdefault
-    if ($maxres_headers && strpos($maxres_headers[0], '200') !== false) {
-        $imgUrl = $maxres_url;
-    } else {
-        $imgUrl = $hq_url;
+    // This component is reused at different display sizes across pages (a
+    // ~500px-wide column on the homepage today, potentially full-width
+    // elsewhere) - rather than hardcoding one resolution, offer every tier
+    // via srcset/sizes so the browser requests whichever one actually
+    // matches how large the image renders wherever this shortcode is used.
+    $srcset = "{$hq_url} 480w, {$sd_url} 640w";
+    if ($has_maxres) {
+        $srcset .= ", {$maxres_url} 1280w";
     }
-
 
     ob_start();
 ?>
 
     <div class="grid">
-        <div class="youtube-video-container" id="youtubeVideoContainer" data-video-id="<?php echo esc_attr($atts['embed_code']); ?>">
+        <div class="youtube-video-container" id="youtubeVideoContainer" data-video-id="<?php echo esc_attr($embed_code); ?>">
 
             <div class="video-thumbnail">
-                <?php
-                echo do_shortcode(
-                    '[responsive_image   desktop_image_url="' . $imgUrl . '"    mobile_image_url="' . $imgUrl . '" alt_text="Video Thumbnail" ]'
-                );
-                ?>
+                <img
+                    src="<?php echo esc_url($sd_url); ?>"
+                    srcset="<?php echo esc_attr($srcset); ?>"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    loading="lazy"
+                    decoding="async"
+                    alt="Video Thumbnail" />
                 <button class="video-play-btn">
                     <svg version="1.1" id="Calque_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
                         viewBox="0 0 15 15" style="enable-background:new 0 0 15 15;" xml:space="preserve">
@@ -277,7 +283,7 @@ function responsive_video_shortcode($atts)
 <?php
     return ob_get_clean();
 }
-add_shortcode('response_video', 'responsive_video_shortcode');
+add_shortcode('responsive_video', 'responsive_video_shortcode');
 
 // GTM SCRIPTS
 function add_gtm_to_head()

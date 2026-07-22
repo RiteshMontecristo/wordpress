@@ -3134,6 +3134,14 @@ form.contact-us .contact-footer .terms {
   position: relative;
 }
 
+.video-thumbnail img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  object-fit: cover;
+}
+
 .youtube-video-container button {
   position: absolute;
   top: 50%;

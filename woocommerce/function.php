@@ -156,58 +156,6 @@ function render_missing_alt_page()
 <?php
 }
 
-// For the youtube videos
-function responsive_video($atts)
-{
-    // Grabbing the attributes values
-    $atts = shortcode_atts(
-        array(
-            'embed_code' => '',
-        ),
-        $atts,
-        'response_video'
-    );
-
-    $maxres_url = "https://img.youtube.com/vi/{$atts['embed_code']}/maxresdefault.jpg";
-    // High-quality thumbnail URL as fallback
-    $hq_url = "https://img.youtube.com/vi/{$atts['embed_code']}/hqdefault.jpg";
-
-    // Check if the max resolution thumbnail exists
-    $context = stream_context_create(['http' => ['timeout' => 3]]);
-    $maxres_headers = get_headers($maxres_url, false, $context);
-
-    // If max resolution thumbnail exists, return it, otherwise use hqdefault
-    if ($maxres_headers && strpos($maxres_headers[0], '200') !== false) {
-        $imgUrl = $maxres_url;
-    } else {
-        $imgUrl = $hq_url;
-    }
-
-    ob_start();
-?>
-
-    <div class="grid">
-        <div class="youtube-video-container" id="youtubeVideo" data-video-id="<?php echo esc_attr($atts['embed_code']); ?>">
-
-            <div class="video-thumbnail">
-                <img src="<?php echo $imgUrl ?>" alt="Video Thumbnail" style="width: 100%;">
-
-                <button class="video-play-btn">
-                    <svg version="1.1" id="Calque_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-                        viewBox="0 0 15 15" style="enable-background:new 0 0 15 15;" xml:space="preserve">
-                        <path id="icons_x2F_play" class="st0" d="M13.6,7.5L1.4,15V0L13.6,7.5z" />
-                    </svg>
-
-                </button>
-            </div>
-        </div>
-    </div>
-    <?php
-    return ob_get_clean();
-}
-add_shortcode('facade_video', 'responsive_video');
-
-
 // Hide flat rate shipping when free shipping is available (orders over $1000)
 add_filter('woocommerce_package_rates', 'mji_hide_flat_rate_if_free_shipping_available', 10, 2);
 function mji_hide_flat_rate_if_free_shipping_available($rates, $package)

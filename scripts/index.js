@@ -40,7 +40,7 @@ if (document.getElementById("appointment-modal-overlay")) {
 
 // Youtube video player
 document.addEventListener("DOMContentLoaded", () => {
-  const videoContainer = document.querySelectorAll("#youtubeVideo");
+  const videoContainer = document.querySelectorAll("#youtubeVideoContainer");
 
   if (videoContainer) {
     videoContainer.forEach(function (placeholder) {
