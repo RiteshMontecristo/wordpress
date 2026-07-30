@@ -1168,8 +1168,8 @@ button.menu-toggle span::before {
   height: 100px;
   max-width: 150px !important;
   width: 150px;
-  filter: grayscale(100%);
-  opacity: 0.5;
+  /* filter: grayscale(100%); */
+  /* opacity: 0.5; */
   object-fit: contain;
 }
 
@@ -1177,7 +1177,7 @@ button.menu-toggle span::before {
 .parent-pageid-8680,
 .page-id-13752,
 .page-id-13748 {
-  opacity: 1;
+  /* opacity: 1; */
 }
 
 .home .rolex-article {
@@ -1510,7 +1510,7 @@ ul.products li.product .woocommerce-LoopProduct-link img {
   white-space: nowrap;
 }
 
-.category-description p {
+.category-description p:last-child {
   margin: 0;
 }
 
