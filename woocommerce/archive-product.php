@@ -51,10 +51,12 @@ if (woocommerce_product_loop()) {
 
 	$current_category = get_queried_object();
 
-	// Only for Brand Blancpain
-	if (isset($current_category->slug) && $current_category->slug === 'blancpain') {
-
-		// Get ordered subcategories
+	if (isset($current_category->slug) && $current_category->slug === 'montecristo') {
+		// Group montecristo products by jewellery then collection then uncategoriezed
+		$ordered_ids = mji_get_montecristo_grouped_product_ids();
+		mji_render_products_by_ids(array_slice($ordered_ids, 0, 12), true);
+	} elseif (isset($current_category->slug) && $current_category->slug === 'blancpain') {
+		// Blancpain groups by its own direct sub-collections
 		$children = get_terms([
 			'taxonomy' => 'product_cat',
 			'parent' => $current_category->term_id,
@@ -64,47 +66,7 @@ if (woocommerce_product_loop()) {
 		]);
 
 		if (!empty($children) && !is_wp_error($children)) {
-			$products_needed = 12;
-			$found_products = 0;
-
-
-			echo '<ul class="products columns-3">';
-
-			foreach ($children as $child) {
-				$remaining = $products_needed - $found_products;
-
-				if ($remaining <= 0) break;
-
-				$args = [
-					'post_type' => 'product',
-					'posts_per_page' => $remaining,
-					'tax_query' => [
-						[
-							'taxonomy' => 'product_cat',
-							'field' => 'term_id',
-							'terms' => $child->term_id
-						]
-					],
-					'no_found_rows' => true,
-					'post_status' => 'publish'
-				];
-
-				$loop = new WP_Query($args);
-
-				if ($loop->have_posts()) {
-					while ($loop->have_posts()) : $loop->the_post();
-						if ($found_products == 12) {
-							return;
-						}
-						wc_get_template_part('content', 'product');
-						$found_products++;
-					endwhile;
-				}
-
-				wp_reset_postdata();
-			}
-
-			echo '</ul>';
+			mji_render_products_grouped_by_categories($children, null, 12);
 		}
 	} else {
 		// For all other categories – default WooCommerce loop

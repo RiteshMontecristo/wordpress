@@ -557,10 +557,74 @@ function get_products_info()
     return $products;
 }
 
+// Renders products grouped by ordered categories in $children (12 max),
+// optionally requiring each product to also carry $extra_term_id.
+// Used for the initial page load of the blancpain and montecristo pages.
+function mji_render_products_grouped_by_categories($children, $extra_term_id, $products_needed)
+{
+    $found_products = 0;
+
+    echo '<ul class="products columns-3">';
+
+    foreach ($children as $child) {
+        $remaining = $products_needed - $found_products;
+
+        if ($remaining <= 0) {
+            break;
+        }
+
+        $tax_query = [
+            [
+                'taxonomy' => 'product_cat',
+                'field' => 'term_id',
+                'terms' => $child->term_id,
+            ],
+        ];
+
+        if ($extra_term_id) {
+            $tax_query['relation'] = 'AND';
+            $tax_query[] = [
+                'taxonomy' => 'product_cat',
+                'field' => 'term_id',
+                'terms' => $extra_term_id,
+            ];
+        }
+
+        $args = [
+            'post_type' => 'product',
+            'posts_per_page' => $remaining,
+            'tax_query' => $tax_query,
+            'orderby' => 'menu_order',
+            'order' => 'ASC',
+            'no_found_rows' => true,
+            'post_status' => 'publish',
+        ];
+
+        $loop = new WP_Query($args);
+
+        if ($loop->have_posts()) {
+            while ($loop->have_posts()) {
+                $loop->the_post();
+                wc_get_template_part('content', 'product');
+                $found_products++;
+            }
+        }
+
+        wp_reset_postdata();
+    }
+
+    echo '</ul>';
+}
+
 function filter_products()
 {
-    if (!isset($_GET['orderby']) && isset($_GET['brand']) && !empty($_GET['brand']) && sanitize_text_field($_GET['brand']) === "blancpain") {
+    $brand_param = isset($_GET['brand']) ? sanitize_text_field($_GET['brand']) : '';
+
+    if (!isset($_GET['orderby']) && $brand_param === "blancpain") {
         blancpain_products();
+        wp_die();
+    } elseif (!isset($_GET['orderby']) && empty($_GET['type']) && $brand_param === "montecristo") {
+        montecristo_products();
         wp_die();
     } else {
         // Query WooCommerce products
@@ -593,9 +657,13 @@ add_action('wp_ajax_nopriv_filter_products', 'filter_products'); // For non-logg
 
 function load_more()
 {
+    $brand_param = isset($_GET['brand']) ? sanitize_text_field($_GET['brand']) : '';
 
-    if (!isset($_GET['orderby']) && isset($_GET['brand']) && !empty($_GET['brand']) && sanitize_text_field($_GET['brand']) === "blancpain") {
+    if (!isset($_GET['orderby']) && $brand_param === "blancpain") {
         blancpain_products();
+        wp_die();
+    } elseif (!isset($_GET['orderby']) && empty($_GET['type']) && $brand_param === "montecristo") {
+        montecristo_products();
         wp_die();
     } else {
 
@@ -794,6 +862,186 @@ function blancpain_products()
 
     if ($total_products === 0) {
         echo "<h3 style='grid-column:1/-1;'>No products found</h3>";
+    }
+
+    $html = ob_get_clean();
+
+    wp_send_json(['html' => $html, 'total_products' => $total_products]);
+    wp_die();
+}
+
+// Groups montecristo products by the shared Jewellery "type" categories
+// for the Load More / filter AJAX requests, matching the initial page-load grouping
+// in archive-product.php. 
+// Builds one flat, de-duplicated, ordered list of montecristo product IDs:
+// grouped by Jewellery type only and within each type, sorted by the products'
+// own menu_order.
+function mji_get_montecristo_grouped_product_ids($tag_filters = [], $meta_query = [])
+{
+    $montecristo_term = get_term_by('slug', 'montecristo', 'product_cat');
+    $jewellery_term = get_term_by('slug', 'jewellery', 'product_cat');
+
+    if (!$montecristo_term || !$jewellery_term) {
+        return [];
+    }
+
+    $types = get_terms([
+        'taxonomy' => 'product_cat',
+        'parent' => $jewellery_term->term_id,
+        'orderby' => 'menu_order',
+        'order' => 'ASC',
+        'hide_empty' => false,
+    ]);
+
+    $all_ids_query = new WP_Query([
+        'post_type' => 'product',
+        'posts_per_page' => -1,
+        'fields' => 'ids',
+        'tax_query' => array_merge([
+            'relation' => 'AND',
+            [
+                'taxonomy' => 'product_cat',
+                'field' => 'term_id',
+                'terms' => $montecristo_term->term_id,
+            ],
+        ], $tag_filters),
+        'meta_query' => $meta_query,
+        'orderby' => 'menu_order',
+        'order' => 'ASC',
+        'post_status' => 'publish',
+    ]);
+
+    $all_ids = $all_ids_query->posts;
+    wp_reset_postdata();
+
+    if (empty($all_ids)) {
+        return [];
+    }
+
+    $product_terms = [];
+    foreach ($all_ids as $product_id) {
+        $terms = get_the_terms($product_id, 'product_cat');
+        $product_terms[$product_id] = $terms && !is_wp_error($terms) ? wp_list_pluck($terms, 'term_id') : [];
+    }
+
+    $used = [];
+    $ordered_ids = [];
+
+    foreach ($types as $type) {
+        foreach ($all_ids as $product_id) {
+            if (isset($used[$product_id])) {
+                continue;
+            }
+
+            if (in_array($type->term_id, $product_terms[$product_id], true)) {
+                $ordered_ids[] = $product_id;
+                $used[$product_id] = true;
+            }
+        }
+    }
+
+    // Fallback for a montecristo product with no jewellery type at all
+    foreach ($all_ids as $product_id) {
+        if (!isset($used[$product_id])) {
+            $ordered_ids[] = $product_id;
+        }
+    }
+
+    return $ordered_ids;
+}
+
+// Renders products for the given IDs in that exact order. $wrap_in_ul adds
+// the <ul class="products"> wrapper needed for a full page render, but not
+// for AJAX responses that get appended into an existing <ul> via JS.
+function mji_render_products_by_ids($ids, $wrap_in_ul = false)
+{
+    if ($wrap_in_ul) {
+        echo '<ul class="products columns-3">';
+    }
+
+    if (!empty($ids)) {
+        $query = new WP_Query([
+            'post_type' => 'product',
+            'post__in' => $ids,
+            'orderby' => 'post__in',
+            'posts_per_page' => count($ids),
+            'post_status' => 'publish',
+        ]);
+
+        while ($query->have_posts()) {
+            $query->the_post();
+            wc_get_template_part('content', 'product');
+        }
+
+        wp_reset_postdata();
+    }
+
+    if ($wrap_in_ul) {
+        echo '</ul>';
+    }
+}
+
+function montecristo_products()
+{
+    if (isset($_GET['brands']) && !empty($_GET['brands'])) {
+        $brands = array_map('sanitize_text_field', explode(',', $_GET['brands']));
+    }
+    if (isset($_GET['targetGroup']) && !empty($_GET['targetGroup'])) {
+        $targetGroup = array_map('sanitize_text_field', explode(',', $_GET['targetGroup']));
+    }
+    if (isset($_GET['materials']) && !empty($_GET['materials'])) {
+        $materials = array_map('sanitize_text_field', explode(',', $_GET['materials']));
+    }
+    if (isset($_GET['gemstone']) && !empty($_GET['gemstone'])) {
+        $gemstone = array_map('sanitize_text_field', explode(',', $_GET['gemstone']));
+    }
+    if (isset($_GET['gift']) && !empty($_GET['gift'])) {
+        $gift = array_map('sanitize_text_field', explode(',', $_GET['gift']));
+    }
+
+    $minPrice = isset($_GET['min_price']) ? floatval($_GET['min_price']) : 0;
+    $maxPrice = isset($_GET['max_price']) ? floatval($_GET['max_price']) : PHP_INT_MAX;
+
+    $page = isset($_GET['page']) ? absint($_GET['page']) : 0;
+    $posts_per_page = 12;
+    $offset = $page * $posts_per_page;
+
+    $tag_filters = [];
+    if (!empty($brands)) {
+        $tag_filters[] = ['taxonomy' => 'product_cat', 'field' => 'slug', 'terms' => $brands];
+    }
+    if (!empty($targetGroup)) {
+        $tag_filters[] = ['taxonomy' => 'product_tag', 'field' => 'slug', 'terms' => $targetGroup];
+    }
+    if (!empty($materials)) {
+        $tag_filters[] = ['taxonomy' => 'product_tag', 'field' => 'slug', 'terms' => $materials];
+    }
+    if (!empty($gemstone)) {
+        $tag_filters[] = ['taxonomy' => 'product_tag', 'field' => 'slug', 'terms' => $gemstone];
+    }
+    if (!empty($gift)) {
+        $tag_filters[] = ['taxonomy' => 'product_tag', 'field' => 'slug', 'terms' => $gift];
+    }
+
+    $meta_query = [
+        [
+            'key' => '_price',
+            'value' => [$minPrice, $maxPrice],
+            'compare' => 'BETWEEN',
+            'type' => 'NUMERIC',
+        ],
+    ];
+
+    $ordered_ids = mji_get_montecristo_grouped_product_ids($tag_filters, $meta_query);
+    $total_products = count($ordered_ids);
+    $page_ids = array_slice($ordered_ids, $offset, $posts_per_page);
+
+    ob_start();
+
+    if ($total_products === 0) {
+        echo "<h3 style='grid-column:1/-1;'>No products found</h3>";
+    } else {
+        mji_render_products_by_ids($page_ids, false);
     }
 
     $html = ob_get_clean();
