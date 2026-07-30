@@ -1978,7 +1978,9 @@ add_action('wp_footer', function (): void {
 
 // ─── Hide price for Montecristo brand products ────────────────────────────────
 add_filter('woocommerce_get_price_html', function (string $price, WC_Product $product): string {
-    $brands = wp_get_post_terms($product->get_id(), 'product_brand', ['fields' => 'slugs']);
+    // Variations don't carry their own taxonomy terms — only the parent product does.
+    $product_id = $product instanceof WC_Product_Variation ? $product->get_parent_id() : $product->get_id();
+    $brands = wp_get_post_terms($product_id, 'product_brand', ['fields' => 'slugs']);
     if (!is_wp_error($brands) && in_array('montecristo', $brands, true)) {
         return '';
     }
