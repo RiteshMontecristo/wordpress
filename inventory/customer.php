@@ -794,6 +794,8 @@ function view_customer_page()
     p.retail_price,
     p.cost_price,
     p.sku,
+    p.name,
+    p.image_id,
     m.name AS model_name,
     p.serial,
     c.first_name,
@@ -903,34 +905,9 @@ function view_customer_page()
         if (empty($row->order_item_id)) {
             continue;
         }
-        if ($row->wc_product_variant_id) {
-            $variation = wc_get_product($row->wc_product_variant_id);
-            $parent = wc_get_product($variation->get_parent_id());
 
-            // Get raw attributes from the variation
-            $attributes = $variation->get_attributes();
-
-            // Convert array to string
-            $flattened_attributes = implode(', ', $attributes);
-
-            $name = $parent->get_name();
-            if (!empty($flattened_attributes)) {
-                $name .= ' - ' . $flattened_attributes;
-            }
-
-            // Image: prefer variation image, fall back to parent
-            $image_id = $variation->get_image_id() ?: $parent->get_image_id();
-            $image = $image_id ? wp_get_attachment_image_src($image_id, 'thumbnail')[0] : '';
-        } else {
-            // Simple product
-            $product = wc_get_product($row->wc_product_id);
-            $name = $product->get_name();
-            $image_id = $product->get_image_id();
-            $image = $image_id ? wp_get_attachment_image_src($image_id, 'thumbnail')[0] : '';
-        }
-
-        $row->name = $name;
-        $row->image = $image;
+        $row->name  = $row->name ?: $row->sku;
+        $row->image = mji_get_unit_image_url($row, 'thumbnail');
     }
     $salespeople_array = mji_get_salespeople();
     $salesperson = current(array_filter($salespeople_array, function ($sp) use ($customer) {

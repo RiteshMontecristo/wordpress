@@ -498,24 +498,27 @@ function reports_render_sales_report($results)
                 continue; // Skip invalid products
             }
 
-            // Prefer variant over base product
-            $product_id = $row->product_variant_id ?: $row->product_id;
-            $product = $product_id ? wc_get_product($product_id) : null;
+            // only fall back to a live WC lookup for iamges thats not in the database.
+            $unit_img_url = mji_get_unit_image_url((object)['image_id' => $row->unit_image_id, 'wc_product_id' => $row->product_id], 'thumbnail');
+            $image        = '<img src="' . esc_url($unit_img_url) . '" width="50" height="50">';
+            $name         = $row->unit_name;
 
-            if ($product) {
-                $image = $product->get_image([50, 50]);
-                $name  = $product->get_name();
-                if ($product->is_type('variation')) {
-                    $parent = wc_get_product($product->get_parent_id());
-                    if ($parent) {
-                        $name = $parent->get_name() . ' - ' . wc_get_formatted_variation($product, true);
+            if (!$name) {
+                // Prefer variant over base product
+                $product_id = $row->product_variant_id ?: $row->product_id;
+                $product = $product_id ? wc_get_product($product_id) : null;
+
+                if ($product) {
+                    $name = $product->get_name();
+                    if ($product->is_type('variation')) {
+                        $parent = wc_get_product($product->get_parent_id());
+                        if ($parent) {
+                            $name = $parent->get_name() . ' - ' . wc_get_formatted_variation($product, true);
+                        }
                     }
                 }
-            } else {
-                $unit_img_url = mji_get_unit_image_url((object)['image_id' => $row->unit_image_id, 'wc_product_id' => $row->product_id], 'thumbnail');
-                $image        = '<img src="' . esc_url($unit_img_url) . '" width="50" height="50">';
-                $name         = esc_html($row->unit_name ?? $row->sku ?? '');
             }
+            $name = esc_html($name ?: ($row->sku ?? ''));
 
             echo '<tr>';
             echo '<td style="width:50px;">' . $image . '</td>';
