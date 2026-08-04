@@ -63,6 +63,14 @@ function add_module_attribute($tag, $handle, $src)
 }
 add_filter('script_loader_tag', 'add_module_attribute', 10, 3);
 
+// loading jquery in parallel with css in order to improve page speed
+function preload_jquery_scripts()
+{
+    echo '<link rel="preload" as="script" href="' . esc_url(includes_url('js/jquery/jquery.min.js')) . '">' . "\n";
+    echo '<link rel="preload" as="script" href="' . esc_url(includes_url('js/jquery/jquery-migrate.min.js')) . '">' . "\n";
+}
+add_action('wp_head', 'preload_jquery_scripts', 1);
+
 // Adding CMB@ functions
 require_once get_stylesheet_directory() . '/cmb2/fields.php';
 
