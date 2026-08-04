@@ -292,20 +292,33 @@ function add_gtm_to_head()
     <!-- Google Tag Manager -->
     <script>
         if (window.location.hostname !== 'lime-emu-121884.hostingersite.local') {
-            (function(w, d, s, l, i) {
-                w[l] = w[l] || [];
-                w[l].push({
-                    'gtm.start': new Date().getTime(),
-                    event: 'gtm.js'
-                });
-                var f = d.getElementsByTagName(s)[0],
-                    j = d.createElement(s),
-                    dl = l != 'dataLayer' ? '&l=' + l : '';
-                j.async = true;
-                j.src =
-                    'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
-                f.parentNode.insertBefore(j, f);
-            })(window, document, 'script', 'dataLayer', 'GTM-MQ42VSZ8');
+            let mjiGtmLoaded = false;
+
+            function mjiLoadGtm() {
+                if (mjiGtmLoaded) return;
+                mjiGtmLoaded = true;
+                clearTimeout(mjiGtmTimer);
+                (function(w, d, s, l, i) {
+                    w[l] = w[l] || [];
+                    w[l].push({
+                        'gtm.start': new Date().getTime(),
+                        event: 'gtm.js'
+                    });
+                    var f = d.getElementsByTagName(s)[0],
+                        j = d.createElement(s),
+                        dl = l != 'dataLayer' ? '&l=' + l : '';
+                    j.async = true;
+                    j.src =
+                        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+                    f.parentNode.insertBefore(j, f);
+                })(window, document, 'script', 'dataLayer', 'GTM-MQ42VSZ8');
+            }
+            // Delay GTM until the visitor actually does something, or after
+            // 5s regardless (so a visitor who only reads still gets tracked).
+            ['mousemove', 'scroll', 'keydown', 'touchstart', 'click'].forEach(function(evt) {
+                window.addEventListener(evt, mjiLoadGtm, { passive: true, once: true });
+            });
+            const mjiGtmTimer = setTimeout(mjiLoadGtm, 5000);
         }
     </script>
     <!-- End Google Tag Manager -->
