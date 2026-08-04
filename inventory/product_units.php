@@ -672,6 +672,9 @@ function create_inventory_units()
                 ]);
             }
 
+            // Keep name/description/image_id in sync with WC — this AJAX flow
+            items_sync_wc_to_units($variation_id ?: $product_id);
+
             if ($current_status === 'sold') {
                 $wpdb->query('COMMIT');
                 wp_send_json_success($result);
@@ -765,6 +768,10 @@ function create_inventory_units()
                     'errors'  => 'Database error: ' . $db_error,
                 ]);
             }
+
+            // Populate name/description/image_id from WC — this AJAX flow
+            items_sync_wc_to_units($variation_id ?: $product_id);
+
             // if price changed, need to change woocommerce products price and quantity change as well
             if ($variation) {
                 $wc_retail_price = $variation->get_price();
@@ -1430,4 +1437,36 @@ function sync_product_collections($unit_id, $collection_names)
     }
 
     return $new_ids;
+}
+
+// Deleting a WC product (or one of its variations) will remove items woocommerce id in the database as well
+add_action('before_delete_post', 'mji_unlink_deleted_wc_product');
+function mji_unlink_deleted_wc_product($post_id)
+{
+    $post_type = get_post_type($post_id);
+
+    if ($post_type === 'product') {
+        global $wpdb;
+        // Use raw query — $wpdb->update() casts null to '' instead of NULL
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}mji_product_inventory_units
+             SET wc_product_id = NULL, wc_product_variant_id = NULL
+             WHERE wc_product_id = %d",
+            $post_id
+        ));
+        if ($wpdb->last_error) {
+            custom_log("Failed to unlink deleted WC product #{$post_id} from inventory units: " . $wpdb->last_error);
+        }
+    } elseif ($post_type === 'product_variation') {
+        global $wpdb;
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}mji_product_inventory_units
+             SET wc_product_variant_id = NULL
+             WHERE wc_product_variant_id = %d",
+            $post_id
+        ));
+        if ($wpdb->last_error) {
+            custom_log("Failed to unlink deleted WC product variation #{$post_id} from inventory units: " . $wpdb->last_error);
+        }
+    }
 }
