@@ -1122,7 +1122,7 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
 
             $row = $wpdb->get_row(
                 $wpdb->prepare(
-                    "SELECT status, location_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d FOR UPDATE",
+                    "SELECT status, location_id, wc_product_id, wc_product_variant_id FROM {$wpdb->prefix}mji_product_inventory_units WHERE id = %d FOR UPDATE",
                     $item->unit_id
                 )
             );
@@ -1169,20 +1169,27 @@ function insert_order_and_items($order_data, $items_data, $services_data, $payme
                 }
 
                 // UPDATE WOOCOMMERCE STOCK
-                $product_id = $item->product_variant_id ?: $item->product_id;
+                $product_id = $row->wc_product_variant_id ?: $row->wc_product_id;
                 if ($product_id) {
                     $product = wc_get_product($product_id);
                     if (!$product) {
-                        throw new RuntimeException("WooCommerce product not found for {$item->title}");
+                        // WC product/variation was deleted after being linked — self-heal the stale reference rather than blocking the sale over it.
+                        $stale_column = $row->wc_product_variant_id ? 'wc_product_variant_id' : 'wc_product_id';
+                        $wpdb->query($wpdb->prepare(
+                            "UPDATE {$wpdb->prefix}mji_product_inventory_units SET {$stale_column} = NULL WHERE id = %d",
+                            $item->unit_id
+                        ));
+                        custom_log("WC product #{$product_id} no longer exists for unit {$item->unit_id} ({$item->title}); cleared stale {$stale_column}.");
+                    } else {
+                        if ($product->get_stock_quantity() === null) {
+                            throw new RuntimeException("WooCommerce stock is not managed for {$item->title} — enable stock management in WooCommerce first.");
+                        }
+                        $result = wc_update_product_stock($product_id, 1, 'decrease');
+                        if ($result === false) {
+                            throw new RuntimeException("Failed to decrease WooCommerce stock for {$item->title} (ID: {$product_id}).");
+                        }
+                        $deducted_stock[] = $product_id;
                     }
-                    if ($product->get_stock_quantity() === null) {
-                        throw new RuntimeException("WooCommerce stock is not managed for {$item->title} — enable stock management in WooCommerce first.");
-                    }
-                    $result = wc_update_product_stock($product_id, 1, 'decrease');
-                    if ($result === false) {
-                        throw new RuntimeException("Failed to decrease WooCommerce stock for {$item->title} (ID: {$product_id}).");
-                    }
-                    $deducted_stock[] = $product_id;
                 }
             } else {
                 throw new RuntimeException("Item {$item->title} is already sold or is reserved.");
