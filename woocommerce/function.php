@@ -1976,8 +1976,11 @@ add_action('wp_footer', function (): void {
         . '</script>';
 });
 
-// ─── Hide price for Montecristo brand products ────────────────────────────────
+// ─── Hide price for Montecristo brand products (storefront only — not wp-admin) ──
 add_filter('woocommerce_get_price_html', function (string $price, WC_Product $product): string {
+    if (is_admin()) {
+        return $price;
+    }
     // Variations don't carry their own taxonomy terms — only the parent product does.
     $product_id = $product instanceof WC_Product_Variation ? $product->get_parent_id() : $product->get_id();
     $brands = wp_get_post_terms($product_id, 'product_brand', ['fields' => 'slugs']);
