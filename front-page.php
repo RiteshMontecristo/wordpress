@@ -43,7 +43,7 @@ get_header(); ?>
                                         <picture>
                                             <source srcset="<?php echo $mobileImage; ?>" media="(max-width: 767px)">
                                             <source srcset="<?php echo $image; ?>" media="(min-width: 767px)">
-                                            <img class="exclude-litespeed-lazyload" fetchpriority="high" loading="eager" fetchpriority="high" src="<?php echo $image; ?>" alt="<?php echo $image_alt; ?>" width="2000" height="920" title="<?php echo $image_alt; ?>">
+                                            <img class="exclude-litespeed-lazyload" decoding="async" loading="eager" fetchpriority="high" src="<?php echo $image; ?>" alt="<?php echo esc_attr($image_alt) ?>" width="2000" height="920" title="<?php echo esc_attr($image_alt) ?>">
                                         </picture>
                                     </a>
                                 </li>

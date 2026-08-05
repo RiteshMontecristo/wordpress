@@ -9,31 +9,39 @@ include_once get_stylesheet_directory() . '/inc/countries.php';
 function my_theme_enqueue_styles()
 {
     // Storefront's own class-storefront.php already enqueues: its css and our child css, it doesnt enqueue other css so had to manually enqueeu splide css
-    wp_enqueue_style(
-        'splide-style',
-        get_stylesheet_directory_uri() . '/splidejs/splide-core.min.css',
-        array(),
-        '1.0.0'
-    );
+    if (is_front_page()) {
+        wp_enqueue_style(
+            'splide-style',
+            get_stylesheet_directory_uri() . '/splidejs/splide-core.min.css',
+            array(),
+            '1.0.0'
+        );
+    }
 }
 
 function my_load_scripts()
 {
-    wp_enqueue_script(
-        'splidejs-script',
-        get_stylesheet_directory_uri() . '/splidejs/splide.min.js',
-        array(),
-        '1.0.0',
-        array(
-            'in_footer' => true,
-            'strategy'  => 'defer',
-        )
-    );
+    $normal_script_deps = array();
+
+    if (is_front_page()) {
+        wp_enqueue_script(
+            'splidejs-script',
+            get_stylesheet_directory_uri() . '/splidejs/splide.min.js',
+            array(),
+            '1.0.0',
+            array(
+                'in_footer' => true,
+                'strategy'  => 'defer',
+            )
+        );
+
+        $normal_script_deps[] = 'splidejs-script';
+    }
 
     wp_enqueue_script(
         'normal-script',
         get_stylesheet_directory_uri() . '/scripts/index.js',
-        array('splidejs-script'),
+        $normal_script_deps,
         '1.0.0',
         array(
             'in_footer' => true,
