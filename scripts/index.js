@@ -1,41 +1,45 @@
-import "./functionality/header.js";
-import "./functionality/live-search.js";
-import "./functionality/cart-modal.js";
-import "./functionality/products.js";
-import "./functionality/homepage.js";
-import "./functionality/cookie.js";
+// Cache-busting query string, shared with every dynamically imported module below.
+const V = window.ajax_object_another?.asset_version ?? "";
+const qs = V ? `?v=${V}` : "";
+
+import(`./functionality/header.js${qs}`);
+import(`./functionality/live-search.js${qs}`);
+import(`./functionality/cart-modal.js${qs}`);
+import(`./functionality/products.js${qs}`);
+import(`./functionality/homepage.js${qs}`);
+import(`./functionality/cookie.js${qs}`);
 
 const path = window.location.pathname;
 
 if (path.includes("blog")) {
-  import("./functionality/blogs.js");
+  import(`./functionality/blogs.js${qs}`);
 } else if (
   path.includes("contact") ||
   path.includes("customize-your-jewellery")
 ) {
-  import("./functionality/contact.js");
+  import(`./functionality/contact.js${qs}`);
 } else if (path.includes("my-account")) {
-  import("./functionality/favourite.js");
+  import(`./functionality/favourite.js${qs}`);
 }
 
 // Load block cart sub-brand injection on cart/checkout when Montecristo items are present
 if (window.mjiBlockCartSubBrands) {
-  import("./functionality/block-cart-subbrand.js");
+  import(`./functionality/block-cart-subbrand.js${qs}`);
 }
 
 // Load notify-me JS only when an out-of-stock product has the trigger button
 if (document.querySelector(".mji-open-notify-modal")) {
-  import("./functionality/notify-me.js");
+  import(`./functionality/notify-me.js${qs}`);
 }
 
 // Load contact form JS whenever the contact modal is present in the page
 // (e.g. single product pages)
 if (document.getElementById("contact-modal-overlay")) {
-  import("./functionality/contact.js");
+  import(`./functionality/contact.js${qs}`);
 }
 
 if (document.getElementById("appointment-modal-overlay")) {
-  import("./functionality/appointment-modal.js");
+  import(`./functionality/appointment-modal.js${qs}`);
 }
 
 // Youtube video player

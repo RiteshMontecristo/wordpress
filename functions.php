@@ -19,6 +19,33 @@ function my_theme_enqueue_styles()
     }
 }
 
+// Shared cache-busting version for scripts/index.js and everything it dynamically
+function mji_scripts_version()
+{
+    static $version = null;
+    if ($version !== null) {
+        return $version;
+    }
+
+    $dir = get_stylesheet_directory() . '/scripts';
+    $files = array_merge(
+        glob($dir . '/*.js') ?: [],
+        glob($dir . '/functionality/*.js') ?: [],
+        glob($dir . '/utils/*.js') ?: []
+    );
+
+    $latest = 0;
+    foreach ($files as $file) {
+        $mtime = filemtime($file);
+        if ($mtime > $latest) {
+            $latest = $mtime;
+        }
+    }
+
+    $version = $latest ?: time();
+    return $version;
+}
+
 function my_load_scripts()
 {
     $normal_script_deps = array();
@@ -38,11 +65,13 @@ function my_load_scripts()
         $normal_script_deps[] = 'splidejs-script';
     }
 
+    $scripts_version = mji_scripts_version();
+
     wp_enqueue_script(
         'normal-script',
         get_stylesheet_directory_uri() . '/scripts/index.js',
         $normal_script_deps,
-        '1.0.0',
+        $scripts_version,
         array(
             'in_footer' => true,
             'strategy'  => 'defer',
@@ -55,6 +84,7 @@ function my_load_scripts()
         'add_to_cart_nonce' => wp_create_nonce('mc_add_to_cart'),
         'notify_nonce'      => wp_create_nonce('mji_notify_me_nonce'),
         'search_nonce'      => wp_create_nonce('mji_live_product_search_nonce'),
+        'asset_version'     => $scripts_version,
     ));
 }
 add_action('wp_enqueue_scripts', 'my_load_scripts');
@@ -96,7 +126,7 @@ add_action('wp_enqueue_scripts', function () {
         'mji-checkout-autocomplete',
         get_stylesheet_directory_uri() . '/scripts/functionality/checkout-autocomplete.js',
         [],
-        wp_get_theme()->get('Version'),
+        filemtime(get_stylesheet_directory() . '/scripts/functionality/checkout-autocomplete.js'),
         ['in_footer' => true]
     );
 

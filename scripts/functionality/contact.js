@@ -1,4 +1,8 @@
-import isValidEmail, { isValidPostalCode } from "../utils/index.js";
+const V = window.ajax_object_another?.asset_version ?? "";
+const qs = V ? `?v=${V}` : "";
+const { default: isValidEmail, isValidPostalCode } = await import(
+  `../utils/index.js${qs}`
+);
 
 const RECAPTCHA_SITE_KEY = "6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA";
 
