@@ -1,4 +1,6 @@
-import { AppState } from "./state.js";
+const V = window.ajax_inventory?.asset_version ?? "";
+const qs = V ? `?v=${V}` : "";
+const { AppState } = await import(`./state.js${qs}`);
 
 export const ServiceSelector = {
   init() {

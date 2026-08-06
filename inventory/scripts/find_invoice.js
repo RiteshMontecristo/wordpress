@@ -1,4 +1,6 @@
-import { formatCurrency } from "./index.js";
+const V = window.ajax_inventory?.asset_version ?? "";
+const qs = V ? `?v=${V}` : "";
+const { formatCurrency } = await import(`./shared.js${qs}`);
 
 const issueCreditBtn = document.querySelector("#issue_credit");
 const creditEl = document.querySelector("#credit");

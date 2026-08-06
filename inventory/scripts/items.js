@@ -1,4 +1,6 @@
-import { esc } from "./index.js";
+const V = window.ajax_inventory?.asset_version ?? "";
+const qs = V ? `?v=${V}` : "";
+const { esc } = await import(`./shared.js${qs}`);
 
 const { ajax_url, nonce } = window.ajax_inventory;
 

@@ -1434,9 +1434,40 @@ function mji_insert_unit_history(
     ) !== false;
 }
 
+// Shared cache-busting version for inventory/scripts/index.js and everything it
+// dynamically imports (sales.js, sales-module/*.js, find_invoice.js, items.js, etc.).
+// Every relative import in that tree is versioned with this same value, so any one
+// file changing invalidates the whole graph consistently — never a mix of old/new
+// module instances of the same file. See mji_scripts_version() for the storefront
+// equivalent.
+function mji_inventory_scripts_version() {
+    static $version = null;
+    if ($version !== null) {
+        return $version;
+    }
+
+    $dir = get_stylesheet_directory() . '/inventory/scripts';
+    $files = array_merge(
+        glob($dir . '/*.js') ?: [],
+        glob($dir . '/sales-module/*.js') ?: []
+    );
+
+    $latest = 0;
+    foreach ($files as $file) {
+        $mtime = filemtime($file);
+        if ($mtime > $latest) {
+            $latest = $mtime;
+        }
+    }
+
+    $version = $latest ?: time();
+    return $version;
+}
+
 function mji_enqueue_admin_scripts(string $hook): void {
     $dir  = get_stylesheet_directory_uri();
     $path = get_stylesheet_directory();
+    $inventory_scripts_version = mji_inventory_scripts_version();
 
     // WC product edit page — only needs admin.css + inventory_unit.css
     if (in_array($hook, ['post.php', 'post-new.php'], true)) {
@@ -1444,11 +1475,12 @@ function mji_enqueue_admin_scripts(string $hook): void {
         if ($screen && $screen->post_type === 'product') {
             wp_enqueue_script('zebra-printer',   $dir . '/inventory/scripts/printer/BrowserPrint-3.1.250.min.js',       [], '3.7', true);
             wp_enqueue_script('zebra-printer-2', $dir . '/inventory/scripts/printer/BrowserPrint-Zebra-1.1.250.min.js', [], '3.7', true);
-            wp_enqueue_script('admin-script', $dir . '/inventory/scripts/index.js', ['zebra-printer', 'zebra-printer-2'], filemtime($path . '/inventory/scripts/index.js'), true);
+            wp_enqueue_script('admin-script', $dir . '/inventory/scripts/index.js', ['zebra-printer', 'zebra-printer-2'], $inventory_scripts_version, true);
             wp_localize_script('admin-script', 'ajax_inventory', [
                 'ajax_url'            => admin_url('admin-ajax.php'),
                 'nonce'               => wp_create_nonce('mji_inventory_nonce'),
                 'placeholder_img_url' => wc_placeholder_img_src('thumbnail'),
+                'asset_version'       => $inventory_scripts_version,
             ]);
             wp_enqueue_style('admin-style',          $dir . '/inventory/styles/admin.css',          [], filemtime($path . '/inventory/styles/admin.css'));
             wp_enqueue_style('inventory-unit-style', $dir . '/inventory/styles/inventory_unit.css', [], filemtime($path . '/inventory/styles/inventory_unit.css'));
@@ -1471,13 +1503,14 @@ function mji_enqueue_admin_scripts(string $hook): void {
     wp_enqueue_script('zebra-printer',   $dir . '/inventory/scripts/printer/BrowserPrint-3.1.250.min.js',       [], '3.7',    true);
     wp_enqueue_script('zebra-printer-2', $dir . '/inventory/scripts/printer/BrowserPrint-Zebra-1.1.250.min.js', [], '3.7',    true);
     wp_enqueue_script('sheetjs',         'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js',   [], '0.18.7', true);
-    wp_enqueue_script('admin-script',    $dir . '/inventory/scripts/index.js', ['zebra-printer', 'zebra-printer-2', 'sheetjs'], filemtime($path . '/inventory/scripts/index.js'), true);
+    wp_enqueue_script('admin-script',    $dir . '/inventory/scripts/index.js', ['zebra-printer', 'zebra-printer-2', 'sheetjs'], $inventory_scripts_version, true);
     wp_localize_script('admin-script', 'ajax_inventory', [
         'ajax_url'             => admin_url('admin-ajax.php'),
         'nonce'                => wp_create_nonce('mji_inventory_nonce'),
         'sales_css_url'        => $dir . '/inventory/styles/sales.css',
         'find_invoice_css_url' => $dir . '/inventory/styles/find_invoice.css',
         'placeholder_img_url'  => wc_placeholder_img_src('thumbnail'),
+        'asset_version'        => $inventory_scripts_version,
     ]);
 
     // Shared CSS — all inventory pages

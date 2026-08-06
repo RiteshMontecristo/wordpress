@@ -1,51 +1,39 @@
-import "./print.js";
-import "./inventory_unit.js";
+// Cache-busting query string, shared with every dynamically imported module below
+// (and with sales.js/sales-module's own imports — see mji_inventory_scripts_version()
+// in inventory/functions.php). Every relative import anywhere in inventory/scripts/
+// must use this same value, or a file reachable via two different paths ends up as
+// two separate module instances (e.g. one initialized, one not).
+const V = window.ajax_inventory?.asset_version ?? "";
+const qs = V ? `?v=${V}` : "";
+
+import(`./print.js${qs}`);
+import(`./inventory_unit.js${qs}`);
 
 if (window.location.href.includes("/admin.php?page=inventory-management")) {
-  import("./sales.js").catch((error) =>
+  import(`./sales.js${qs}`).catch((error) =>
     console.error("Error loading inventory module:", error),
   );
 }
 
 if (window.location.href.includes("/admin.php?page=customer-management")) {
-  import("./customer.js").catch((error) =>
+  import(`./customer.js${qs}`).catch((error) =>
     console.error("Error loading inventory module:", error),
   );
 }
 if (window.location.href.includes("/admin.php?page=reports-management")) {
-  import("./report.js").catch((error) =>
+  import(`./report.js${qs}`).catch((error) =>
     console.error("Error loading inventory module:", error),
   );
 }
 if (window.location.href.includes("/admin.php?page=invoice-management")) {
-  import("./find_invoice.js").catch((error) =>
+  import(`./find_invoice.js${qs}`).catch((error) =>
     console.error("Error loading invoice module:", error),
   );
 }
 if (window.location.href.includes("/admin.php?page=items-management")) {
-  import("./items.js").catch((error) =>
+  import(`./items.js${qs}`).catch((error) =>
     console.error("Error loading items module:", error),
   );
-}
-
-export function formatCurrency(amount) {
-  return amount.toFixed(2);
-}
-
-export function formatLabel(input) {
-  return input
-    .split(/[^a-zA-Z0-9]+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
-export function esc(str) {
-  return String(str ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 document.addEventListener(

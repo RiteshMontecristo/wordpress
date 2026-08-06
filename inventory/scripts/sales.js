@@ -1,10 +1,31 @@
-import { StoreSelector } from "./sales-module/store.js";
-import { CustomerSelector } from "./sales-module/customer.js";
-import { LayawaySelector } from "./sales-module/layaway.js";
-import { ServiceSelector } from "./sales-module/service.js";
-import { ProductSelector } from "./sales-module/product.js";
-import { CartSelector } from "./sales-module/cart.js";
-import { CheckoutSelector } from "./sales-module/checkout.js";
+// Same cache-busting version as index.js — every relative import in this file and
+// everything it loads must resolve to the identical URL as sales.js's own import of
+// the same file, or that file gets loaded twice as two separate module instances.
+const V = window.ajax_inventory?.asset_version ?? "";
+const qs = V ? `?v=${V}` : "";
+
+// Dynamic + Promise.all instead of static imports: static imports guarantee
+// StoreSelector etc. are ready the instant this file's top-level code runs, which
+// is what let .init() be called unconditionally right below. Dynamic imports don't
+// make that guarantee — they resolve later — so everything that used to run right
+// after the import block now has to wait for all seven to resolve first.
+const [
+  { StoreSelector },
+  { CustomerSelector },
+  { LayawaySelector },
+  { ServiceSelector },
+  { ProductSelector },
+  { CartSelector },
+  { CheckoutSelector },
+] = await Promise.all([
+  import(`./sales-module/store.js${qs}`),
+  import(`./sales-module/customer.js${qs}`),
+  import(`./sales-module/layaway.js${qs}`),
+  import(`./sales-module/service.js${qs}`),
+  import(`./sales-module/product.js${qs}`),
+  import(`./sales-module/cart.js${qs}`),
+  import(`./sales-module/checkout.js${qs}`),
+]);
 
 StoreSelector.init();
 CustomerSelector.init();
@@ -25,19 +46,3 @@ document.addEventListener("displayCart", (e) => {
 document.addEventListener("call:calculateTotal", () => {
   CheckoutSelector.calculateTotal();
 });
-
-const DOM = {
-  divs: {
-    searchCustomer: document.querySelector("#search-customer"),
-    layawayDetails: document.querySelector("#layawayDetails"),
-    addLayaway: document.querySelector("#addLayawayForm"),
-    layawayReceipt: document.querySelector("#layawayReceipt"),
-    searchProducts: document.querySelector("#search-products"),
-    cart: document.querySelector("#cart"),
-  },
-};
-
-export function showSelection(selection) {
-  Object.values(DOM.divs).forEach((div) => div.classList.add("hidden"));
-  selection.classList.remove("hidden");
-}
