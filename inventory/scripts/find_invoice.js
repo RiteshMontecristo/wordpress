@@ -1,6 +1,8 @@
 const V = window.ajax_inventory?.asset_version ?? "";
 const qs = V ? `?v=${V}` : "";
-const { formatCurrency } = await import(`./shared.js${qs}`);
+const { formatCurrency, esc, formatBulletedDescription } = await import(
+  `./shared.js${qs}`
+);
 
 const issueCreditBtn = document.querySelector("#issue_credit");
 const creditEl = document.querySelector("#credit");
@@ -206,16 +208,16 @@ function createRefundReceipt(data, type) {
               (el) => `
             <tr>
               <td colspan="2" class="item">
-                <img class="item-image" src="${el.image_url}" />
+                <img class="item-image" src="${esc(el.image_url)}" />
                 <br />
-                ${el.description.split("•").join("<br />•")}
+                ${formatBulletedDescription(el.description)}
                 <br />
-                SKU: ${el.sku}
+                SKU: ${esc(el.sku)}
                 <br />
-                ${el.serial ? "Serial: " + el.serial + "<br />" : ""}
-                Sold Price: ${el.price}
+                ${el.serial ? "Serial: " + esc(el.serial) + "<br />" : ""}
+                Sold Price: ${esc(el.price)}
                 <br />
-                Returned Price: ${el.returned_price}
+                Returned Price: ${esc(el.returned_price)}
               </td>
             </tr>
           `,
@@ -226,11 +228,11 @@ function createRefundReceipt(data, type) {
               (el) => `
             <tr>
               <td colspan="2" class="item">
-              ${el.category} <br />
-              ${el.description ? "Description: " + el.description + "<br />" : ""}
-              Sold Price: ${el.sold_price}
+              ${esc(el.category)} <br />
+              ${el.description ? "Description: " + esc(el.description) + "<br />" : ""}
+              Sold Price: ${esc(el.sold_price)}
               <br />
-              Returned Price: ${el.returned_price}
+              Returned Price: ${esc(el.returned_price)}
               </td>
             </tr>
           `,

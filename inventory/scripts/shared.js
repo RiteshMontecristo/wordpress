@@ -17,3 +17,8 @@ export function esc(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+export function formatBulletedDescription(str) {
+  const cleaned = String(str ?? "").replace(/<br\s*\/?>/gi, " ");
+  return esc(cleaned).split("•").join("<br />•");
+}

@@ -1,12 +1,15 @@
 const V = window.ajax_inventory?.asset_version ?? "";
 const qs = V ? `?v=${V}` : "";
 
-const [{ formatCurrency, formatLabel, esc }, { showSelection }, { AppState }] =
-  await Promise.all([
-    import(`../shared.js${qs}`),
-    import(`./shared.js${qs}`),
-    import(`./state.js${qs}`),
-  ]);
+const [
+  { formatCurrency, formatLabel, esc, formatBulletedDescription },
+  { showSelection },
+  { AppState },
+] = await Promise.all([
+  import(`../shared.js${qs}`),
+  import(`./shared.js${qs}`),
+  import(`./state.js${qs}`),
+]);
 
 export const CheckoutSelector = {
   TAX_RATES: { GST: 0.05, PST: 0.07 },
@@ -329,7 +332,7 @@ export const CheckoutSelector = {
                     <tr>
                       <td>
                           <img src="${esc(item.image_url)}" /><br />
-                          ${esc(item.description).split("•").join("<br />•")}
+                          ${formatBulletedDescription(item.description)}
                           <br>•SKU: ${esc(item.sku)}
                           <br>•Serial: ${esc(item.serial)}
                       </td>
