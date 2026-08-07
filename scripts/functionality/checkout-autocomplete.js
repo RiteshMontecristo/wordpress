@@ -1,5 +1,16 @@
 const bindings = {};
 
+const DOMESTIC_COUNTRIES = ["CA", "US"];
+
+function getSelectedShippingCountry() {
+  const el =
+    document.querySelector("#shipping-country") ||
+    document.querySelector('select[autocomplete="shipping country"]') ||
+    document.querySelector("#billing-country") ||
+    document.querySelector('select[autocomplete="billing country"]');
+  return el?.value || "";
+}
+
 function injectDeliveryDates() {
   const estimates = window.mjiShippingEstimates;
   if (!estimates) return;
@@ -10,11 +21,17 @@ function injectDeliveryDates() {
   );
   if (!shippingSection) return;
 
+  const zone = DOMESTIC_COUNTRIES.includes(getSelectedShippingCountry())
+    ? "domestic"
+    : "international";
+  const zoneEstimates = estimates[zone];
+  if (!zoneEstimates) return;
+
   shippingSection.querySelectorAll('input[type="radio"]').forEach((input) => {
     if (input.dataset.mjDeliveryInjected) return;
 
     const methodType = (input.value || "").split(":")[0];
-    const dateRange = estimates[methodType];
+    const dateRange = zoneEstimates[methodType];
     if (!dateRange) return;
 
     const label =

@@ -156,10 +156,17 @@ function render_missing_alt_page()
 <?php
 }
 
-// Hide flat rate shipping when free shipping is available (orders over $1000)
+// Hide flat rate shipping when free shipping is available (orders over $1000).
+// Domestic (CA/US) only — international (Rest of World) has no free shipping yet,
+// so its flat rate must never be suppressed. Revisit if/when intl free shipping ships.
 add_filter('woocommerce_package_rates', 'mji_hide_flat_rate_if_free_shipping_available', 10, 2);
 function mji_hide_flat_rate_if_free_shipping_available($rates, $package)
 {
+    $country = $package['destination']['country'] ?? '';
+    if (!in_array($country, ['CA', 'US'], true)) {
+        return $rates;
+    }
+
     $has_free = array_filter($rates, fn($rate) => $rate->method_id === 'free_shipping');
     if (!empty($has_free)) {
         // Keep free_shipping and local pickup — hide flat_rate only.
@@ -1848,9 +1855,6 @@ function mji_remove_ineligible_cart_items(string $country): array
     return $removed;
 }
 
-// Note: the store-API and check-cart-items auto-removal hooks have been removed.
-// Country restrictions are now enforced only at checkout (woocommerce_checkout_process above),
-// so customers can keep restricted items in their cart and ship to a recipient in an allowed country.
 
 /**
  * Display the session notice (set by the Store API hook above) on the next render.
@@ -1897,7 +1901,6 @@ add_action('wp_footer', function (): void {
 
 /**
  * Calculates an estimated delivery date range skipping weekends.
- * Returns e.g. "July 4–8" or "June 30 – July 3".
  */
 function mji_estimated_delivery(int $min_days, int $max_days): string
 {
@@ -1933,18 +1936,19 @@ add_action('wp_footer', function (): void {
     $tz  = new DateTimeZone('America/Vancouver');
     $now = new DateTime('now', $tz);
 
-    // Shipping method estimated delivery ranges.
-    $estimates = [
-        'flat_rate'     => [3, 5],
-        'free_shipping' => [3, 5],
+    // Shipping method estimated delivery ranges, domestic (CA/US) vs international.
+    $estimate_ranges = [
+        'domestic'      => ['flat_rate' => [3, 5],  'free_shipping' => [3, 5]],
+        'international' => ['flat_rate' => [7, 14], 'free_shipping' => [7, 14]],
     ];
 
     $shipping_data = [];
-    foreach ($estimates as $method_id => [$min, $max]) {
-        $shipping_data[$method_id] = mji_estimated_delivery($min, $max);
+    foreach ($estimate_ranges as $zone => $methods) {
+        foreach ($methods as $method_id => [$min, $max]) {
+            $shipping_data[$zone][$method_id] = mji_estimated_delivery($min, $max);
+        }
     }
 
-    // ── Pickup locations ──────────────────────────────────────────────────────
     // Managed via WooCommerce → Pickup Settings in the admin.
     $pickup_settings  = mji_get_pickup_settings();
     $holidays         = $pickup_settings['holidays'];
@@ -1976,7 +1980,7 @@ add_action('wp_footer', function (): void {
         . '</script>';
 });
 
-// ─── Hide price for Montecristo brand products (storefront only — not wp-admin) ──
+// Hide price for Montecristo brand products (storefront only — not wp-admin)
 add_filter('woocommerce_get_price_html', function (string $price, WC_Product $product): string {
     if (is_admin()) {
         return $price;
