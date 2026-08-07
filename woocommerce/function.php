@@ -317,7 +317,7 @@ function contact_us()
     $inquiryType = isset($_POST['inquiry_type']) && $_POST['inquiry_type'] === 'custom_jewellery' ? 'custom_jewellery' : 'contact';
     $product_url = isset($_POST['product_url']) ? esc_url_raw($_POST['product_url']) : '';
     $terms = isset($_POST['terms']) && $_POST['terms'] === '1';
-    $captcha_token = isset($_POST['g-recaptcha-response']) ? sanitize_textarea_field($_POST['g-recaptcha-response']) : '';
+    $captcha_token = isset($_POST['cf-turnstile-response']) ? sanitize_textarea_field($_POST['cf-turnstile-response']) : '';
     $errors = [];
 
     $store_labels = [
@@ -368,7 +368,7 @@ function contact_us()
 
     $result = captcha_verify($captcha_token);
 
-    if ($result['success'] && $result['action'] === 'contact_us' && ($result['score'] ?? 0) >= 0.7) {
+    if ($result['success'] && ($result['action'] ?? '') === 'contact_us') {
         $to = get_option('custom_sender_email', get_option('admin_email'));
 
         $subject = $inquiryType === 'custom_jewellery'
@@ -439,142 +439,6 @@ function contact_us()
 add_action('wp_ajax_contact_us', 'contact_us'); // For logged-in users
 add_action('wp_ajax_nopriv_contact_us', 'contact_us'); // For non-logged-in user
 
-function appointment()
-{
-    // Verify the nonce
-    if (!isset($_POST['appointment_nonce']) || !wp_verify_nonce($_POST['appointment_nonce'], 'appointment_nonce')) {
-        wp_send_json_error(['error' => 'Invalid nonce.']);
-        return;
-    }
-    if (!mji_check_rate_limit('appointment')) {
-        wp_send_json_error(['error' => 'Too many requests. Please try again later.']);
-        return;
-    }
-
-    $firstName = isset($_POST['firstName']) ? sanitize_text_field($_POST['firstName']) : '';
-    $lastName = isset($_POST['lastName']) ? sanitize_text_field($_POST['lastName']) : '';
-    $preferredContact = isset($_POST['preferredContact']) ? sanitize_text_field($_POST['preferredContact']) : '';
-    $email = isset($_POST['email']) ? sanitize_email($_POST['email']) : '';
-    $phone = isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : '';
-    $store = isset($_POST['store']) ? sanitize_text_field($_POST['store']) : '';
-    $date = isset($_POST['date']) ? sanitize_text_field($_POST['date']) : '';
-    $time = isset($_POST['time']) ? sanitize_text_field($_POST['time']) : '';
-    $img = isset($_FILES['img']) ? $_FILES['img'] : '';
-    $attachments = [];
-    $errors = [];
-
-    // Validation checks
-    if (empty($firstName)) {
-        $errors[] = "First name is required.";
-    }
-    if (empty($lastName)) {
-        $errors[] = "Last name is required.";
-    }
-    if ($preferredContact == 'email' && (empty($email) || !is_email($email))) {
-        $errors[] = "A valid email address is required.";
-    }
-    if ($preferredContact === 'phone' && empty($phone)) {
-        $errors[] = "Phone number is required.";
-    }
-    if (empty($store)) {
-        $errors[] = "Store is required.";
-    }
-    if (empty($date)) {
-        $errors[] = "Date is required.";
-    }
-    if (empty($time)) {
-        $errors[] = "Time is required.";
-    }
-    if (!empty($img)) {
-        $max_file_size = 2 * 1024 * 1024; // 2MB   
-        $upload_overrides = [
-            'test_form' => false, // we use this cause we are using custom forms and not the wordpress forms
-            'mimes' => [
-                'jpg|jpeg|jpe' => 'image/jpeg',
-                'png'          => 'image/png',
-                'gif'          => 'image/gif',
-                'webp'         => 'image/webp',
-            ],
-        ];
-
-        foreach ($_FILES['img']['name'] as $key => $value) {
-
-            if ($_FILES['img']['error'][$key] !== UPLOAD_ERR_OK) {
-                continue;
-            }
-
-            $file = [
-                'name'     => sanitize_file_name($_FILES['img']['name'][$key]),
-                'type'     => $_FILES['img']['type'][$key],
-                'tmp_name' => $_FILES['img']['tmp_name'][$key], //tmp_name means temporary parth where the file is stored on the server
-                'error'    => $_FILES['img']['error'][$key],
-                'size'     => $_FILES['img']['size'][$key],
-            ];
-
-            if ($_FILES['img']['size'][$key] > $max_file_size) {
-                $errors[] = "File {$file['name']} exceeds 2MB limit.";
-                continue;
-            }
-
-            $movefile = wp_handle_upload($file, $upload_overrides);
-
-            if ($movefile && !isset($movefile['error'])) {
-                // returns the full server path - need the server path and not url as we need to delete it later and unlink doesnt delete with url
-                $attachments[] = $movefile['file'];
-            } else {
-                error_log("Upload error: " . $movefile['error']);
-                $errors[] = "File upload error:" . $movefile['error'];
-            }
-        }
-    }
-
-    // If there are errors, send them back
-    if (!empty($errors)) {
-        wp_send_json_error(['errors' => $errors]);
-        return;
-    }
-
-    $to = get_option('admin_email');
-    $subject = 'Appointment Form Submission';
-    $message_admin  = "Customer reached out to book an appointment with us with the following information:\r\n\r\n";
-    $message_admin .= "Name: $firstName $lastName\r\n";
-    $message_admin .= "Preferred Contact: $preferredContact\r\n";
-    $message_admin .= "Email: $email\r\n";
-    $message_admin .= "Phone: $phone\r\n";
-    $message_admin .= "Store: $store\r\n";
-    $message_admin .= "Date: $date\r\n";
-    $message_admin .= "Time: $time\r\n";
-    $headers = array('Content-Type: text/html; charset=UTF-8');
-    $mail_sent = wp_mail($to, $subject, $message_admin, $headers, $attachments);
-
-    if ($mail_sent) {
-        if (!empty($email)) {
-            $to = $email;
-            $subject = 'Appointment Form Submission';
-            $message_customer  = "Dear $firstName $lastName,\r\n\r\n";
-            $message_customer .= "Thank you for reaching out to us. One of our agents will get in touch with you via $preferredContact as soon as possible.\r\n\r\n";
-            $message_customer .= "Best regards,\r\n";
-            $message_customer .= "Montecristo Jewellers";
-
-            $mail_sent = wp_mail($to, $subject, $message_customer, $headers);
-        }
-        // Delete the files after sending
-        foreach ($attachments as $attachment) {
-            if (file_exists($attachment)) {
-                unlink($attachment);
-            }
-        }
-        wp_send_json_success(array('message' => 'Email sent successfully.'));
-    } else {
-        // Email failed to send
-        error_log("The user {$email} tried to reach us in rolex but there was a server error.");
-        wp_send_json_error(array('message' => 'Server error while trying to send email, Please try again later.'));
-    }
-}
-
-add_action('wp_ajax_appointment', 'appointment'); // For logged-in users
-add_action('wp_ajax_nopriv_appointment', 'appointment'); // For non-logged-in user
-
 // =============================================
 // APPOINTMENT MODAL
 // =============================================
@@ -600,6 +464,7 @@ function mji_appointment_modal()
     $email           = sanitize_email($_POST['email'] ?? '');
     $phone           = sanitize_text_field($_POST['phone'] ?? '');
     $message         = sanitize_textarea_field($_POST['message'] ?? '');
+    $captcha_token   = isset($_POST['cf-turnstile-response']) ? sanitize_textarea_field($_POST['cf-turnstile-response']) : '';
 
     $errors = [];
 
@@ -611,9 +476,16 @@ function mji_appointment_modal()
     if (empty($time))       $errors[] = 'Preferred time is required.';
     if (!is_email($email))  $errors[] = 'A valid email address is required.';
     if (empty($phone))      $errors[] = 'Phone number is required.';
+    if (empty($captcha_token)) $errors[] = 'captcha_token is required.';
 
     if (!empty($errors)) {
         wp_send_json_error(['errors' => $errors]);
+    }
+
+    $result = captcha_verify($captcha_token);
+
+    if (!$result['success'] || ($result['action'] ?? '') !== 'appointment_modal') {
+        wp_send_json_error(['message' => 'Verification failed. Please try again.']);
     }
 
     $type_label  = $appointmentType === 'in-store' ? 'In-Store' : 'Virtual';
@@ -691,7 +563,7 @@ function customize_contact_us()
     $material = isset($_POST['material']) ? sanitize_text_field($_POST['material']) : '';
     $gemstone = isset($_POST['gemstone']) ? sanitize_text_field($_POST['gemstone']) : '';
     $title = isset($_POST['title']) ? sanitize_text_field($_POST['title']) : '';
-    $captcha_token = isset($_POST['g-recaptcha-response']) ? sanitize_textarea_field($_POST['g-recaptcha-response']) : '';
+    $captcha_token = isset($_POST['cf-turnstile-response']) ? sanitize_textarea_field($_POST['cf-turnstile-response']) : '';
 
     $store_labels = [
         'downtown' => 'Downtown Vancouver — 406 Hornby St, Vancouver, BC V6C 0A6',
@@ -735,12 +607,11 @@ function customize_contact_us()
 
     $result = captcha_verify($captcha_token);
 
-    $score = $result['score'] ?? 0;
-    if ($score < 0.9) {
-        custom_log("reCAPTCHA low score on customize form: {$score} — action: " . ($result['action'] ?? 'unknown'));
+    if (!$result['success']) {
+        custom_log("Turnstile verification failed on customize form: " . implode(',', $result['error-codes'] ?? ['unknown']));
     }
 
-    if ($result['success'] && $result['action'] === 'customize_contact_us' && $score >= 0.7) {
+    if ($result['success'] && ($result['action'] ?? '') === 'customize_contact_us') {
 
         $to = get_option('custom_sender_email', get_option('admin_email'));
         $subject = 'Customize Jewellery Form Submission';

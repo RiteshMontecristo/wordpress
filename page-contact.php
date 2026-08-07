@@ -170,7 +170,7 @@ get_header(); ?>
 								</div>
 								<button id="send-message" type="submit" class="btn submit-button">Send Message</button>
 							</div>
-							<p class="recaptcha-disclosure">This site is protected by reCAPTCHA and the Google <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> apply.</p>
+							<p class="turnstile-disclosure">This site is protected by Cloudflare Turnstile and the Cloudflare <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="https://www.cloudflare.com/website-terms/" target="_blank" rel="noopener noreferrer">Terms of Service</a> apply.</p>
 
 							<ul id="serverError" class="server-error">
 							</ul>
@@ -182,104 +182,6 @@ get_header(); ?>
 							<p>Thank you for reaching out to Montecristo Jewellers. We've received your message and one of our team members will be in touch with you shortly through your preferred contact method.</p>
 						</div>
 					</div>
-
-					<!-- Appointment Form -->
-					<!-- <div class="appointment-container">
-						<div class="appointment-description">
-							<h2>Schedule an Appointment</h2>
-							<p>
-								We invite you to experience the elegance of Montecristo firsthand. Whether you're interested in exploring our stunning jewellery collections or discussing bespoke designs, our team is ready to assist you.
-							</p>
-							<p>
-								Please fill out the appointment form, and we will get back to you promptly to confirm your visit. We look forward to welcoming you and providing you with personalized service every step of the way.
-							</p>
-						</div>
-
-						<form id="appointmentForm" action="" class="appointment-form">
-							<input type="hidden" name="appointment_nonce" id="appointment_nonce" value="<?php echo wp_create_nonce('appointment_nonce') ?>" />
-
-							<div class="first-name">
-								<label for="first-name">First Name:</label>
-								<input type="text" id="first-name" name="first-name" required placeholder="Your First Name">
-								<span class="error hidden" id="firstNameError">First name is required</span>
-							</div>
-
-							<div class="last-name">
-								<label for="last-name">Last Name:</label>
-								<input type="text" id="last-name" name="last-name" required placeholder="Your Last Name">
-								<span class="error hidden" id="lastNameError">Last name is required</span>
-							</div>
-
-							<div class="store">
-								<label for="store">Appointment Store:</label>
-								<select id="store" name="store" required>
-									<option value="" selected disabled>Select store</option>
-									<option value="vancouver">Downtown Vancouver</option>
-									<option value="richmond">Richmond Centre</option>
-									<option value="metrowtown">Metropolis at Metrotown</option>
-								</select>
-								<span class="error hidden" id="storeError">Store is required</span>
-							</div>
-
-							<div class="date">
-								<label for="date">Appointment Date:</label>
-								<input min="<?php echo date("Y-m-d", strtotime('+1 day')); ?>" type="date" id="date" name="date" required>
-								<span class="error hidden" id="dateError">Date is required</span>
-							</div>
-
-							<div class="time">
-								<label for="time">Appointment Time:</label>
-								<select id="time" name="time" required>
-									<option value="" selected disabled>Select One</option>
-									<option value="" disabled>Select store and date first</option>
-								</select>
-								<span class="error hidden" id="timeError">Time is required</span>
-							</div>
-
-							<div class="preferred-contact">
-								<label for="preferred-contact">Preferred Contact Method:</label>
-								<select id="preferred-contact" name="preferred-contact" required>
-									<option value="" selected disabled>Select One</option>
-									<option value="email">Email</option>
-									<option value="phone">Phone</option>
-								</select>
-							</div>
-
-							<div class="email-address">
-								<label for="email">Email Address:</label>
-								<input type="email" id="email" name="email" placeholder="you@example.com">
-								<span class="error hidden" id="emailError">Email is required</span>
-							</div>
-
-							<div class="phone-number">
-								<label for="phone">Phone Number:</label>
-								<input maxlength="10" type="tel" id="phone" name="phone" placeholder="Your Phone Number">
-								<span class="error hidden" id="phoneError">Phone number is required and must be 10 characters</span>
-							</div>
-
-							<div class="file">
-								<label for="imageFile">Upload Image</label>
-								<div class="drop-area">
-									<span>Drag & drop a file here, or click to select a file</span>
-								</div>
-								<input multiple style="display: none;" type="file" id="imageFile" name="imageFile" accept=".webp, .png, .jpeg, .jpg">
-								<ul class="img-list">
-								</ul>
-							</div>
-
-							<ul id="serverError" class="server-error">
-							</ul>
-							<button id="send-message" type="submit" class="submit-button">Book Appointment</button>
-							<p class="recaptcha-disclosure">This site is protected by reCAPTCHA and the Google <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> apply.</p>
-						</form>
-
-						<div id="appointmentSuccess" class="appointment-success">
-							<h3>Appointment Request Received</h3>
-							<p>Thank you for requesting an appointment at Montecristo Jewellers. We've received your request and one of our team members will confirm your appointment details with you shortly.</p>
-						</div>
-
-						</form>
-					</div> -->
 
 				</div>
 			</section>

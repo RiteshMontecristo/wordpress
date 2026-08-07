@@ -1,3 +1,9 @@
+const V = window.ajax_object_another?.asset_version ?? "";
+const qs = V ? `?v=${V}` : "";
+const { loadTurnstile, getTurnstileToken } = await import(
+  `./contact.js${qs}`
+);
+
 const overlay = document.getElementById("appointment-modal-overlay");
 if (!overlay) throw new Error("appointment-modal: overlay not found");
 
@@ -9,6 +15,7 @@ const closeBtn    = overlay.querySelector(".appt-modal-close");
 const storeSection = document.getElementById("appt-store-selection");
 
 function openModal() {
+  loadTurnstile();
   overlay.removeAttribute("hidden");
   document.body.style.overflow = "hidden";
 }
@@ -91,23 +98,26 @@ form?.addEventListener("submit", async (e) => {
 
   if (submitBtn) submitBtn.disabled = true;
 
-  const body = new URLSearchParams({
-    action:          "mji_appointment_modal",
-    nonce:           overlay.querySelector("#appt-modal-nonce")?.value ?? "",
-    firstName:       firstName?.value.trim() ?? "",
-    lastName:        lastName?.value.trim() ?? "",
-    appointmentType: appointmentType?.value ?? "",
-    store:           store?.value ?? "",
-    date:            date?.value ?? "",
-    time:            time?.value ?? "",
-    email:           email?.value.trim() ?? "",
-    phone:           phone?.value.trim() ?? "",
-    message:         overlay.querySelector("#appt-message")?.value.trim() ?? "",
-  });
-
   const ajaxUrl = ajax_object_another?.ajax_url;
 
   try {
+    const token = await getTurnstileToken(form, "appointment_modal");
+
+    const body = new URLSearchParams({
+      action:               "mji_appointment_modal",
+      nonce:                overlay.querySelector("#appt-modal-nonce")?.value ?? "",
+      "cf-turnstile-response": token,
+      firstName:             firstName?.value.trim() ?? "",
+      lastName:              lastName?.value.trim() ?? "",
+      appointmentType:       appointmentType?.value ?? "",
+      store:                 store?.value ?? "",
+      date:                  date?.value ?? "",
+      time:                  time?.value ?? "",
+      email:                 email?.value.trim() ?? "",
+      phone:                 phone?.value.trim() ?? "",
+      message:               overlay.querySelector("#appt-message")?.value.trim() ?? "",
+    });
+
     const res  = await fetch(ajaxUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
     const json = await res.json();
 

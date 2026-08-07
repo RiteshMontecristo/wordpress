@@ -133,7 +133,7 @@
 					<button id="appt-submit" type="submit" class="btn submit-button">Book Appointment</button>
 				</div>
 
-				<p class="recaptcha-disclosure">This site is protected by reCAPTCHA and the Google <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> apply.</p>
+				<p class="turnstile-disclosure">This site is protected by Cloudflare Turnstile and the Cloudflare <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="https://www.cloudflare.com/website-terms/" target="_blank" rel="noopener noreferrer">Terms of Service</a> apply.</p>
 
 				<ul id="apptServerError" class="server-error"></ul>
 

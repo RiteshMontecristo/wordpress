@@ -73,22 +73,22 @@ function mji_check_rate_limit(string $action, int $limit = 10): bool
 function captcha_verify($captcha_token)
 {
 
-    if (!defined('MJI_RECAPTCHA_SECRET')) {
-        error_log('MJI: MJI_RECAPTCHA_SECRET is not configured in wp-config.php. reCAPTCHA skipped.');
-        return ['success' => false, 'score' => 0];
+    if (!defined('MJI_TURNSTILE_SECRET')) {
+        error_log('MJI: MJI_TURNSTILE_SECRET is not configured in wp-config.php. Turnstile skipped.');
+        return ['success' => false];
     }
 
-    $response = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
+    $response = wp_remote_post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
         'body' => [
-            'secret'   => MJI_RECAPTCHA_SECRET,
+            'secret'   => MJI_TURNSTILE_SECRET,
             'response' => $captcha_token,
             'remoteip' => WC_Geolocation::get_ip_address(),
         ]
     ]);
-    
+
     if (is_wp_error($response)) {
-        error_log('MJI: reCAPTCHA request failed: ' . $response->get_error_message());
-        return ['success' => false, 'score' => 0];
+        error_log('MJI: Turnstile request failed: ' . $response->get_error_message());
+        return ['success' => false];
     }
 
     return json_decode(wp_remote_retrieve_body($response), true);

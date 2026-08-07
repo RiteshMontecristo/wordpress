@@ -453,13 +453,13 @@ function add_span_to_primary_menu_items($items, $args)
 }
 add_filter('wp_nav_menu_objects', 'add_span_to_primary_menu_items', 10, 2);
 
-// Only eager-load reCAPTCHA where a protected form is immediately visible
+// Only eager-load Turnstile where a protected form is immediately visible
 // (contact page, customize-your-jewellery page). Everywhere else only the
-// hidden site-wide contact modal exists (footer.php), so reCAPTCHA is
+// hidden site-wide contact modal exists (footer.php), so Turnstile is
 // lazy-loaded there instead when the modal is actually opene
-function conditional_recaptcha_script()
+function conditional_turnstile_script()
 {
     if (!is_page(['contact', 'customize-your-jewellery'])) return;
-    echo '<script src="https://www.google.com/recaptcha/api.js?render=6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA"></script>';
+    echo '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>';
 }
-add_action('wp_footer', 'conditional_recaptcha_script');
+add_action('wp_footer', 'conditional_turnstile_script');

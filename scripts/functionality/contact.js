@@ -4,19 +4,65 @@ const { default: isValidEmail, isValidPostalCode } = await import(
   `../utils/index.js${qs}`
 );
 
-const RECAPTCHA_SITE_KEY = "6LdYiK0sAAAAAMkeKv_yJ9YDzca3i8kP04gmcojA";
+const TURNSTILE_SITE_KEY = "0x4AAAAAAEJWdpgjnaLrGNj7";
 
-// Lazy-loads the reCAPTCHA script for pages where it isn't already eager-loaded
+// Lazy-loads the Turnstile script for pages where it isn't already eager-loaded
 // server-side (the site-wide contact modal, as opposed to the dedicated
-// contact/customize pages) - see conditional_recaptcha_script() in functions.php.
-let recaptchaRequested = false;
-function loadRecaptcha() {
-  if (recaptchaRequested || window.grecaptcha) return;
-  recaptchaRequested = true;
+// contact/customize pages) - see conditional_turnstile_script() in functions.php.
+let turnstileRequested = false;
+function loadTurnstile() {
+  if (turnstileRequested || window.turnstile) return;
+  turnstileRequested = true;
   const script = document.createElement("script");
-  script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
+  script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
   document.head.appendChild(script);
 }
+
+// Mirrors grecaptcha.ready() - waits for the (possibly still-loading) script
+// instead of failing immediately if the user submits before it's ready.
+function waitForTurnstile() {
+  return new Promise((resolve, reject) => {
+    if (window.turnstile) return resolve();
+    let attempts = 0;
+    const interval = setInterval(() => {
+      if (window.turnstile) {
+        clearInterval(interval);
+        resolve();
+      } else if (++attempts > 100) {
+        clearInterval(interval);
+        reject(new Error("Turnstile failed to load."));
+      }
+    }, 100);
+  });
+}
+
+// Renders an invisible Turnstile widget inside `form` and resolves with a
+// fresh token. `action` is echoed back by Cloudflare's siteverify response so
+// the server can reject a token replayed against a different form.
+async function getTurnstileToken(form, action) {
+  await waitForTurnstile();
+  return new Promise((resolve, reject) => {
+    let container = form.querySelector(".turnstile-widget");
+    if (container) {
+      turnstile.remove(container);
+    } else {
+      container = document.createElement("div");
+      container.className = "turnstile-widget";
+      form.appendChild(container);
+    }
+    turnstile.render(container, {
+      sitekey: TURNSTILE_SITE_KEY,
+      action,
+      appearance: "interaction-only",
+      callback: resolve,
+      "error-callback": (code) => reject(new Error("Turnstile verification failed: " + code)),
+    });
+  });
+}
+
+// Shared with appointment-modal.js so it doesn't have to duplicate the
+// Turnstile plumbing above.
+export { loadTurnstile, getTurnstileToken };
 
 // CONTACT US PAGE
 const contactUsFormContainer = document.querySelector(
@@ -145,47 +191,43 @@ if (contactUsFormContainer) {
       submitBtn.disabled = true;
       submitBtn.textContent = "Sending…";
 
-      grecaptcha.ready(async () => {
-        const token = await grecaptcha.execute(
-          RECAPTCHA_SITE_KEY,
-          { action: "contact_us" },
-        );
-        const data = new FormData(contactUsForm);
-        data.set("terms", terms.checked ? "1" : "0");
-        data.set("action", "contact_us");
-        data.set("product_url", window.location.href);
-        data.set("g-recaptcha-response", token);
+      getTurnstileToken(contactUsForm, "contact_us")
+        .then((token) => {
+          const data = new FormData(contactUsForm);
+          data.set("terms", terms.checked ? "1" : "0");
+          data.set("action", "contact_us");
+          data.set("product_url", window.location.href);
+          data.set("cf-turnstile-response", token);
 
-        fetch(ajax_object_another.ajax_url, {
-          method: "POST",
-          body: data,
+          return fetch(ajax_object_another.ajax_url, {
+            method: "POST",
+            body: data,
+          }).then((res) => res.json());
         })
-          .then((res) => res.json())
-          .then((res) => {
-            if (res.success) {
-              contactSuccess.style.display = "flex";
-              contactUsForm.style.display = "none";
-            } else {
-              submitBtn.disabled = false;
-              submitBtn.textContent = "Send Message";
-              if (res.data.message) {
-                serverError.innerHTML = `<li>${res.data.message}</li>`;
-              } else {
-                let result = "";
-                res.data.errors.forEach((el) => {
-                  result += `<li>${el}</li>`;
-                });
-                serverError.innerHTML = result;
-                serverError.style.display = "block";
-              }
-            }
-          })
-          .catch((err) => {
+        .then((res) => {
+          if (res.success) {
+            contactSuccess.style.display = "flex";
+            contactUsForm.style.display = "none";
+          } else {
             submitBtn.disabled = false;
             submitBtn.textContent = "Send Message";
-            console.log("err", err);
-          });
-      });
+            if (res.data.message) {
+              serverError.innerHTML = `<li>${res.data.message}</li>`;
+            } else {
+              let result = "";
+              res.data.errors.forEach((el) => {
+                result += `<li>${el}</li>`;
+              });
+              serverError.innerHTML = result;
+              serverError.style.display = "block";
+            }
+          }
+        })
+        .catch((err) => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Send Message";
+          console.log("err", err);
+        });
     }
   });
 }
@@ -274,7 +316,7 @@ if (contactModal) {
   const modalSuccess = contactModal.querySelector("#contactSuccess");
 
   const openModal = (trigger = null) => {
-    loadRecaptcha();
+    loadTurnstile();
     if (headerTitle) {
       headerTitle.textContent = trigger?.dataset?.modalTitle || defaultTitle;
     }
@@ -439,65 +481,60 @@ if (customizeContainer) {
       customizeSubmitBtn.disabled = true;
       customizeSubmitBtn.textContent = "Sending…";
 
-      grecaptcha.ready(async () => {
-        const token = await grecaptcha.execute(
-          RECAPTCHA_SITE_KEY,
-          { action: "customize_contact_us" },
-        );
+      getTurnstileToken(customizeForm, "customize_contact_us")
+        .then((token) => {
+          const checkedStore = customizeContainer.querySelector(
+            "input[name='preferredStore']:checked",
+          );
 
-        const checkedStore = customizeContainer.querySelector(
-          "input[name='preferredStore']:checked",
-        );
+          let data = new FormData();
+          data.append("cf-turnstile-response", token);
+          data.append("title", title.value);
+          data.append("firstName", firstName.value);
+          data.append("lastName", lastName.value);
+          data.append("phone", phone.value);
+          data.append("email", email.value);
+          data.append("preferredContact", preferredContact.value);
+          data.append("preferredStore", checkedStore ? checkedStore.value : "");
+          data.append("montecristoPiece", montecristoPiece.value);
+          data.append("jewelleryPiece", jewelleryPiece.value);
+          data.append("material", material.value);
+          data.append("gemstone", gemstone.value);
+          data.append("inspiration", inspiration.value);
+          data.append("product_url", window.location.href);
+          data.append("action", "customize_contact_us");
+          data.append("customize_nonce", customize_nonce.value);
+          data.append("honeypot", document.querySelector("#website")?.value ?? "");
 
-        let data = new FormData();
-        data.append("g-recaptcha-response", token);
-        data.append("title", title.value);
-        data.append("firstName", firstName.value);
-        data.append("lastName", lastName.value);
-        data.append("phone", phone.value);
-        data.append("email", email.value);
-        data.append("preferredContact", preferredContact.value);
-        data.append("preferredStore", checkedStore ? checkedStore.value : "");
-        data.append("montecristoPiece", montecristoPiece.value);
-        data.append("jewelleryPiece", jewelleryPiece.value);
-        data.append("material", material.value);
-        data.append("gemstone", gemstone.value);
-        data.append("inspiration", inspiration.value);
-        data.append("product_url", window.location.href);
-        data.append("action", "customize_contact_us");
-        data.append("customize_nonce", customize_nonce.value);
-        data.append("honeypot", document.querySelector("#website")?.value ?? "");
-
-        fetch(ajax_object_another.ajax_url, {
-          method: "POST",
-          body: data,
+          return fetch(ajax_object_another.ajax_url, {
+            method: "POST",
+            body: data,
+          }).then((res) => res.json());
         })
-          .then((res) => res.json())
-          .then((res) => {
-            if (res.success) {
-              customizeSuccess.style.display = "flex";
-              customizeForm.style.display = "none";
-              copy.style.display = "none";
-            } else {
-              customizeSubmitBtn.disabled = false;
-              customizeSubmitBtn.textContent = "Send Message";
-              if (res.data.message) {
-                serverError.innerHTML = `<li>${res.data.message}</li>`;
-              } else {
-                let result = "";
-                res.data.errors.forEach((el) => {
-                  result += `<li>${el}</li>`;
-                });
-                serverError.innerHTML = result;
-              }
-            }
-          })
-          .catch((err) => {
+        .then((res) => {
+          if (res.success) {
+            customizeSuccess.style.display = "flex";
+            customizeForm.style.display = "none";
+            copy.style.display = "none";
+          } else {
             customizeSubmitBtn.disabled = false;
             customizeSubmitBtn.textContent = "Send Message";
-            console.log("err", err);
-          });
-      });
+            if (res.data.message) {
+              serverError.innerHTML = `<li>${res.data.message}</li>`;
+            } else {
+              let result = "";
+              res.data.errors.forEach((el) => {
+                result += `<li>${el}</li>`;
+              });
+              serverError.innerHTML = result;
+            }
+          }
+        })
+        .catch((err) => {
+          customizeSubmitBtn.disabled = false;
+          customizeSubmitBtn.textContent = "Send Message";
+          console.log("err", err);
+        });
     }
   });
 }
